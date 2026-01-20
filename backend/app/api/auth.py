@@ -1,0 +1,71 @@
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import JWTError, jwt
+from datetime import datetime, timedelta
+from bson import ObjectId
+import hashlib
+from ..database import get_db
+from ..config import get_settings
+from ..models import UserCreate, UserLogin, Token
+from ..middleware.rate_limit import rate_limit
+
+router = APIRouter()
+security = HTTPBearer()
+settings = get_settings()
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_password(password: str, hashed: str) -> bool:
+    return hash_password(password) == hashed
+
+def create_access_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.jwt_algorithm)
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+    try:
+        payload = jwt.decode(credentials.credentials, settings.secret_key, algorithms=[settings.jwt_algorithm])
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        db = get_db()
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        user["_id"] = str(user["_id"])
+        return user
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+@router.post("/register", response_model=Token, dependencies=[Depends(rate_limit("auth"))])
+async def register(user_data: UserCreate):
+    db = get_db()
+    existing = await db.users.find_one({"email": user_data.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    user_doc = {
+        "email": user_data.email,
+        "password_hash": hash_password(user_data.password),
+        "settings": {"alerts_enabled": True, "daily_digest": True},
+        "created_at": datetime.utcnow()
+    }
+    result = await db.users.insert_one(user_doc)
+    token = create_access_token({"sub": str(result.inserted_id)})
+    return {"access_token": token}
+
+@router.post("/login", response_model=Token, dependencies=[Depends(rate_limit("auth"))])
+async def login(user_data: UserLogin):
+    db = get_db()
+    user = await db.users.find_one({"email": user_data.email})
+    if not user or not verify_password(user_data.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    token = create_access_token({"sub": str(user["_id"])})
+    return {"access_token": token}
+
+@router.get("/me")
+async def get_me(current_user: dict = Depends(get_current_user)):
+    return {"id": current_user["_id"], "email": current_user["email"], "settings": current_user.get("settings", {})}

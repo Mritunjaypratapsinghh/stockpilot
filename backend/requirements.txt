@@ -1,0 +1,35 @@
+# FastAPI
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# MongoDB
+motor==3.3.2
+pymongo==4.6.1
+
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Data & Validation
+pydantic==2.5.3
+pydantic-settings==2.1.0
+email-validator==2.1.0
+
+# Stock Data
+yfinance==0.2.36
+pandas==2.1.4
+
+# HTTP & Scraping
+httpx>=0.25.0
+beautifulsoup4==4.12.3
+lxml==5.1.0
+
+# Scheduling
+apscheduler==3.10.4
+
+# Telegram Bot (install separately if needed)
+# python-telegram-bot==20.7
+
+# Utilities
+python-dotenv==1.0.0

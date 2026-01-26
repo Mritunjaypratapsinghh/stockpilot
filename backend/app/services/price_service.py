@@ -143,12 +143,27 @@ async def search_stock(query: str) -> List[Dict]:
     """Search stocks"""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            url = f"{YAHOO_SEARCH_URL}?q={query}&quotesCount=5"
+            url = f"{YAHOO_SEARCH_URL}?q={query}&quotesCount=10"
             resp = await _rate_limited_get(client, url)
             if resp.status_code == 200:
                 data = resp.json()
-                return [{"symbol": q["symbol"].replace(".NS", ""), "name": q.get("shortname", q["symbol"]), "exchange": "NSE"} 
-                        for q in data.get("quotes", []) if ".NS" in q.get("symbol", "")]
+                results = []
+                for q in data.get("quotes", []):
+                    symbol = q.get("symbol", "")
+                    # Support both NSE (.NS) and BSE (.BO)
+                    if ".NS" in symbol:
+                        results.append({
+                            "symbol": symbol.replace(".NS", ""),
+                            "name": q.get("shortname", symbol),
+                            "exchange": "NSE"
+                        })
+                    elif ".BO" in symbol:
+                        results.append({
+                            "symbol": symbol.replace(".BO", ""),
+                            "name": q.get("shortname", symbol),
+                            "exchange": "BSE"
+                        })
+                return results
     except Exception as e:
         logger.error(f"Error searching {query}: {e}")
     return []

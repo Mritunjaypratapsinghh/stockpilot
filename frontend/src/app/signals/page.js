@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Zap, TrendingUp, TrendingDown, RefreshCw, Target } from 'lucide-react';
+import { Zap, TrendingUp, TrendingDown, RefreshCw, Target, ChevronDown, ChevronUp, Newspaper } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
 
@@ -8,9 +8,12 @@ export default function SignalsPage() {
   const [recommendations, setRecommendations] = useState([]);
   const [ipos, setIpos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState({});
 
   const loadSignals = async () => { setLoading(true); try { const data = await api('/api/research/advisor/run', { method: 'POST' }); setRecommendations(data.portfolio || []); setIpos(data.ipos || []); } catch (e) {} setLoading(false); };
   useEffect(() => { loadSignals(); }, []);
+
+  const toggleExpand = (i) => setExpanded(prev => ({ ...prev, [i]: !prev[i] }));
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
@@ -33,24 +36,74 @@ export default function SignalsPage() {
               {recommendations.length === 0 ? (
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-12 text-center"><Target className="w-12 h-12 mx-auto mb-4 text-[var(--text-muted)]" /><div className="text-[var(--text-muted)]">No actionable signals</div></div>
               ) : (
-                <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead><tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-xs uppercase"><th className="text-left px-5 py-3 font-medium">Stock</th><th className="text-left px-5 py-3 font-medium">Action</th><th className="text-right px-5 py-3 font-medium">Price</th><th className="text-right px-5 py-3 font-medium">P&L</th><th className="text-left px-5 py-3 font-medium">Reason</th></tr></thead>
-                    <tbody>
-                      {recommendations.map((r, i) => {
-                        const isBuy = r.action?.includes('BUY'), isSell = r.action?.includes('SELL') || r.action === 'EXIT';
-                        return (
-                          <tr key={i} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-hover)]">
-                            <td className="px-5 py-4"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isBuy ? 'bg-[#10b981]/10' : isSell ? 'bg-[#ef4444]/10' : 'bg-[var(--border)]'}`}>{isBuy ? <TrendingUp className="w-5 h-5 text-[#10b981]" /> : isSell ? <TrendingDown className="w-5 h-5 text-[#ef4444]" /> : <Target className="w-5 h-5 text-[var(--text-muted)]" />}</div><div><div className="font-medium">{r.symbol}</div><div className="text-sm text-[var(--text-muted)]">Avg: ₹{r.avg_price?.toFixed(0)}</div></div></div></td>
-                            <td className="px-5 py-4"><span className={`inline-block px-2 py-1 rounded text-sm font-medium ${isBuy ? 'bg-[#10b981]/10 text-[#10b981]' : isSell ? 'bg-[#ef4444]/10 text-[#ef4444]' : 'bg-[var(--border)] text-[var(--text-muted)]'}`}>{r.action}</span></td>
-                            <td className="px-5 py-4 text-right tabular font-medium">₹{r.current_price?.toFixed(2)}</td>
-                            <td className="px-5 py-4 text-right"><span className={`tabular font-medium ${r.pnl_pct >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>{r.pnl_pct >= 0 ? '+' : ''}{r.pnl_pct?.toFixed(1)}%</span></td>
-                            <td className="px-5 py-4 text-[var(--text-secondary)] text-sm max-w-xs truncate">{r.reasons?.[0]}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                <div className="space-y-3">
+                  {recommendations.map((r, i) => {
+                    const isBuy = r.action?.includes('BUY'), isSell = r.action?.includes('SELL') || r.action === 'EXIT';
+                    const isExpanded = expanded[i];
+                    return (
+                      <div key={i} className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg overflow-hidden">
+                        <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-[var(--bg-hover)]" onClick={() => toggleExpand(i)}>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isBuy ? 'bg-[#10b981]/10' : isSell ? 'bg-[#ef4444]/10' : 'bg-[var(--border)]'}`}>{isBuy ? <TrendingUp className="w-5 h-5 text-[#10b981]" /> : isSell ? <TrendingDown className="w-5 h-5 text-[#ef4444]" /> : <Target className="w-5 h-5 text-[var(--text-muted)]" />}</div>
+                            <div>
+                              <div className="font-medium">{r.symbol}</div>
+                              <div className="text-sm text-[var(--text-muted)]">₹{r.current_price?.toFixed(2)} • <span className={r.pnl_pct >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}>{r.pnl_pct >= 0 ? '+' : ''}{r.pnl_pct?.toFixed(1)}%</span></div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className={`px-3 py-1 rounded text-sm font-medium ${isBuy ? 'bg-[#10b981]/10 text-[#10b981]' : isSell ? 'bg-[#ef4444]/10 text-[#ef4444]' : 'bg-[var(--border)] text-[var(--text-muted)]'}`}>{r.action}</span>
+                            {isExpanded ? <ChevronUp className="w-5 h-5 text-[var(--text-muted)]" /> : <ChevronDown className="w-5 h-5 text-[var(--text-muted)]" />}
+                          </div>
+                        </div>
+                        
+                        {isExpanded && (
+                          <div className="px-4 pb-4 border-t border-[var(--border)] pt-4">
+                            <div className="grid grid-cols-3 gap-4 mb-4 text-sm">
+                              <div><span className="text-[var(--text-muted)]">Avg Price:</span> <span className="font-medium">₹{r.avg_price?.toFixed(2)}</span></div>
+                              <div><span className="text-[var(--text-muted)]">RSI:</span> <span className="font-medium">{r.rsi}</span></div>
+                              {r.target && <div><span className="text-[var(--text-muted)]">Target:</span> <span className="font-medium text-[#10b981]">₹{r.target}</span></div>}
+                              {r.stop_loss && <div><span className="text-[var(--text-muted)]">Stop Loss:</span> <span className="font-medium text-[#ef4444]">₹{r.stop_loss}</span></div>}
+                            </div>
+                            
+                            <div className="mb-3">
+                              <div className="text-sm font-medium mb-2">Why this recommendation?</div>
+                              <ul className="space-y-1">
+                                {r.reasons?.map((reason, j) => (
+                                  <li key={j} className="text-sm text-[var(--text-secondary)] flex items-start gap-2">
+                                    <span className="text-[#6366f1] mt-1">•</span> {reason}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            
+                            {r.detailed_reasons?.length > 0 && (
+                              <div className="bg-[var(--bg-primary)] rounded-lg p-3 mt-3">
+                                <div className="text-sm font-medium mb-2 flex items-center gap-2">
+                                  <Zap className="w-4 h-4 text-[#6366f1]" /> Detailed Analysis
+                                </div>
+                                <div className="space-y-3">
+                                  {r.detailed_reasons.map((detail, j) => (
+                                    <p key={j} className="text-sm text-[var(--text-secondary)] leading-relaxed">{detail}</p>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {r.news?.length > 0 && (
+                              <div className="mt-3 pt-3 border-t border-[var(--border)]">
+                                <div className="text-sm font-medium mb-2 flex items-center gap-2">
+                                  <Newspaper className="w-4 h-4 text-[#eab308]" /> Related News
+                                </div>
+                                {r.news.map((n, j) => (
+                                  <div key={j} className="text-sm text-[var(--text-secondary)]">• {n.title} <span className="text-[var(--text-muted)]">({n.publisher})</span></div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

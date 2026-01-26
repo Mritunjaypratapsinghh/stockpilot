@@ -1,27 +1,64 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Bell, Search, TrendingUp, LogOut, Briefcase, Eye, Calendar, Zap, Sun, Moon, Settings, Target, Receipt, BarChart3, Filter, RefreshCw, Scissors, ArrowRightLeft } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { LayoutDashboard, Bell, Search, TrendingUp, LogOut, Briefcase, Eye, Calendar, Zap, Sun, Moon, Settings, Target, Receipt, BarChart3, Filter, RefreshCw, Scissors, ArrowRightLeft, ChevronDown } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 
-const navItems = [
+const mainNav = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/portfolio', label: 'Portfolio', icon: Briefcase },
+  { href: '/market', label: 'Market', icon: TrendingUp },
+];
+
+const toolsMenu = [
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/goals', label: 'Goals', icon: Target },
-  { href: '/tax', label: 'Tax', icon: Receipt },
-  { href: '/sip', label: 'SIP', icon: RefreshCw },
   { href: '/screener', label: 'Screener', icon: Filter },
   { href: '/compare', label: 'Compare', icon: ArrowRightLeft },
   { href: '/signals', label: 'Signals', icon: Zap },
-  { href: '/watchlist', label: 'Watchlist', icon: Eye },
-  { href: '/corporate-actions', label: 'Actions', icon: Scissors },
-  { href: '/market', label: 'Market', icon: TrendingUp },
-  { href: '/ipo', label: 'IPO', icon: Calendar },
   { href: '/research', label: 'Research', icon: Search },
-  { href: '/alerts', label: 'Alerts', icon: Bell },
-  { href: '/settings', label: 'Settings', icon: Settings },
 ];
+
+const planningMenu = [
+  { href: '/goals', label: 'Goals', icon: Target },
+  { href: '/tax', label: 'Tax Center', icon: Receipt },
+  { href: '/sip', label: 'SIP Tracker', icon: RefreshCw },
+];
+
+const trackingMenu = [
+  { href: '/watchlist', label: 'Watchlist', icon: Eye },
+  { href: '/alerts', label: 'Alerts', icon: Bell },
+  { href: '/corporate-actions', label: 'Corp Actions', icon: Scissors },
+  { href: '/ipo', label: 'IPO', icon: Calendar },
+];
+
+function Dropdown({ label, items, pathname }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const isActive = items.some(i => pathname === i.href);
+
+  useEffect(() => {
+    const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(!open)} className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-[#6366f1] text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}>
+        {label}<ChevronDown className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 py-1 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg shadow-lg min-w-[160px] z-50">
+          {items.map(item => (
+            <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className={`flex items-center gap-2 px-3 py-2 text-sm ${pathname === item.href ? 'bg-[var(--bg-tertiary)] text-[#6366f1]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'}`}>
+              <item.icon className="w-4 h-4" />{item.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -56,24 +93,21 @@ export default function Navbar() {
         <div className="w-px h-5 bg-[var(--border-light)] ml-6 shrink-0"></div>
 
         {/* Nav Items */}
-        <div className="flex items-center ml-6 overflow-x-auto">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-1.5 px-3 py-1.5 mr-1 rounded-md text-sm font-medium transition-colors shrink-0 whitespace-nowrap ${
-                isActive 
-                  ? 'bg-[#6366f1] text-white' 
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
-              }`}
-            >
-              <item.icon className="w-4 h-4" />
-              {item.label}
-            </Link>
-          );
-        })}
+        <div className="flex items-center ml-6 gap-1">
+          {mainNav.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link key={item.href} href={item.href} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-[#6366f1] text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}>
+                <item.icon className="w-4 h-4" />{item.label}
+              </Link>
+            );
+          })}
+          <Dropdown label="Tools" items={toolsMenu} pathname={pathname} />
+          <Dropdown label="Planning" items={planningMenu} pathname={pathname} />
+          <Dropdown label="Tracking" items={trackingMenu} pathname={pathname} />
+          <Link href="/settings" className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${pathname === '/settings' ? 'bg-[#6366f1] text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}>
+            <Settings className="w-4 h-4" />Settings
+          </Link>
         </div>
 
         {/* Spacer */}

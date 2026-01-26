@@ -1,12 +1,15 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Bell, Search, TrendingUp, LogOut, Briefcase, Eye, Calendar, Zap, Sun, Moon, Settings } from 'lucide-react';
+import { LayoutDashboard, Bell, Search, TrendingUp, LogOut, Briefcase, Eye, Calendar, Zap, Sun, Moon, Settings, Target, Receipt, BarChart3 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/portfolio', label: 'Portfolio', icon: Briefcase },
+  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/goals', label: 'Goals', icon: Target },
+  { href: '/tax', label: 'Tax', icon: Receipt },
   { href: '/signals', label: 'Signals', icon: Zap },
   { href: '/watchlist', label: 'Watchlist', icon: Eye },
   { href: '/market', label: 'Market', icon: TrendingUp },

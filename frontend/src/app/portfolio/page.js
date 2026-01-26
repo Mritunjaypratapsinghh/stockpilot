@@ -21,9 +21,10 @@ export default function PortfolioPage() {
   const [importing, setImporting] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState({ symbol: '', name: '', quantity: '', avg_price: '', holding_type: 'EQUITY' });
-  const [txnForm, setTxnForm] = useState({ symbol: '', type: 'BUY', quantity: '', price: '', date: new Date().toISOString().split('T')[0] });
+  const [txnForm, setTxnForm] = useState({ symbol: '', type: 'BUY', quantity: '', price: '', date: new Date().toISOString().split('T')[0], amount: '', inputMode: 'qty', holding_type: 'EQUITY' });
   const [divForm, setDivForm] = useState({ symbol: '', amount: '', ex_date: new Date().toISOString().split('T')[0] });
   const [activeTab, setActiveTab] = useState('holdings');
+  const [holdingFilter, setHoldingFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [symbolSearch, setSymbolSearch] = useState('');
   const [symbolResults, setSymbolResults] = useState([]);
@@ -85,9 +86,15 @@ export default function PortfolioPage() {
   const handleTxnSubmit = async (e) => {
     e.preventDefault();
     try {
-      await addTransaction({ ...txnForm, quantity: parseFloat(txnForm.quantity), price: parseFloat(txnForm.price) });
+      const payload = { symbol: txnForm.symbol, type: txnForm.type, price: parseFloat(txnForm.price), date: txnForm.date, holding_type: txnForm.holding_type };
+      if (txnForm.inputMode === 'amt') {
+        payload.amount = parseFloat(txnForm.amount);
+      } else {
+        payload.quantity = parseFloat(txnForm.quantity);
+      }
+      await addTransaction(payload);
       setShowTxn(false);
-      setTxnForm({ symbol: '', type: 'BUY', quantity: '', price: '', date: new Date().toISOString().split('T')[0] });
+      setTxnForm({ symbol: '', type: 'BUY', quantity: '', price: '', date: new Date().toISOString().split('T')[0], amount: '', inputMode: 'qty', holding_type: 'EQUITY' });
       setSymbolSearch('');
       loadData();
     } catch (err) { alert(err.message); }
@@ -121,7 +128,38 @@ export default function PortfolioPage() {
   const handleDeleteDiv = async (id) => { if (confirm('Delete?')) { await deleteDividend(id); loadData(); } };
   const handleExport = async (type) => { try { await downloadExport(type); } catch { alert('Export failed'); } };
   const fmt = (n) => n?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0';
-  const filteredHoldings = holdings.filter(h => h.symbol.toLowerCase().includes(search.toLowerCase()) || h.name?.toLowerCase().includes(search.toLowerCase()));
+  
+  // Filter holdings and calculate dynamic summary
+  const getFilteredHoldings = () => {
+    return holdings.filter(h => {
+      if (holdingFilter === 'stocks') return h.holding_type !== 'MF';
+      if (holdingFilter === 'mf') return h.holding_type === 'MF';
+      return true;
+    });
+  };
+  
+  const filteredHoldingsBase = getFilteredHoldings();
+  const filteredHoldings = filteredHoldingsBase.filter(h => h.symbol.toLowerCase().includes(search.toLowerCase()) || h.name?.toLowerCase().includes(search.toLowerCase()));
+  
+  const dynamicSummary = (() => {
+    const fh = filteredHoldingsBase;
+    const invested = fh.reduce((sum, h) => sum + h.quantity * h.avg_price, 0);
+    const current = fh.reduce((sum, h) => sum + h.quantity * (h.current_price || h.avg_price), 0);
+    const pnl = current - invested;
+    const pnl_pct = invested > 0 ? (pnl / invested * 100) : 0;
+    return { invested, current, pnl, pnl_pct };
+  })();
+  
+  const dynamicSectors = (() => {
+    const fh = filteredHoldingsBase;
+    const total = fh.reduce((sum, h) => sum + h.quantity * (h.current_price || h.avg_price), 0);
+    const bySector = {};
+    fh.forEach(h => {
+      const sector = h.sector || 'Others';
+      bySector[sector] = (bySector[sector] || 0) + h.quantity * (h.current_price || h.avg_price);
+    });
+    return Object.entries(bySector).map(([sector, value]) => ({ sector, percentage: total > 0 ? Math.round(value / total * 1000) / 10 : 0 })).sort((a, b) => b.percentage - a.percentage);
+  })();
 
   const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'];
 
@@ -144,20 +182,27 @@ export default function PortfolioPage() {
           </div>
         </div>
 
+        {/* Asset Type Filter */}
+        <div className="flex gap-2 mb-6">
+          {[{k: 'all', l: 'All'}, {k: 'stocks', l: 'Stocks'}, {k: 'mf', l: 'Mutual Funds'}].map(f => (
+            <button key={f.k} onClick={() => setHoldingFilter(f.k)} className={`px-4 py-2 rounded-lg text-sm font-medium ${holdingFilter === f.k ? 'bg-[#6366f1] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-muted)] hover:text-white'}`}>{f.l}</button>
+          ))}
+        </div>
+
         {/* Summary Row */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
             <div className="text-sm text-[var(--text-muted)] mb-1">Invested</div>
-            <div className="text-xl font-semibold tabular">₹{fmt(summary.invested)}</div>
+            <div className="text-xl font-semibold tabular">₹{fmt(dynamicSummary.invested)}</div>
           </div>
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
             <div className="text-sm text-[var(--text-muted)] mb-1">Current Value</div>
-            <div className="text-xl font-semibold tabular">₹{fmt(summary.current)}</div>
+            <div className="text-xl font-semibold tabular">₹{fmt(dynamicSummary.current)}</div>
           </div>
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
             <div className="text-sm text-[var(--text-muted)] mb-1">Total P&L</div>
-            <div className={`text-xl font-semibold tabular ${summary.pnl >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
-              {summary.pnl >= 0 ? '+' : ''}₹{fmt(summary.pnl)} ({summary.pnl_pct?.toFixed(2) || 0}%)
+            <div className={`text-xl font-semibold tabular ${dynamicSummary.pnl >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
+              {dynamicSummary.pnl >= 0 ? '+' : ''}₹{fmt(dynamicSummary.pnl)} ({dynamicSummary.pnl_pct?.toFixed(2) || 0}%)
             </div>
           </div>
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
@@ -174,19 +219,19 @@ export default function PortfolioPage() {
         </div>
 
         {/* Sector Allocation */}
-        {sectors.length > 0 && (
+        {dynamicSectors.length > 0 && (
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-5 mb-6">
             <div className="flex items-center gap-3 mb-4">
               <PieChart className="w-5 h-5 text-[#6366f1]" />
-              <span className="font-medium">Sector Allocation</span>
+              <span className="font-medium">{holdingFilter === 'mf' ? 'Fund' : holdingFilter === 'stocks' ? 'Stock' : 'Sector'} Allocation</span>
             </div>
             <div className="flex h-4 rounded-full overflow-hidden mb-3">
-              {sectors.map((s, i) => (
+              {dynamicSectors.map((s, i) => (
                 <div key={s.sector} style={{ width: `${s.percentage}%`, backgroundColor: COLORS[i % COLORS.length] }} title={`${s.sector}: ${s.percentage}%`} />
               ))}
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
-              {sectors.map((s, i) => (
+              {dynamicSectors.map((s, i) => (
                 <div key={s.sector} className="flex items-center gap-2 text-sm">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                   <span>{s.sector}</span>
@@ -220,17 +265,17 @@ export default function PortfolioPage() {
             ) : filteredHoldings.length === 0 ? (
               <div className="p-12 text-center">
                 <TrendingUp className="w-12 h-12 mx-auto mb-4 text-[var(--text-muted)]" />
-                <div className="text-[var(--text-muted)]">No holdings yet. Record a trade to get started.</div>
+                <div className="text-[var(--text-muted)]">{holdingFilter === 'all' ? 'No holdings yet. Record a trade to get started.' : `No ${holdingFilter === 'mf' ? 'mutual funds' : 'stocks'} in portfolio.`}</div>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-xs uppercase">
-                      <th className="text-left px-6 py-3 font-medium">Stock</th>
-                      <th className="text-right px-6 py-3 font-medium">Qty</th>
-                      <th className="text-right px-6 py-3 font-medium">Avg</th>
-                      <th className="text-right px-6 py-3 font-medium">LTP</th>
+                      <th className="text-left px-6 py-3 font-medium">{holdingFilter === 'mf' ? 'Fund' : 'Stock'}</th>
+                      <th className="text-right px-6 py-3 font-medium">{holdingFilter === 'mf' ? 'Units' : 'Qty'}</th>
+                      <th className="text-right px-6 py-3 font-medium">{holdingFilter === 'mf' ? 'Avg NAV' : 'Avg'}</th>
+                      <th className="text-right px-6 py-3 font-medium">{holdingFilter === 'mf' ? 'NAV' : 'LTP'}</th>
                       <th className="text-right px-6 py-3 font-medium">P&L</th>
                       <th className="text-right px-6 py-3 font-medium">Actions</th>
                     </tr>
@@ -387,13 +432,21 @@ export default function PortfolioPage() {
                 <button onClick={() => setShowTxn(false)} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--border)]"><X className="w-5 h-5" /></button>
               </div>
               <form onSubmit={handleTxnSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm text-[var(--text-secondary)] mb-2">Asset Type</label>
+                  <div className="flex gap-2">
+                    {[{k: 'EQUITY', l: 'Stock'}, {k: 'MF', l: 'Mutual Fund'}].map(t => (
+                      <button key={t.k} type="button" onClick={() => setTxnForm({...txnForm, holding_type: t.k, inputMode: t.k === 'MF' ? 'amt' : 'qty'})} className={`flex-1 py-2 rounded-lg text-sm font-medium ${txnForm.holding_type === t.k ? 'bg-[#6366f1] text-white' : 'bg-[var(--bg-primary)] border border-[var(--border)] text-[var(--text-secondary)]'}`}>{t.l}</button>
+                    ))}
+                  </div>
+                </div>
                 <div className="relative">
-                  <label className="block text-sm text-[var(--text-secondary)] mb-2">Symbol</label>
+                  <label className="block text-sm text-[var(--text-secondary)] mb-2">{txnForm.holding_type === 'MF' ? 'Fund Name' : 'Symbol'}</label>
                   <input 
                     value={symbolSearch} 
                     onChange={e => handleSymbolInput(e.target.value)} 
                     onFocus={() => symbolResults.length > 0 && setShowSymbolDropdown(true)}
-                    placeholder="Search stock (e.g. Reliance)" 
+                    placeholder={txnForm.holding_type === 'MF' ? 'e.g. AXIS-LIQ' : 'Search stock (e.g. Reliance)'} 
                     className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" 
                     required 
                     autoComplete="off"
@@ -424,14 +477,31 @@ export default function PortfolioPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-[var(--text-secondary)] mb-2">Quantity</label>
-                    <input type="number" step="0.001" value={txnForm.quantity} onChange={e => setTxnForm({...txnForm, quantity: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" required />
+                    <label className="block text-sm text-[var(--text-secondary)] mb-2">Input By</label>
+                    <div className="flex gap-2">
+                      {[{k: 'qty', l: 'Units'}, {k: 'amt', l: 'Amount'}].map(m => (
+                        <button key={m.k} type="button" onClick={() => setTxnForm({...txnForm, inputMode: m.k})} className={`flex-1 py-2 rounded-lg text-sm font-medium ${txnForm.inputMode === m.k ? 'bg-[#6366f1] text-white' : 'bg-[var(--bg-primary)] border border-[var(--border)] text-[var(--text-secondary)]'}`}>{m.l}</button>
+                      ))}
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-sm text-[var(--text-secondary)] mb-2">Price</label>
-                    <input type="number" step="0.01" value={txnForm.price} onChange={e => setTxnForm({...txnForm, price: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" required />
+                    <label className="block text-sm text-[var(--text-secondary)] mb-2">{txnForm.inputMode === 'amt' ? 'Amount (₹)' : 'Quantity'}</label>
+                    {txnForm.inputMode === 'amt' ? (
+                      <input type="number" step="0.01" value={txnForm.amount} onChange={e => setTxnForm({...txnForm, amount: e.target.value})} placeholder="e.g. 10000" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" required />
+                    ) : (
+                      <input type="number" step="0.0001" value={txnForm.quantity} onChange={e => setTxnForm({...txnForm, quantity: e.target.value})} placeholder="e.g. 10.5" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" required />
+                    )}
                   </div>
                 </div>
+                <div>
+                  <label className="block text-sm text-[var(--text-secondary)] mb-2">NAV / Price (₹)</label>
+                  <input type="number" step="0.01" value={txnForm.price} onChange={e => setTxnForm({...txnForm, price: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" required />
+                </div>
+                {txnForm.inputMode === 'amt' && txnForm.amount && txnForm.price && (
+                  <div className="text-sm text-[var(--text-muted)] bg-[var(--bg-primary)] p-3 rounded-lg">
+                    Units: <span className="text-[var(--text-primary)] font-medium">{(parseFloat(txnForm.amount) / parseFloat(txnForm.price)).toFixed(4)}</span>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm text-[var(--text-secondary)] mb-2">Date</label>
                   <input type="date" value={txnForm.date} onChange={e => setTxnForm({...txnForm, date: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" required />

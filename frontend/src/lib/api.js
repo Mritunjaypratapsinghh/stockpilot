@@ -13,6 +13,11 @@ export async function api(endpoint, options = {}) {
   });
 
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+      return;
+    }
     const error = await res.json().catch(() => ({ detail: 'Request failed' }));
     throw new Error(error.detail || 'Request failed');
   }
@@ -45,13 +50,14 @@ export const getSectors = () => api('/api/portfolio/sectors');
 export const getXirr = () => api('/api/portfolio/xirr');
 export const getDashboard = () => api('/api/portfolio/dashboard');
 export const getTransactions = () => api('/api/transactions');
-export const addTransaction = (data) => api('/api/transactions', { method: 'POST', body: JSON.stringify(data) });
+export const addTransaction = (data) => api('/api/transactions/', { method: 'POST', body: JSON.stringify(data) });
 export const importHoldings = (file) => uploadFile('/api/portfolio/import', file);
 export const getAlerts = () => api('/api/alerts');
 export const getWatchlist = () => api('/api/watchlist');
 export const getIndices = () => api('/api/market/indices');
 export const getMarketSummary = () => api('/api/research/market-summary');
-export const getAnalysis = (symbol) => api(`/api/research/analysis/${symbol}`);
+export const getAnalysis = (symbol, exchange = 'NSE') => api(`/api/research/analysis/${symbol}?exchange=${exchange}`);
+export const getEnhancedAnalysis = (symbol, exchange = 'NSE') => api(`/api/research/enhanced/${symbol}?exchange=${exchange}`);
 export const getNews = (symbol) => api(`/api/research/news/${symbol}`);
 export const getNotifications = () => api('/api/notifications');
 export const getDividends = () => api('/api/dividends');

@@ -11,9 +11,11 @@ router = APIRouter()
 class TransactionCreate(BaseModel):
     symbol: str
     type: str  # BUY or SELL
-    quantity: float
+    quantity: Optional[float] = None
     price: float
     date: date
+    amount: Optional[float] = None  # For MF: invest by amount
+    holding_type: str = "EQUITY"  # EQUITY or MF
     notes: Optional[str] = None
 
 @router.get("/")
@@ -29,6 +31,14 @@ async def get_transactions(current_user: dict = Depends(get_current_user)):
 @router.post("/")
 async def add_transaction(txn: TransactionCreate, current_user: dict = Depends(get_current_user)):
     db = get_db()
+    
+    # Calculate quantity from amount if provided (for MF)
+    quantity = txn.quantity
+    if txn.amount and not txn.quantity:
+        quantity = round(txn.amount / txn.price, 4)
+    if not quantity:
+        raise HTTPException(status_code=400, detail="Provide quantity or amount")
+    
     holding = await db.holdings.find_one({"user_id": ObjectId(current_user["_id"]), "symbol": txn.symbol.upper()})
     
     if not holding:
@@ -40,10 +50,10 @@ async def add_transaction(txn: TransactionCreate, current_user: dict = Depends(g
             "symbol": txn.symbol.upper(),
             "name": txn.symbol.upper(),
             "exchange": "NSE",
-            "holding_type": "EQUITY",
-            "quantity": txn.quantity,
+            "holding_type": txn.holding_type,
+            "quantity": quantity,
             "avg_price": txn.price,
-            "transactions": [{"type": txn.type, "quantity": txn.quantity, "price": txn.price, "date": txn.date.isoformat(), "notes": txn.notes}],
+            "transactions": [{"type": txn.type, "quantity": quantity, "price": txn.price, "date": txn.date.isoformat(), "notes": txn.notes}],
             "created_at": datetime.utcnow()
         }
         result = await db.holdings.insert_one(doc)
@@ -54,15 +64,15 @@ async def add_transaction(txn: TransactionCreate, current_user: dict = Depends(g
     old_avg = holding["avg_price"]
     
     if txn.type == "BUY":
-        new_qty = old_qty + txn.quantity
-        new_avg = ((old_qty * old_avg) + (txn.quantity * txn.price)) / new_qty
+        new_qty = old_qty + quantity
+        new_avg = ((old_qty * old_avg) + (quantity * txn.price)) / new_qty
     else:  # SELL
-        if txn.quantity > old_qty:
+        if quantity > old_qty:
             raise HTTPException(status_code=400, detail="Cannot sell more than held")
-        new_qty = old_qty - txn.quantity
+        new_qty = old_qty - quantity
         new_avg = old_avg  # Avg price unchanged on sell
     
-    txn_doc = {"type": txn.type, "quantity": txn.quantity, "price": txn.price, "date": txn.date.isoformat(), "notes": txn.notes}
+    txn_doc = {"type": txn.type, "quantity": quantity, "price": txn.price, "date": txn.date.isoformat(), "notes": txn.notes}
     
     if new_qty == 0:
         await db.holdings.delete_one({"_id": holding["_id"]})

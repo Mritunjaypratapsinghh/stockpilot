@@ -3,6 +3,9 @@ import './globals.css';
 export const metadata = {
   title: 'StockPilot',
   description: 'Portfolio Intelligence Platform',
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({ children }) {

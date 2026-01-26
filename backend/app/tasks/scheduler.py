@@ -5,6 +5,7 @@ from .digest_generator import generate_daily_digest
 from .earnings_checker import check_earnings_alerts
 from .ipo_tracker import scrape_ipo_data, check_ipo_alerts
 from .portfolio_advisor import run_portfolio_advisor
+from .hourly_update import send_hourly_update
 from ..logger import logger
 
 scheduler = AsyncIOScheduler()
@@ -15,6 +16,9 @@ def start_scheduler():
     
     # User-defined price alerts
     scheduler.add_job(check_alerts, 'interval', minutes=1, id='alert_check')
+    
+    # Hourly portfolio update (market hours: 9 AM - 4 PM)
+    scheduler.add_job(send_hourly_update, 'cron', hour='9-16', minute=0, id='hourly_update')
     
     # Smart Portfolio Advisor - twice daily during market hours
     scheduler.add_job(run_portfolio_advisor, 'cron', hour=9, minute=30, id='advisor_morning')

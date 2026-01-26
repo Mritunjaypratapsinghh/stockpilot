@@ -11,6 +11,7 @@ export default function StockPage() {
   const symbol = searchParams.get('s') || '';
   const [data, setData] = useState(null);
   const [analysis, setAnalysis] = useState(null);
+  const [enhanced, setEnhanced] = useState(null);
   const [news, setNews] = useState([]);
   const [range, setRange] = useState('6mo');
   const [loading, setLoading] = useState(true);
@@ -24,13 +25,16 @@ export default function StockPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [chartData, analysisData, newsData] = await Promise.all([
+      const exchange = searchParams.get('exchange') || 'NSE';
+      const [chartData, analysisData, enhancedData, newsData] = await Promise.all([
         api(`/api/research/chart/${symbol}?range=${range}`),
-        api(`/api/research/analysis/${symbol}`),
+        api(`/api/research/analysis/${symbol}?exchange=${exchange}`),
+        api(`/api/research/enhanced/${symbol}?exchange=${exchange}`).catch(() => null),
         api(`/api/research/news/${symbol}`)
       ]);
       setData(chartData);
       setAnalysis(analysisData);
+      setEnhanced(enhancedData);
       setNews(newsData.news || []);
       
       if (chartData.candles?.length > 0) {
@@ -41,7 +45,7 @@ export default function StockPage() {
   };
 
   const renderChart = async (candles) => {
-    if (!chartRef.current) return;
+    if (!chartRef.current || typeof window === 'undefined') return;
     
     const { createChart } = await import('lightweight-charts');
     
@@ -142,6 +146,79 @@ export default function StockPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Technical Indicators */}
           <div className="lg:col-span-2 space-y-4">
+            {/* Enhanced Analysis Card */}
+            {enhanced && (
+              <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold">Enhanced Analysis</h3>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    enhanced.recommendation === 'STRONG_BUY' ? 'bg-[#10b981]/20 text-[#10b981]' :
+                    enhanced.recommendation === 'BUY' ? 'bg-[#10b981]/10 text-[#10b981]' :
+                    enhanced.recommendation === 'HOLD' ? 'bg-[#f59e0b]/10 text-[#f59e0b]' :
+                    'bg-[#ef4444]/10 text-[#ef4444]'
+                  }`}>
+                    {enhanced.recommendation?.replace('_', ' ')}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {enhanced.pe_ratio && (
+                    <div>
+                      <div className="text-sm text-[var(--text-muted)]">P/E Ratio</div>
+                      <div className="text-xl font-bold">{enhanced.pe_ratio}</div>
+                    </div>
+                  )}
+                  {enhanced.roe && (
+                    <div>
+                      <div className="text-sm text-[var(--text-muted)]">ROE</div>
+                      <div className="text-xl font-bold">{enhanced.roe}%</div>
+                    </div>
+                  )}
+                  {enhanced.roce && (
+                    <div>
+                      <div className="text-sm text-[var(--text-muted)]">ROCE</div>
+                      <div className="text-xl font-bold">{enhanced.roce}%</div>
+                    </div>
+                  )}
+                  {enhanced.market_cap && (
+                    <div>
+                      <div className="text-sm text-[var(--text-muted)]">Market Cap</div>
+                      <div className="text-lg font-bold">₹{enhanced.market_cap} Cr</div>
+                    </div>
+                  )}
+                </div>
+                {enhanced.sources?.nse && (
+                  <div className="mt-4 pt-4 border-t border-[var(--border)]">
+                    <div className="text-sm text-[var(--text-muted)] mb-2">NSE Data</div>
+                    <div className="grid grid-cols-3 gap-4">
+                      {enhanced.sources.nse.vwap && (
+                        <div>
+                          <div className="text-xs text-[var(--text-muted)]">VWAP</div>
+                          <div className="font-medium">₹{fmt(enhanced.sources.nse.vwap)}</div>
+                        </div>
+                      )}
+                      {enhanced.sources.nse.delivery_pct && (
+                        <div>
+                          <div className="text-xs text-[var(--text-muted)]">Delivery %</div>
+                          <div className={`font-medium ${enhanced.sources.nse.delivery_pct > 60 ? 'text-[#10b981]' : ''}`}>
+                            {fmt(enhanced.sources.nse.delivery_pct)}%
+                          </div>
+                        </div>
+                      )}
+                      {enhanced.sources.nse.volume && (
+                        <div>
+                          <div className="text-xs text-[var(--text-muted)]">Volume</div>
+                          <div className="font-medium">{(enhanced.sources.nse.volume / 1000).toFixed(0)}K</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <div className="mt-3 text-xs text-[var(--text-muted)]">
+                  Data Quality: {enhanced.data_quality}
+                </div>
+              </div>
+            )}
+
             {analysis && !analysis.error && (
               <>
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-5">

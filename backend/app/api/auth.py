@@ -68,4 +68,21 @@ async def login(user_data: UserLogin):
 
 @router.get("/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
-    return {"id": current_user["_id"], "email": current_user["email"], "settings": current_user.get("settings", {})}
+    return {"id": current_user["_id"], "email": current_user["email"], "settings": current_user.get("settings", {}), "telegram_chat_id": current_user.get("telegram_chat_id", "")}
+
+
+@router.put("/settings")
+async def update_settings(settings_data: dict, current_user: dict = Depends(get_current_user)):
+    db = get_db()
+    update_doc = {}
+    if "telegram_chat_id" in settings_data:
+        update_doc["telegram_chat_id"] = settings_data["telegram_chat_id"]
+    if "email" in settings_data:
+        update_doc["email"] = settings_data["email"]
+    allowed = {"daily_digest", "alerts_enabled", "email_alerts", "hourly_alerts"}
+    for k in allowed:
+        if k in settings_data:
+            update_doc[f"settings.{k}"] = settings_data[k]
+    if update_doc:
+        await db.users.update_one({"_id": ObjectId(current_user["_id"])}, {"$set": update_doc})
+    return {"message": "Settings updated"}

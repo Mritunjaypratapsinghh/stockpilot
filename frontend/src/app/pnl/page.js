@@ -68,7 +68,7 @@ export default function PnLCalendarPage() {
             </div>
           )}
           {dayData?.transactions?.length > 0 && (
-            <div className="text-xs text-[#6366f1] mt-1">{dayData.transactions.length} txn</div>
+            <div className="text-xs text-[var(--accent)] mt-1">{dayData.transactions.length} txn</div>
           )}
         </div>
       );
@@ -89,8 +89,8 @@ export default function PnLCalendarPage() {
             <p className="text-[var(--text-secondary)]">Track your daily and monthly profit & loss</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setView('calendar')} className={`px-4 py-2 rounded-lg text-sm ${view === 'calendar' ? 'bg-[#6366f1] text-white' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}>Calendar</button>
-            <button onClick={() => setView('monthly')} className={`px-4 py-2 rounded-lg text-sm ${view === 'monthly' ? 'bg-[#6366f1] text-white' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}>Monthly</button>
+            <button onClick={() => setView('calendar')} className={`px-4 py-2 rounded-lg text-sm ${view === 'calendar' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}>Calendar</button>
+            <button onClick={() => setView('monthly')} className={`px-4 py-2 rounded-lg text-sm ${view === 'monthly' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}>Monthly</button>
           </div>
         </div>
 

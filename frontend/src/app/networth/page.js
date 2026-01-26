@@ -118,10 +118,10 @@ export default function NetWorthPage() {
           </div>
           <div className="flex items-center gap-3">
             <div className="flex gap-1 bg-[var(--bg-tertiary)] rounded-lg p-1">
-              <button onClick={() => setView('overview')} className={`px-3 py-1.5 rounded text-sm ${view === 'overview' ? 'bg-[#6366f1] text-white' : 'text-[var(--text-secondary)]'}`}>Overview</button>
-              <button onClick={() => setView('monthly')} className={`px-3 py-1.5 rounded text-sm ${view === 'monthly' ? 'bg-[#6366f1] text-white' : 'text-[var(--text-secondary)]'}`}>Monthly</button>
+              <button onClick={() => setView('overview')} className={`px-3 py-1.5 rounded text-sm ${view === 'overview' ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)]'}`}>Overview</button>
+              <button onClick={() => setView('monthly')} className={`px-3 py-1.5 rounded text-sm ${view === 'monthly' ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)]'}`}>Monthly</button>
             </div>
-            <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 px-4 py-2 bg-[#6366f1] text-white rounded-lg">
+            <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg">
               <Plus className="w-4 h-4" />Add Asset
             </button>
           </div>
@@ -130,7 +130,7 @@ export default function NetWorthPage() {
         {view === 'overview' ? (
           <>
         {/* Total Net Worth Card */}
-        <div className="bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] rounded-xl p-6 text-white">
+        <div className="bg-gradient-to-r from-[var(--accent)] to-[#8b5cf6] rounded-xl p-6 text-white">
           <div className="flex items-center gap-3 mb-2">
             <Wallet className="w-8 h-8" />
             <span className="text-lg opacity-90">Total Net Worth</span>
@@ -200,7 +200,7 @@ export default function NetWorthPage() {
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="font-medium text-[var(--text-primary)]">₹{(a.value || 0).toLocaleString('en-IN')}</span>
-                    <button onClick={() => setEditAsset(a)} className="p-1 text-[var(--text-secondary)] hover:text-[#6366f1]">
+                    <button onClick={() => setEditAsset(a)} className="p-1 text-[var(--text-secondary)] hover:text-[var(--accent)]">
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button onClick={() => deleteAsset(a._id)} className="p-1 text-[var(--text-secondary)] hover:text-[#ef4444]">
@@ -339,7 +339,7 @@ export default function NetWorthPage() {
               </div>
               <div className="flex gap-3 mt-6">
                 <button onClick={() => setShowAdd(false)} className="flex-1 px-4 py-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-lg">Cancel</button>
-                <button onClick={addAsset} className="flex-1 px-4 py-2 bg-[#6366f1] text-white rounded-lg">Add Asset</button>
+                <button onClick={addAsset} className="flex-1 px-4 py-2 bg-[var(--accent)] text-white rounded-lg">Add Asset</button>
               </div>
             </div>
           </div>
@@ -368,7 +368,7 @@ export default function NetWorthPage() {
               </div>
               <div className="flex gap-3 mt-6">
                 <button onClick={() => setEditAsset(null)} className="flex-1 px-4 py-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-lg">Cancel</button>
-                <button onClick={updateAsset} className="flex-1 px-4 py-2 bg-[#6366f1] text-white rounded-lg">Save</button>
+                <button onClick={updateAsset} className="flex-1 px-4 py-2 bg-[var(--accent)] text-white rounded-lg">Save</button>
               </div>
             </div>
           </div>
@@ -414,7 +414,7 @@ export default function NetWorthPage() {
               />
               <div className="flex gap-3 mt-4">
                 <button onClick={() => { setShowImport(false); setImportText(''); }} className="flex-1 px-4 py-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-lg">Cancel</button>
-                <button onClick={importHistory} className="flex-1 px-4 py-2 bg-[#6366f1] text-white rounded-lg">Import</button>
+                <button onClick={importHistory} className="flex-1 px-4 py-2 bg-[var(--accent)] text-white rounded-lg">Import</button>
               </div>
             </div>
           </div>

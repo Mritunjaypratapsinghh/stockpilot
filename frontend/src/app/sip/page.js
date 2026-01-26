@@ -56,7 +56,7 @@ export default function SIPPage() {
           <h1 className="text-2xl font-bold">SIP Tracker</h1>
           <div className="flex gap-2">
             <button onClick={() => setShowCalc(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm"><Calculator className="w-4 h-4" /> Calculator</button>
-            <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[#6366f1] text-white rounded-lg text-sm font-medium"><Plus className="w-4 h-4" /> Add SIP</button>
+            <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium"><Plus className="w-4 h-4" /> Add SIP</button>
           </div>
         </div>
 
@@ -171,7 +171,7 @@ export default function SIPPage() {
                   <label className="block text-sm text-[var(--text-secondary)] mb-2">Start Date</label>
                   <input type="date" value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg" required />
                 </div>
-                <button type="submit" className="w-full py-3 bg-[#6366f1] text-white rounded-lg font-medium">Create SIP</button>
+                <button type="submit" className="w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium">Create SIP</button>
               </form>
             </div>
           </div>
@@ -200,7 +200,7 @@ export default function SIPPage() {
                     <input type="number" value={calc.return} onChange={e => setCalc({...calc, return: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg" />
                   </div>
                 </div>
-                <button onClick={runCalculator} className="w-full py-3 bg-[#6366f1] text-white rounded-lg font-medium">Calculate</button>
+                <button onClick={runCalculator} className="w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium">Calculate</button>
                 {calcResult && (
                   <div className="bg-[var(--bg-primary)] rounded-lg p-4 space-y-2">
                     <div className="flex justify-between"><span className="text-[var(--text-muted)]">Total Invested</span><span className="font-medium">₹{fmt(calcResult.total_invested)}</span></div>

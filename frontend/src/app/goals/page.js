@@ -52,7 +52,7 @@ export default function GoalsPage() {
       <main className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Financial Goals</h1>
-          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[#6366f1] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3]">
+          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3]">
             <Plus className="w-4 h-4" /> Add Goal
           </button>
         </div>
@@ -162,7 +162,7 @@ export default function GoalsPage() {
                   <label className="block text-sm text-[var(--text-secondary)] mb-2">Monthly SIP (₹) <span className="text-[var(--text-muted)]">optional</span></label>
                   <input type="number" value={form.monthly_sip} onChange={e => setForm({...form, monthly_sip: e.target.value})} placeholder="10000" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg" />
                 </div>
-                <button type="submit" className="w-full py-3 bg-[#6366f1] text-white rounded-lg font-medium hover:bg-[#5558e3]">Create Goal</button>
+                <button type="submit" className="w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3]">Create Goal</button>
               </form>
             </div>
           </div>

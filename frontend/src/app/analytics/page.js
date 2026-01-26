@@ -139,7 +139,7 @@ export default function AnalyticsPage() {
 
           {/* Concentration Risk */}
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-5">
-            <h3 className="font-medium mb-4 flex items-center gap-2"><PieChart className="w-5 h-5 text-[#6366f1]" /> Concentration Analysis</h3>
+            <h3 className="font-medium mb-4 flex items-center gap-2"><PieChart className="w-5 h-5 text-[var(--accent)]" /> Concentration Analysis</h3>
             <div className="space-y-3 mb-4">
               <div className="flex justify-between">
                 <span className="text-[var(--text-muted)]">Top 5 Concentration</span>

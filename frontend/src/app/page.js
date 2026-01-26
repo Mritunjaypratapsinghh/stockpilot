@@ -28,12 +28,12 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-[#6366f1] flex items-center justify-center">
+          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-[var(--accent)] flex items-center justify-center">
             <TrendingUp className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold mb-3">StockPilot</h1>
           <p className="text-[var(--text-secondary)] mb-8">Track your portfolio with real-time analytics</p>
-          <a href="/login" className="inline-flex items-center gap-2 px-6 py-3 bg-[#6366f1] text-white rounded-lg font-medium hover:bg-[#5558e3]">
+          <a href="/login" className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:opacity-90">
             Get Started <ArrowRight className="w-5 h-5" />
           </a>
         </div>
@@ -87,7 +87,7 @@ export default function Dashboard() {
         <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg">
           <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
             <h2 className="font-semibold text-lg">Holdings</h2>
-            <Link href="/portfolio" className="text-sm text-[#6366f1] hover:text-[#5558e3]">View All →</Link>
+            <Link href="/portfolio" className="text-sm text-[var(--accent)] hover:text-[#5558e3]">View All →</Link>
           </div>
           
           {loading ? (
@@ -193,7 +193,7 @@ function EmptyState({ icon: Icon, message, action }) {
         <Icon className="w-8 h-8 text-[var(--text-muted)]" />
       </div>
       <div className="text-[var(--text-muted)] mb-2">{message}</div>
-      {action && <Link href={action.href} className="text-[#6366f1] hover:text-[#5558e3]">{action.label} →</Link>}
+      {action && <Link href={action.href} className="text-[var(--accent)] hover:text-[#5558e3]">{action.label} →</Link>}
     </div>
   );
 }

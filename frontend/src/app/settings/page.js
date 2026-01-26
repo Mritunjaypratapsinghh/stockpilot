@@ -48,7 +48,7 @@ export default function SettingsPage() {
             <div className="space-y-3">
               <div>
                 <label className="block text-sm text-[var(--text-secondary)] mb-2">Chat ID</label>
-                <input value={settings.telegram_chat_id} onChange={e => setSettings({...settings, telegram_chat_id: e.target.value})} placeholder="e.g. 123456789" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" />
+                <input value={settings.telegram_chat_id} onChange={e => setSettings({...settings, telegram_chat_id: e.target.value})} placeholder="e.g. 123456789" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[var(--accent)]" />
               </div>
               <a href="https://t.me/StockPilotAlertsBot" target="_blank" className="inline-flex items-center gap-2 text-sm text-[#0088cc] hover:underline">
                 <ExternalLink className="w-4 h-4" /> Open Bot & send /start to get Chat ID
@@ -64,14 +64,14 @@ export default function SettingsPage() {
             </div>
             <div className="mb-4">
               <label className="block text-sm text-[var(--text-secondary)] mb-2">Email Address</label>
-              <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="your@email.com" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" />
+              <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="your@email.com" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[var(--accent)]" />
             </div>
             <label className="flex items-center justify-between cursor-pointer">
               <div>
                 <div className="font-medium">Email Alerts</div>
                 <div className="text-sm text-[var(--text-muted)]">Receive alerts and digest via email</div>
               </div>
-              <input type="checkbox" checked={settings.email_alerts} onChange={e => setSettings({...settings, email_alerts: e.target.checked})} className="w-5 h-5 accent-[#6366f1]" />
+              <input type="checkbox" checked={settings.email_alerts} onChange={e => setSettings({...settings, email_alerts: e.target.checked})} className="w-5 h-5 accent-[var(--accent)]" />
             </label>
           </div>
 
@@ -87,26 +87,26 @@ export default function SettingsPage() {
                   <div className="font-medium">Hourly Updates</div>
                   <div className="text-sm text-[var(--text-muted)]">Portfolio snapshot every hour (9 AM - 4 PM)</div>
                 </div>
-                <input type="checkbox" checked={settings.hourly_alerts} onChange={e => setSettings({...settings, hourly_alerts: e.target.checked})} className="w-5 h-5 accent-[#6366f1]" />
+                <input type="checkbox" checked={settings.hourly_alerts} onChange={e => setSettings({...settings, hourly_alerts: e.target.checked})} className="w-5 h-5 accent-[var(--accent)]" />
               </label>
               <label className="flex items-center justify-between cursor-pointer">
                 <div>
                   <div className="font-medium">Daily Digest</div>
                   <div className="text-sm text-[var(--text-muted)]">Receive portfolio summary at 6 PM daily</div>
                 </div>
-                <input type="checkbox" checked={settings.daily_digest} onChange={e => setSettings({...settings, daily_digest: e.target.checked})} className="w-5 h-5 accent-[#6366f1]" />
+                <input type="checkbox" checked={settings.daily_digest} onChange={e => setSettings({...settings, daily_digest: e.target.checked})} className="w-5 h-5 accent-[var(--accent)]" />
               </label>
               <label className="flex items-center justify-between cursor-pointer">
                 <div>
                   <div className="font-medium">Price Alerts</div>
                   <div className="text-sm text-[var(--text-muted)]">Get notified when stocks hit target prices</div>
                 </div>
-                <input type="checkbox" checked={settings.alerts_enabled} onChange={e => setSettings({...settings, alerts_enabled: e.target.checked})} className="w-5 h-5 accent-[#6366f1]" />
+                <input type="checkbox" checked={settings.alerts_enabled} onChange={e => setSettings({...settings, alerts_enabled: e.target.checked})} className="w-5 h-5 accent-[var(--accent)]" />
               </label>
             </div>
           </div>
 
-          <button onClick={save} disabled={saving} className="w-full flex items-center justify-center gap-2 py-3 bg-[#6366f1] text-white rounded-lg font-medium hover:bg-[#5558e3] disabled:opacity-50">
+          <button onClick={save} disabled={saving} className="w-full flex items-center justify-center gap-2 py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3] disabled:opacity-50">
             {saved ? <><Check className="w-5 h-5" /> Saved!</> : <><Save className="w-5 h-5" /> {saving ? 'Saving...' : 'Save Settings'}</>}
           </button>
         </div>

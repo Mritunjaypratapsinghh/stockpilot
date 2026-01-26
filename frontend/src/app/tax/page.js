@@ -68,7 +68,7 @@ export default function TaxPage() {
         {/* Tabs */}
         <div className="flex gap-1 mb-4 bg-[var(--bg-secondary)] p-1 rounded-lg w-fit">
           {['summary', 'harvest', 'report'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${activeTab === tab ? 'bg-[#6366f1] text-white' : 'text-[var(--text-muted)] hover:text-white'}`}>
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${activeTab === tab ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-muted)] hover:text-white'}`}>
               {tab === 'harvest' ? 'Tax Harvesting' : tab}
             </button>
           ))}
@@ -78,7 +78,7 @@ export default function TaxPage() {
         {activeTab === 'summary' && summary && (
           <div className="space-y-4">
             <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-5">
-              <h3 className="font-medium mb-4 flex items-center gap-2"><Calculator className="w-5 h-5 text-[#6366f1]" /> Tax Calculation</h3>
+              <h3 className="font-medium mb-4 flex items-center gap-2"><Calculator className="w-5 h-5 text-[var(--accent)]" /> Tax Calculation</h3>
               <div className="space-y-3">
                 <div className="flex justify-between py-2 border-b border-[var(--border)]">
                   <span>STCG (Short Term Capital Gains)</span>
@@ -211,7 +211,7 @@ export default function TaxPage() {
         {activeTab === 'report' && summary && (
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium flex items-center gap-2"><FileText className="w-5 h-5 text-[#6366f1]" /> ITR Schedule CG</h3>
+              <h3 className="font-medium flex items-center gap-2"><FileText className="w-5 h-5 text-[var(--accent)]" /> ITR Schedule CG</h3>
             </div>
             <div className="space-y-4">
               <div className="bg-[var(--bg-primary)] rounded-lg p-4">

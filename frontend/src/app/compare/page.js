@@ -58,7 +58,7 @@ export default function ComparePage() {
               className="w-full pl-10 pr-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)]"
             />
           </div>
-          <button onClick={compare} disabled={loading} className="px-6 py-3 bg-[#6366f1] text-white rounded-lg font-medium flex items-center gap-2">
+          <button onClick={compare} disabled={loading} className="px-6 py-3 bg-[var(--accent)] text-white rounded-lg font-medium flex items-center gap-2">
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRightLeft className="w-5 h-5" />}
             Compare
           </button>
@@ -68,7 +68,7 @@ export default function ComparePage() {
         <div className="flex gap-2 mb-6 flex-wrap">
           <span className="text-sm text-[var(--text-muted)]">Quick:</span>
           {['RELIANCE,TCS,INFY', 'HDFCBANK,ICICIBANK,KOTAKBANK', 'TATAMOTORS,MARUTI,M&M', 'SUNPHARMA,DRREDDY,CIPLA'].map(q => (
-            <button key={q} onClick={() => { setSymbols(q); }} className="px-3 py-1 bg-[var(--bg-secondary)] border border-[var(--border)] rounded text-sm hover:border-[#6366f1]">
+            <button key={q} onClick={() => { setSymbols(q); }} className="px-3 py-1 bg-[var(--bg-secondary)] border border-[var(--border)] rounded text-sm hover:border-[var(--accent)]">
               {q.split(',').join(' vs ')}
             </button>
           ))}

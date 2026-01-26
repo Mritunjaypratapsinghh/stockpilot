@@ -99,7 +99,7 @@ export default function StockPage() {
         <Navbar />
         <main className="p-6 text-center py-20">
           <p className="text-[var(--text-muted)]">No symbol specified</p>
-          <Link href="/portfolio" className="text-[#6366f1] hover:underline">Go to Portfolio</Link>
+          <Link href="/portfolio" className="text-[var(--accent)] hover:underline">Go to Portfolio</Link>
         </main>
       </div>
     );
@@ -133,7 +133,7 @@ export default function StockPage() {
         <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4 mb-6">
           <div className="flex gap-2 mb-4">
             {['1mo', '3mo', '6mo', '1y', '2y'].map(r => (
-              <button key={r} onClick={() => setRange(r)} className={`px-3 py-1 rounded text-sm ${range === r ? 'bg-[#6366f1] text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
+              <button key={r} onClick={() => setRange(r)} className={`px-3 py-1 rounded text-sm ${range === r ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
                 {r.toUpperCase()}
               </button>
             ))}

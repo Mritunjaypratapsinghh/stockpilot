@@ -16,7 +16,7 @@ export default function IPOPage() {
 
   const getStyle = (action) => {
     if (action === 'APPLY') return 'bg-[#10b981]/10 text-[#10b981]';
-    if (action === 'MAY APPLY') return 'bg-[#6366f1]/10 text-[#6366f1]';
+    if (action === 'MAY APPLY') return 'bg-[var(--accent)]/10 text-[var(--accent)]';
     if (action === 'RISKY') return 'bg-[#eab308]/10 text-[#eab308]';
     return 'bg-[#ef4444]/10 text-[#ef4444]';
   };
@@ -35,7 +35,7 @@ export default function IPOPage() {
         {/* Filter Tabs */}
         <div className="flex gap-1 mb-4 bg-[var(--bg-secondary)] p-1 rounded-lg w-fit">
           {[['all', 'All'], ['Mainboard', 'Mainboard'], ['SME', 'SME']].map(([key, label]) => (
-            <button key={key} onClick={() => setFilter(key)} className={`px-4 py-2 rounded-md text-sm font-medium ${filter === key ? 'bg-[#6366f1] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
+            <button key={key} onClick={() => setFilter(key)} className={`px-4 py-2 rounded-md text-sm font-medium ${filter === key ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
               {label} {key !== 'all' && <span className="ml-1 text-xs">({ipos.filter(i => i.type?.toUpperCase() === key.toUpperCase()).length})</span>}
             </button>
           ))}
@@ -67,10 +67,10 @@ export default function IPOPage() {
                         {ipo.review && <div className="text-sm text-[var(--text-muted)]">{ipo.review}</div>}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${ipo.type?.toUpperCase() === 'MAINBOARD' ? 'bg-[#6366f1]/10 text-[#6366f1]' : 'bg-[#f59e0b]/10 text-[#f59e0b]'}`}>{ipo.type}</span>
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${ipo.type?.toUpperCase() === 'MAINBOARD' ? 'bg-[var(--accent)]/10 text-[var(--accent)]' : 'bg-[#f59e0b]/10 text-[#f59e0b]'}`}>{ipo.type}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${ipo.status === 'OPEN' ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#6366f1]/10 text-[#6366f1]'}`}>{ipo.status}</span>
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${ipo.status === 'OPEN' ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[var(--accent)]/10 text-[var(--accent)]'}`}>{ipo.status}</span>
                       </td>
                       <td className="px-6 py-4 text-[var(--text-muted)] text-sm">{ipo.dates || '-'}</td>
                       <td className="px-6 py-4 text-right tabular font-medium">₹{ipo.price}</td>

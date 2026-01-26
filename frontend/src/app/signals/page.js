@@ -21,14 +21,14 @@ export default function SignalsPage() {
       <main className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-lg bg-[#6366f1]/10 flex items-center justify-center"><Zap className="w-6 h-6 text-[#6366f1]" /></div>
+            <div className="w-12 h-12 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center"><Zap className="w-6 h-6 text-[var(--accent)]" /></div>
             <div><h1 className="text-2xl font-bold">Smart Signals</h1><p className="text-[var(--text-muted)]">AI-powered recommendations</p></div>
           </div>
-          <button onClick={loadSignals} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-[#6366f1] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3] disabled:opacity-50"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Analyze</button>
+          <button onClick={loadSignals} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3] disabled:opacity-50"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Analyze</button>
         </div>
 
         {loading ? (
-          <div className="py-20 text-center"><div className="flex justify-center gap-1 mb-4">{[0, 1, 2].map(i => <div key={i} className="w-3 h-3 bg-[#6366f1] rounded-full animate-pulse" style={{ animationDelay: `${i * 150}ms` }} />)}</div><p className="text-[var(--text-muted)]">Analyzing portfolio...</p></div>
+          <div className="py-20 text-center"><div className="flex justify-center gap-1 mb-4">{[0, 1, 2].map(i => <div key={i} className="w-3 h-3 bg-[var(--accent)] rounded-full animate-pulse" style={{ animationDelay: `${i * 150}ms` }} />)}</div><p className="text-[var(--text-muted)]">Analyzing portfolio...</p></div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="col-span-2">
@@ -70,7 +70,7 @@ export default function SignalsPage() {
                               <ul className="space-y-1">
                                 {r.reasons?.map((reason, j) => (
                                   <li key={j} className="text-sm text-[var(--text-secondary)] flex items-start gap-2">
-                                    <span className="text-[#6366f1] mt-1">•</span> {reason}
+                                    <span className="text-[var(--accent)] mt-1">•</span> {reason}
                                   </li>
                                 ))}
                               </ul>
@@ -79,7 +79,7 @@ export default function SignalsPage() {
                             {r.detailed_reasons?.length > 0 && (
                               <div className="bg-[var(--bg-primary)] rounded-lg p-3 mt-3">
                                 <div className="text-sm font-medium mb-2 flex items-center gap-2">
-                                  <Zap className="w-4 h-4 text-[#6366f1]" /> Detailed Analysis
+                                  <Zap className="w-4 h-4 text-[var(--accent)]" /> Detailed Analysis
                                 </div>
                                 <div className="space-y-3">
                                   {r.detailed_reasons.map((detail, j) => (

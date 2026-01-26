@@ -134,9 +134,9 @@ export default function MFHealthPage() {
                 <div className="text-xl font-bold text-[#22c55e]">₹{(expense.future_value_direct / 100000).toFixed(1)}L</div>
                 <div className="text-xs text-[var(--text-secondary)]">@ {expense.direct_expense_ratio}% expense</div>
               </div>
-              <div className="p-4 bg-[#6366f1]/10 rounded-lg border border-[#6366f1]/30">
+              <div className="p-4 bg-[var(--accent)]/10 rounded-lg border border-[var(--accent)]/30">
                 <div className="text-sm text-[var(--text-secondary)]">Potential Savings</div>
-                <div className="text-xl font-bold text-[#6366f1]">₹{(expense.potential_savings / 100000).toFixed(1)}L</div>
+                <div className="text-xl font-bold text-[var(--accent)]">₹{(expense.potential_savings / 100000).toFixed(1)}L</div>
                 <div className="text-xs text-[var(--text-secondary)]">by switching to direct</div>
               </div>
             </div>
@@ -151,11 +151,11 @@ export default function MFHealthPage() {
             <div className="space-y-3">
               {health.recommendations.map((rec, i) => (
                 <div key={i} className="flex items-start gap-3 p-4 bg-[var(--bg-tertiary)] rounded-lg">
-                  <div className="p-2 rounded-lg bg-[#6366f1]/20">
-                    {rec.type === 'switch' && <TrendingUp className="w-5 h-5 text-[#6366f1]" />}
-                    {rec.type === 'expense' && <DollarSign className="w-5 h-5 text-[#6366f1]" />}
-                    {rec.type === 'consolidate' && <Layers className="w-5 h-5 text-[#6366f1]" />}
-                    {rec.type === 'add' && <CheckCircle className="w-5 h-5 text-[#6366f1]" />}
+                  <div className="p-2 rounded-lg bg-[var(--accent)]/20">
+                    {rec.type === 'switch' && <TrendingUp className="w-5 h-5 text-[var(--accent)]" />}
+                    {rec.type === 'expense' && <DollarSign className="w-5 h-5 text-[var(--accent)]" />}
+                    {rec.type === 'consolidate' && <Layers className="w-5 h-5 text-[var(--accent)]" />}
+                    {rec.type === 'add' && <CheckCircle className="w-5 h-5 text-[var(--accent)]" />}
                   </div>
                   <div>
                     <div className="font-medium text-[var(--text-primary)]">{rec.message}</div>

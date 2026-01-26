@@ -185,7 +185,7 @@ export default function PortfolioPage() {
         {/* Asset Type Filter */}
         <div className="flex gap-2 mb-6">
           {[{k: 'all', l: 'All'}, {k: 'stocks', l: 'Stocks'}, {k: 'mf', l: 'Mutual Funds'}].map(f => (
-            <button key={f.k} onClick={() => setHoldingFilter(f.k)} className={`px-4 py-2 rounded-lg text-sm font-medium ${holdingFilter === f.k ? 'bg-[#6366f1] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-muted)] hover:text-white'}`}>{f.l}</button>
+            <button key={f.k} onClick={() => setHoldingFilter(f.k)} className={`px-4 py-2 rounded-lg text-sm font-medium ${holdingFilter === f.k ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-muted)] hover:text-white'}`}>{f.l}</button>
           ))}
         </div>
 
@@ -222,7 +222,7 @@ export default function PortfolioPage() {
         {dynamicSectors.length > 0 && (
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-5 mb-6">
             <div className="flex items-center gap-3 mb-4">
-              <PieChart className="w-5 h-5 text-[#6366f1]" />
+              <PieChart className="w-5 h-5 text-[var(--accent)]" />
               <span className="font-medium">{holdingFilter === 'mf' ? 'Fund' : holdingFilter === 'stocks' ? 'Stock' : 'Sector'} Allocation</span>
             </div>
             <div className="flex h-4 rounded-full overflow-hidden mb-3">
@@ -245,7 +245,7 @@ export default function PortfolioPage() {
         {/* Tabs */}
         <div className="flex gap-1 mb-4 bg-[var(--bg-secondary)] p-1 rounded-lg w-fit">
           {['holdings', 'transactions', 'dividends'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${activeTab === tab ? 'bg-[#6366f1] text-white' : 'text-[var(--text-muted)] hover:text-white'}`}>
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${activeTab === tab ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-muted)] hover:text-white'}`}>
               {tab}
             </button>
           ))}
@@ -254,7 +254,7 @@ export default function PortfolioPage() {
         {/* Search */}
         <div className="relative mb-4 w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="w-full pl-10 pr-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-white placeholder:text-[var(--text-muted)] focus:border-[#6366f1]" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="w-full pl-10 pr-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-white placeholder:text-[var(--text-muted)] focus:border-[var(--accent)]" />
         </div>
 
         {/* Holdings Tab */}
@@ -284,7 +284,7 @@ export default function PortfolioPage() {
                     {filteredHoldings.map(h => (
                       <tr key={h._id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-hover)]">
                         <td className="px-6 py-4">
-                          <a href={`/stock?s=${h.symbol}`} className="hover:text-[#6366f1]">
+                          <a href={`/stock?s=${h.symbol}`} className="hover:text-[var(--accent)]">
                             <div className="font-medium">{h.symbol}</div>
                             <div className="text-sm text-[var(--text-muted)]">{h.name}</div>
                           </a>
@@ -357,7 +357,7 @@ export default function PortfolioPage() {
         {activeTab === 'dividends' && (
           <div className="space-y-4">
             <div className="flex justify-end">
-              <button onClick={() => setShowDiv(true)} className="flex items-center gap-2 px-4 py-2 bg-[#6366f1] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3]">
+              <button onClick={() => setShowDiv(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3]">
                 <Plus className="w-4 h-4" /> Add Dividend
               </button>
             </div>
@@ -436,7 +436,7 @@ export default function PortfolioPage() {
                   <label className="block text-sm text-[var(--text-secondary)] mb-2">Asset Type</label>
                   <div className="flex gap-2">
                     {[{k: 'EQUITY', l: 'Stock'}, {k: 'MF', l: 'Mutual Fund'}].map(t => (
-                      <button key={t.k} type="button" onClick={() => setTxnForm({...txnForm, holding_type: t.k, inputMode: t.k === 'MF' ? 'amt' : 'qty'})} className={`flex-1 py-2 rounded-lg text-sm font-medium ${txnForm.holding_type === t.k ? 'bg-[#6366f1] text-white' : 'bg-[var(--bg-primary)] border border-[var(--border)] text-[var(--text-secondary)]'}`}>{t.l}</button>
+                      <button key={t.k} type="button" onClick={() => setTxnForm({...txnForm, holding_type: t.k, inputMode: t.k === 'MF' ? 'amt' : 'qty'})} className={`flex-1 py-2 rounded-lg text-sm font-medium ${txnForm.holding_type === t.k ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-primary)] border border-[var(--border)] text-[var(--text-secondary)]'}`}>{t.l}</button>
                     ))}
                   </div>
                 </div>
@@ -447,7 +447,7 @@ export default function PortfolioPage() {
                     onChange={e => handleSymbolInput(e.target.value)} 
                     onFocus={() => symbolResults.length > 0 && setShowSymbolDropdown(true)}
                     placeholder={txnForm.holding_type === 'MF' ? 'e.g. AXIS-LIQ' : 'Search stock (e.g. Reliance)'} 
-                    className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" 
+                    className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[var(--accent)]" 
                     required 
                     autoComplete="off"
                   />
@@ -480,22 +480,22 @@ export default function PortfolioPage() {
                     <label className="block text-sm text-[var(--text-secondary)] mb-2">Input By</label>
                     <div className="flex gap-2">
                       {[{k: 'qty', l: 'Units'}, {k: 'amt', l: 'Amount'}].map(m => (
-                        <button key={m.k} type="button" onClick={() => setTxnForm({...txnForm, inputMode: m.k})} className={`flex-1 py-2 rounded-lg text-sm font-medium ${txnForm.inputMode === m.k ? 'bg-[#6366f1] text-white' : 'bg-[var(--bg-primary)] border border-[var(--border)] text-[var(--text-secondary)]'}`}>{m.l}</button>
+                        <button key={m.k} type="button" onClick={() => setTxnForm({...txnForm, inputMode: m.k})} className={`flex-1 py-2 rounded-lg text-sm font-medium ${txnForm.inputMode === m.k ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-primary)] border border-[var(--border)] text-[var(--text-secondary)]'}`}>{m.l}</button>
                       ))}
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm text-[var(--text-secondary)] mb-2">{txnForm.inputMode === 'amt' ? 'Amount (₹)' : 'Quantity'}</label>
                     {txnForm.inputMode === 'amt' ? (
-                      <input type="number" step="0.01" value={txnForm.amount} onChange={e => setTxnForm({...txnForm, amount: e.target.value})} placeholder="e.g. 10000" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" required />
+                      <input type="number" step="0.01" value={txnForm.amount} onChange={e => setTxnForm({...txnForm, amount: e.target.value})} placeholder="e.g. 10000" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[var(--accent)]" required />
                     ) : (
-                      <input type="number" step="0.0001" value={txnForm.quantity} onChange={e => setTxnForm({...txnForm, quantity: e.target.value})} placeholder="e.g. 10.5" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" required />
+                      <input type="number" step="0.0001" value={txnForm.quantity} onChange={e => setTxnForm({...txnForm, quantity: e.target.value})} placeholder="e.g. 10.5" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[var(--accent)]" required />
                     )}
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm text-[var(--text-secondary)] mb-2">NAV / Price (₹)</label>
-                  <input type="number" step="0.01" value={txnForm.price} onChange={e => setTxnForm({...txnForm, price: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" required />
+                  <input type="number" step="0.01" value={txnForm.price} onChange={e => setTxnForm({...txnForm, price: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[var(--accent)]" required />
                 </div>
                 {txnForm.inputMode === 'amt' && txnForm.amount && txnForm.price && (
                   <div className="text-sm text-[var(--text-muted)] bg-[var(--bg-primary)] p-3 rounded-lg">
@@ -504,7 +504,7 @@ export default function PortfolioPage() {
                 )}
                 <div>
                   <label className="block text-sm text-[var(--text-secondary)] mb-2">Date</label>
-                  <input type="date" value={txnForm.date} onChange={e => setTxnForm({...txnForm, date: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" required />
+                  <input type="date" value={txnForm.date} onChange={e => setTxnForm({...txnForm, date: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[var(--accent)]" required />
                 </div>
                 <button type="submit" className={`w-full py-3 text-white rounded-lg font-medium ${txnForm.type === 'BUY' ? 'bg-[#10b981] hover:bg-[#0d9668]' : 'bg-[#ef4444] hover:bg-[#dc2626]'}`}>
                   {txnForm.type === 'BUY' ? 'Record Buy' : 'Record Sell'}
@@ -528,7 +528,7 @@ export default function PortfolioPage() {
                   <li><strong>Zerodha:</strong> Console → Reports → Tradebook → Download</li>
                   <li><strong>Groww:</strong> Stocks → Export → Download CSV</li>
                 </ul>
-                <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[var(--border)] rounded-lg cursor-pointer hover:border-[#6366f1] ${importing ? 'opacity-50' : ''}`}>
+                <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[var(--border)] rounded-lg cursor-pointer hover:border-[var(--accent)] ${importing ? 'opacity-50' : ''}`}>
                   <Upload className="w-8 h-8 text-[var(--text-muted)] mb-2" />
                   <span className="text-sm text-[var(--text-muted)]">{importing ? 'Importing...' : 'Click to upload CSV'}</span>
                   <input type="file" accept=".csv" className="hidden" onChange={handleImport} disabled={importing} />
@@ -549,20 +549,20 @@ export default function PortfolioPage() {
               <form onSubmit={handleDivSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm text-[var(--text-secondary)] mb-2">Symbol</label>
-                  <select value={divForm.symbol} onChange={e => setDivForm({...divForm, symbol: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" required>
+                  <select value={divForm.symbol} onChange={e => setDivForm({...divForm, symbol: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[var(--accent)]" required>
                     <option value="">Select stock</option>
                     {holdings.map(h => <option key={h.symbol} value={h.symbol}>{h.symbol}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm text-[var(--text-secondary)] mb-2">Dividend per Share (₹)</label>
-                  <input type="number" step="0.01" value={divForm.amount} onChange={e => setDivForm({...divForm, amount: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" required />
+                  <input type="number" step="0.01" value={divForm.amount} onChange={e => setDivForm({...divForm, amount: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[var(--accent)]" required />
                 </div>
                 <div>
                   <label className="block text-sm text-[var(--text-secondary)] mb-2">Ex-Date</label>
-                  <input type="date" value={divForm.ex_date} onChange={e => setDivForm({...divForm, ex_date: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[#6366f1]" required />
+                  <input type="date" value={divForm.ex_date} onChange={e => setDivForm({...divForm, ex_date: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[var(--accent)]" required />
                 </div>
-                <button type="submit" className="w-full py-3 bg-[#6366f1] text-white rounded-lg font-medium hover:bg-[#5558e3]">Add Dividend</button>
+                <button type="submit" className="w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3]">Add Dividend</button>
               </form>
             </div>
           </div>
@@ -578,7 +578,7 @@ export default function PortfolioPage() {
               </div>
               <div className="space-y-3">
                 {[{type: 'holdings', label: 'Holdings', desc: 'Current portfolio with P&L'}, {type: 'transactions', label: 'Transactions', desc: 'All buy/sell history'}, {type: 'dividends', label: 'Dividends', desc: 'Dividend income records'}, {type: 'summary', label: 'Full Summary', desc: 'Complete portfolio report'}].map(e => (
-                  <button key={e.type} onClick={() => { handleExport(e.type); setShowExport(false); }} className="w-full flex items-center justify-between p-4 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg hover:border-[#6366f1]">
+                  <button key={e.type} onClick={() => { handleExport(e.type); setShowExport(false); }} className="w-full flex items-center justify-between p-4 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg hover:border-[var(--accent)]">
                     <div className="text-left">
                       <div className="font-medium">{e.label}</div>
                       <div className="text-sm text-[var(--text-muted)]">{e.desc}</div>

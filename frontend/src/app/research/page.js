@@ -64,7 +64,7 @@ export default function ResearchPage() {
               onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
               onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
               placeholder="Search stock (e.g. Reliance)" 
-              className="w-full pl-10 pr-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[#6366f1]" 
+              className="w-full pl-10 pr-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)]" 
               autoComplete="off"
             />
             {showDropdown && searchResults.length > 0 && (
@@ -78,7 +78,7 @@ export default function ResearchPage() {
               </div>
             )}
           </div>
-          <button type="submit" disabled={loading} className="px-6 py-2.5 bg-[#6366f1] text-white rounded-lg font-medium hover:bg-[#5558e3] disabled:opacity-50">{loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Analyze'}</button>
+          <button type="submit" disabled={loading} className="px-6 py-2.5 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3] disabled:opacity-50">{loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Analyze'}</button>
         </form>
 
         {analysis && !analysis.error ? (
@@ -118,7 +118,7 @@ export default function ResearchPage() {
                   <div className="text-4xl font-bold tabular">{analysis.rsi}</div>
                   <span className={`px-2 py-1 rounded text-sm font-medium ${analysis.rsi_signal === 'OVERSOLD' ? 'bg-[#10b981]/10 text-[#10b981]' : analysis.rsi_signal === 'OVERBOUGHT' ? 'bg-[#ef4444]/10 text-[#ef4444]' : 'bg-[var(--border)] text-[var(--text-muted)]'}`}>{analysis.rsi_signal}</span>
                 </div>
-                <div className="h-3 bg-[var(--bg-primary)] rounded-full overflow-hidden mb-2"><div className={`h-full ${analysis.rsi < 30 ? 'bg-[#10b981]' : analysis.rsi > 70 ? 'bg-[#ef4444]' : 'bg-[#6366f1]'}`} style={{ width: `${analysis.rsi}%` }} /></div>
+                <div className="h-3 bg-[var(--bg-primary)] rounded-full overflow-hidden mb-2"><div className={`h-full ${analysis.rsi < 30 ? 'bg-[#10b981]' : analysis.rsi > 70 ? 'bg-[#ef4444]' : 'bg-[var(--accent)]'}`} style={{ width: `${analysis.rsi}%` }} /></div>
                 <div className="flex justify-between text-xs text-[var(--text-muted)]"><span>Oversold</span><span>Overbought</span></div>
               </div>
 

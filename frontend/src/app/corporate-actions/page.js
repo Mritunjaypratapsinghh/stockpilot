@@ -68,7 +68,7 @@ export default function CorporateActionsPage() {
         {/* Tabs */}
         <div className="flex gap-1 mb-4 bg-[var(--bg-secondary)] p-1 rounded-lg w-fit">
           {['upcoming', 'dividends', 'all'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${activeTab === tab ? 'bg-[#6366f1] text-white' : 'text-[var(--text-muted)] hover:text-white'}`}>
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${activeTab === tab ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-muted)] hover:text-white'}`}>
               {tab}
             </button>
           ))}
@@ -90,8 +90,8 @@ export default function CorporateActionsPage() {
                   {upcoming.map((a, i) => (
                     <div key={i} className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4 flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${a.type === 'DIVIDEND' ? 'bg-[#10b981]/10' : 'bg-[#6366f1]/10'}`}>
-                          {a.type === 'DIVIDEND' ? <DollarSign className="w-5 h-5 text-[#10b981]" /> : <Scissors className="w-5 h-5 text-[#6366f1]" />}
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${a.type === 'DIVIDEND' ? 'bg-[#10b981]/10' : 'bg-[var(--accent)]/10'}`}>
+                          {a.type === 'DIVIDEND' ? <DollarSign className="w-5 h-5 text-[#10b981]" /> : <Scissors className="w-5 h-5 text-[var(--accent)]" />}
                         </div>
                         <div>
                           <div className="font-medium">{a.symbol}</div>
@@ -155,7 +155,7 @@ export default function CorporateActionsPage() {
                   {actions.slice(0, 30).map((a, i) => (
                     <div key={i} className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${a.type === 'DIVIDEND' ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#6366f1]/10 text-[#6366f1]'}`}>{a.type}</span>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${a.type === 'DIVIDEND' ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[var(--accent)]/10 text-[var(--accent)]'}`}>{a.type}</span>
                         <span className="font-medium">{a.symbol}</span>
                         <span className="text-sm text-[var(--text-muted)]">{a.description}</span>
                       </div>

@@ -24,14 +24,14 @@ export default function WatchlistPage() {
       <main className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Watchlist</h1>
-          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[#6366f1] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3]">
+          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3]">
             <Plus className="w-4 h-4" /> Add Stock
           </button>
         </div>
 
         <div className="relative mb-4 w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="w-full pl-10 pr-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-white placeholder:text-[var(--text-muted)] focus:border-[#6366f1]" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="w-full pl-10 pr-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-white placeholder:text-[var(--text-muted)] focus:border-[var(--accent)]" />
         </div>
 
         {showForm && (
@@ -42,9 +42,9 @@ export default function WatchlistPage() {
                 <button onClick={() => setShowForm(false)} className="p-2 text-[var(--text-muted)] hover:text-white rounded-lg hover:bg-[var(--border)]"><X className="w-5 h-5" /></button>
               </div>
               <form onSubmit={addToWatchlist} className="space-y-4">
-                <div><label className="block text-sm text-[var(--text-secondary)] mb-2">Symbol</label><input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder="RELIANCE" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-white focus:border-[#6366f1]" required /></div>
-                <div><label className="block text-sm text-[var(--text-secondary)] mb-2">Notes (optional)</label><input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Why watching?" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-white focus:border-[#6366f1]" /></div>
-                <button type="submit" className="w-full py-3 bg-[#6366f1] text-white rounded-lg font-medium hover:bg-[#5558e3]">Add</button>
+                <div><label className="block text-sm text-[var(--text-secondary)] mb-2">Symbol</label><input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder="RELIANCE" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-white focus:border-[var(--accent)]" required /></div>
+                <div><label className="block text-sm text-[var(--text-secondary)] mb-2">Notes (optional)</label><input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Why watching?" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-white focus:border-[var(--accent)]" /></div>
+                <button type="submit" className="w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3]">Add</button>
               </form>
             </div>
           </div>
@@ -61,7 +61,7 @@ export default function WatchlistPage() {
               <tbody>
                 {filtered.map(w => (
                   <tr key={w._id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-hover)]">
-                    <td className="px-6 py-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-[#6366f1]/10 flex items-center justify-center text-sm font-semibold text-[#6366f1]">{w.symbol.slice(0, 2)}</div><span className="font-medium">{w.symbol}</span></div></td>
+                    <td className="px-6 py-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center text-sm font-semibold text-[var(--accent)]">{w.symbol.slice(0, 2)}</div><span className="font-medium">{w.symbol}</span></div></td>
                     <td className="px-6 py-4 text-[var(--text-muted)]">{w.notes || '-'}</td>
                     <td className="px-6 py-4 text-right tabular font-medium">{w.current_price ? `₹${w.current_price.toFixed(2)}` : '-'}</td>
                     <td className="px-6 py-4 text-right">{w.day_change_pct !== undefined ? <span className={`inline-block px-2 py-1 rounded text-sm tabular font-medium ${w.day_change_pct >= 0 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>{w.day_change_pct >= 0 ? '+' : ''}{w.day_change_pct.toFixed(2)}%</span> : '-'}</td>

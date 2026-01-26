@@ -55,12 +55,12 @@ export default function ScreenerPage() {
         {/* Pre-built Screens */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
           {screens.map(s => (
-            <button key={s.id} onClick={() => runScreen(s.id)} className={`p-3 rounded-lg text-left text-sm ${activeScreen === s.id ? 'bg-[#6366f1] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-[#6366f1]'}`}>
+            <button key={s.id} onClick={() => runScreen(s.id)} className={`p-3 rounded-lg text-left text-sm ${activeScreen === s.id ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-[var(--accent)]'}`}>
               <div className="font-medium">{s.name}</div>
               <div className={`text-xs ${activeScreen === s.id ? 'text-white/70' : 'text-[var(--text-muted)]'}`}>{s.description}</div>
             </button>
           ))}
-          <button onClick={() => setShowCustom(!showCustom)} className={`p-3 rounded-lg text-left text-sm ${showCustom ? 'bg-[#6366f1] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-[#6366f1]'}`}>
+          <button onClick={() => setShowCustom(!showCustom)} className={`p-3 rounded-lg text-left text-sm ${showCustom ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-[var(--accent)]'}`}>
             <div className="font-medium flex items-center gap-1"><Filter className="w-4 h-4" /> Custom</div>
             <div className={`text-xs ${showCustom ? 'text-white/70' : 'text-[var(--text-muted)]'}`}>Your filters</div>
           </button>
@@ -91,13 +91,13 @@ export default function ScreenerPage() {
                 <input type="number" value={filters.market_cap_min} onChange={e => setFilters({...filters, market_cap_min: e.target.value})} placeholder="e.g. 10000" className="w-full px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border)] rounded text-sm" />
               </div>
             </div>
-            <button onClick={runCustom} className="px-4 py-2 bg-[#6366f1] text-white rounded text-sm font-medium">Run Screen</button>
+            <button onClick={runCustom} className="px-4 py-2 bg-[var(--accent)] text-white rounded text-sm font-medium">Run Screen</button>
           </div>
         )}
 
         {/* Results */}
         {loading ? (
-          <div className="flex items-center justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-[#6366f1]" /></div>
+          <div className="flex items-center justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" /></div>
         ) : results.length > 0 ? (
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg overflow-hidden">
             <table className="w-full text-sm">
@@ -117,7 +117,7 @@ export default function ScreenerPage() {
                 {results.map((s, i) => (
                   <tr key={i} className="border-b border-[var(--border)] hover:bg-[var(--bg-hover)]">
                     <td className="px-4 py-3">
-                      <a href={`/stock?s=${s.symbol}`} className="hover:text-[#6366f1]">
+                      <a href={`/stock?s=${s.symbol}`} className="hover:text-[var(--accent)]">
                         <div className="font-medium">{s.symbol}</div>
                         <div className="text-xs text-[var(--text-muted)] truncate max-w-[150px]">{s.name}</div>
                       </a>

@@ -153,11 +153,13 @@ stockpilot/
 │   │   │   └── notifications.py
 │   │   ├── services/
 │   │   │   ├── price_service.py      # Yahoo Finance with cache
+│   │   │   ├── enhanced_analysis.py  # Multi-source stock analysis
 │   │   │   └── notification_service.py
 │   │   ├── tasks/               # Background jobs
 │   │   │   ├── scheduler.py     # APScheduler setup
 │   │   │   ├── price_updater.py
 │   │   │   ├── alert_checker.py
+│   │   │   ├── hourly_update.py
 │   │   │   ├── smart_signals.py
 │   │   │   ├── portfolio_advisor.py
 │   │   │   ├── digest_generator.py
@@ -176,7 +178,8 @@ stockpilot/
 │   │   │   ├── watchlist/
 │   │   │   ├── research/
 │   │   │   ├── ipo/
-│   │   │   └── signals/
+│   │   │   ├── signals/
+│   │   │   └── settings/        # User preferences
 │   │   ├── components/
 │   │   │   └── Navbar.js
 │   │   └── lib/
@@ -196,6 +199,7 @@ stockpilot/
 | POST | `/api/auth/register` | Create account |
 | POST | `/api/auth/login` | Get JWT token |
 | GET | `/api/auth/me` | Current user info |
+| PUT | `/api/auth/settings` | Update user settings (Telegram, alerts) |
 | GET | `/api/portfolio` | Portfolio summary |
 | GET | `/api/portfolio/holdings` | All holdings with live prices |
 | POST | `/api/portfolio/holdings` | Add holding |
@@ -203,7 +207,8 @@ stockpilot/
 | DELETE | `/api/portfolio/holdings/{id}` | Delete holding |
 | GET | `/api/portfolio/sectors` | Sector allocation |
 | GET | `/api/portfolio/xirr` | Annualized returns |
-| GET | `/api/portfolio/dashboard` | Combined data (single call) |
+| GET | `/api/transactions` | List transactions |
+| POST | `/api/transactions` | Add transaction (supports amount for MF) |
 | POST | `/api/portfolio/import` | Import from CSV |
 | GET | `/api/alerts` | List alerts |
 | POST | `/api/alerts` | Create alert |
@@ -227,7 +232,7 @@ stockpilot/
   "email": "string",
   "password_hash": "string",
   "telegram_chat_id": "string (optional)",
-  "settings": { "alerts_enabled": true, "daily_digest": true },
+  "settings": { "alerts_enabled": true, "daily_digest": true, "hourly_alerts": false, "email_alerts": true },
   "created_at": "datetime"
 }
 ```
@@ -269,6 +274,7 @@ stockpilot/
 |-----|----------|----------|
 | Price Update | Every 5 min | Update cached prices for all holdings |
 | Alert Check | Every 1 min | Check price alerts, send notifications |
+| Hourly Update | Every hour (9AM-4PM) | Send portfolio snapshot via Telegram |
 | Portfolio Advisor | 9:30 AM, 3:00 PM | Generate smart signals |
 | Daily Digest | 6:00 PM | Send portfolio summary |
 | Earnings Check | 9:00 AM | Remind upcoming earnings |

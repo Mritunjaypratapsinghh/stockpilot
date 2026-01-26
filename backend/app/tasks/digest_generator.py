@@ -1,11 +1,12 @@
 from ..database import get_db
 from ..services.price_service import get_bulk_prices
 from ..services.notification_service import send_daily_digest
-from datetime import datetime
-from bson import ObjectId
+from datetime import datetime, timezone
 
 async def generate_daily_digest():
     db = get_db()
+    if db is None:
+        return
     users = await db.users.find({"settings.daily_digest": True}).to_list(500)
     
     for user in users:
@@ -41,7 +42,7 @@ async def generate_daily_digest():
         
         digest = {
             "user_id": user["_id"],
-            "date": datetime.utcnow().date().isoformat(),
+            "date": datetime.now(timezone.utc).date().isoformat(),
             "portfolio_value": round(current_val, 0),
             "day_pnl": round(day_pnl, 0),
             "day_pnl_pct": round(day_pnl_pct, 1),
@@ -49,7 +50,7 @@ async def generate_daily_digest():
             "total_pnl_pct": round(total_pnl_pct, 1),
             "top_gainer": sorted_perf[0] if sorted_perf else None,
             "top_loser": sorted_perf[-1] if sorted_perf else None,
-            "sent_at": datetime.utcnow()
+            "sent_at": datetime.now(timezone.utc)
         }
         
         await db.daily_digest.insert_one(digest)

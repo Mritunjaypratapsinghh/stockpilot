@@ -28,18 +28,20 @@ async def send_email(to_email: str, subject: str, body: str):
 async def send_web_push(user_id, title: str, body: str):
     """Send web push notification if user has subscription"""
     db = get_db()
+    if db is None:
+        return
     user = await db.users.find_one({"_id": user_id})
     
     if not user or not user.get("push_subscription"):
         return
     
-    # Store notification for polling (simple approach without VAPID)
+    from datetime import datetime, timezone
     await db.notifications.insert_one({
         "user_id": user_id,
         "title": title,
         "body": body,
         "read": False,
-        "created_at": __import__("datetime").datetime.utcnow()
+        "created_at": datetime.now(timezone.utc)
     })
 
 async def send_alert_notification(alert: dict, current_price: float):

@@ -1,22 +1,27 @@
 from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from bson import ObjectId
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, Literal
 from ..database import get_db
 from ..api.auth import get_current_user
 
 router = APIRouter()
 
 class TransactionCreate(BaseModel):
-    symbol: str
-    type: str  # BUY or SELL
-    quantity: Optional[float] = None
-    price: float
+    symbol: str = Field(..., min_length=1, max_length=30)
+    type: Literal["BUY", "SELL"]
+    quantity: Optional[float] = Field(None, gt=0)
+    price: float = Field(..., gt=0)
     date: date
-    amount: Optional[float] = None  # For MF: invest by amount
-    holding_type: str = "EQUITY"  # EQUITY or MF
-    notes: Optional[str] = None
+    amount: Optional[float] = Field(None, gt=0)
+    holding_type: Literal["EQUITY", "MF", "ETF"] = "EQUITY"
+    notes: Optional[str] = Field(None, max_length=500)
+
+    @field_validator('symbol')
+    @classmethod
+    def clean_symbol(cls, v: str) -> str:
+        return v.strip().upper()
 
 @router.get("/")
 async def get_transactions(current_user: dict = Depends(get_current_user)):
@@ -32,45 +37,42 @@ async def get_transactions(current_user: dict = Depends(get_current_user)):
 async def add_transaction(txn: TransactionCreate, current_user: dict = Depends(get_current_user)):
     db = get_db()
     
-    # Calculate quantity from amount if provided (for MF)
     quantity = txn.quantity
     if txn.amount and not txn.quantity:
         quantity = round(txn.amount / txn.price, 4)
     if not quantity:
         raise HTTPException(status_code=400, detail="Provide quantity or amount")
     
-    holding = await db.holdings.find_one({"user_id": ObjectId(current_user["_id"]), "symbol": txn.symbol.upper()})
+    holding = await db.holdings.find_one({"user_id": ObjectId(current_user["_id"]), "symbol": txn.symbol})
     
     if not holding:
         if txn.type == "SELL":
             raise HTTPException(status_code=400, detail="Cannot sell - no holding found")
-        # Create new holding for BUY
         doc = {
             "user_id": ObjectId(current_user["_id"]),
-            "symbol": txn.symbol.upper(),
-            "name": txn.symbol.upper(),
+            "symbol": txn.symbol,
+            "name": txn.symbol,
             "exchange": "NSE",
             "holding_type": txn.holding_type,
             "quantity": quantity,
             "avg_price": txn.price,
             "transactions": [{"type": txn.type, "quantity": quantity, "price": txn.price, "date": txn.date.isoformat(), "notes": txn.notes}],
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         }
         result = await db.holdings.insert_one(doc)
         return {"message": "Holding created", "holding_id": str(result.inserted_id)}
     
-    # Update existing holding
     old_qty = holding["quantity"]
     old_avg = holding["avg_price"]
     
     if txn.type == "BUY":
         new_qty = old_qty + quantity
         new_avg = ((old_qty * old_avg) + (quantity * txn.price)) / new_qty
-    else:  # SELL
+    else:
         if quantity > old_qty:
             raise HTTPException(status_code=400, detail="Cannot sell more than held")
         new_qty = old_qty - quantity
-        new_avg = old_avg  # Avg price unchanged on sell
+        new_avg = old_avg
     
     txn_doc = {"type": txn.type, "quantity": quantity, "price": txn.price, "date": txn.date.isoformat(), "notes": txn.notes}
     
@@ -80,12 +82,17 @@ async def add_transaction(txn: TransactionCreate, current_user: dict = Depends(g
     
     await db.holdings.update_one(
         {"_id": holding["_id"]},
-        {"$set": {"quantity": new_qty, "avg_price": round(new_avg, 2), "updated_at": datetime.utcnow()}, "$push": {"transactions": txn_doc}}
+        {"$set": {"quantity": new_qty, "avg_price": round(new_avg, 2), "updated_at": datetime.now(timezone.utc)}, "$push": {"transactions": txn_doc}}
     )
     return {"message": "Transaction added", "new_quantity": new_qty, "new_avg_price": round(new_avg, 2)}
 
 @router.delete("/{holding_id}/{index}")
 async def delete_transaction(holding_id: str, index: int, current_user: dict = Depends(get_current_user)):
+    if not ObjectId.is_valid(holding_id):
+        raise HTTPException(status_code=400, detail="Invalid holding ID")
+    if index < 0:
+        raise HTTPException(status_code=400, detail="Invalid index")
+    
     db = get_db()
     holding = await db.holdings.find_one({"_id": ObjectId(holding_id), "user_id": ObjectId(current_user["_id"])})
     if not holding or index >= len(holding.get("transactions", [])):

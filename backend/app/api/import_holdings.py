@@ -1,12 +1,10 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 import csv
 import io
-import re
 from ..database import get_db
 from ..api.auth import get_current_user
-from ..logger import logger
 
 router = APIRouter()
 
@@ -191,7 +189,7 @@ async def import_holdings(file: UploadFile = File(...), current_user: dict = Dep
                 "quantity": data["qty"],
                 "avg_price": round(avg_price, 2),
                 "transactions": data["txns"],
-                "created_at": datetime.utcnow()
+                "created_at": datetime.now(timezone.utc)
             })
             imported += 1
     
@@ -218,7 +216,7 @@ async def import_holdings(file: UploadFile = File(...), current_user: dict = Dep
                     "quantity": parsed["quantity"],
                     "avg_price": parsed["avg_price"],
                     "transactions": [],
-                    "created_at": datetime.utcnow()
+                    "created_at": datetime.now(timezone.utc)
                 })
                 imported += 1
             except Exception as e:

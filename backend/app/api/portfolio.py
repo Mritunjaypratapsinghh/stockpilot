@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from bson import ObjectId
 from typing import List
 from ..database import get_db
@@ -116,7 +116,7 @@ async def add_holding(holding: HoldingCreate, current_user: dict = Depends(get_c
         "quantity": holding.quantity,
         "avg_price": holding.avg_price,
         "transactions": [],
-        "created_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc)
     }
     result = await db.holdings.insert_one(doc)
     return {"_id": str(result.inserted_id), "symbol": doc["symbol"]}
@@ -124,7 +124,7 @@ async def add_holding(holding: HoldingCreate, current_user: dict = Depends(get_c
 @router.put("/holdings/{holding_id}")
 async def update_holding(holding_id: str, update: HoldingUpdate, current_user: dict = Depends(get_current_user)):
     db = get_db()
-    update_doc = {"updated_at": datetime.utcnow()}
+    update_doc = {"updated_at": datetime.now(timezone.utc)}
     if update.quantity is not None:
         update_doc["quantity"] = update.quantity
     if update.avg_price is not None:

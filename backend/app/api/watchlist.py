@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from ..database import get_db
 from ..api.auth import get_current_user
@@ -9,9 +9,14 @@ from ..services.price_service import get_bulk_prices
 
 router = APIRouter()
 
+def validate_object_id(id_str: str) -> ObjectId:
+    if not ObjectId.is_valid(id_str):
+        raise HTTPException(status_code=400, detail="Invalid ID format")
+    return ObjectId(id_str)
+
 class WatchlistAdd(BaseModel):
-    symbol: str
-    notes: Optional[str] = None
+    symbol: str = Field(..., min_length=1, max_length=30)
+    notes: Optional[str] = Field(None, max_length=500)
 
 @router.get("")
 @router.get("/")
@@ -37,18 +42,20 @@ async def get_watchlist(current_user: dict = Depends(get_current_user)):
 @router.post("/")
 async def add_to_watchlist(item: WatchlistAdd, current_user: dict = Depends(get_current_user)):
     db = get_db()
-    existing = await db.watchlist.find_one({"user_id": ObjectId(current_user["_id"]), "symbol": item.symbol.upper()})
+    symbol = item.symbol.strip().upper()
+    existing = await db.watchlist.find_one({"user_id": ObjectId(current_user["_id"]), "symbol": symbol})
     if existing:
         raise HTTPException(status_code=400, detail="Already in watchlist")
     
-    doc = {"user_id": ObjectId(current_user["_id"]), "symbol": item.symbol.upper(), "notes": item.notes, "added_at": datetime.utcnow()}
+    doc = {"user_id": ObjectId(current_user["_id"]), "symbol": symbol, "notes": item.notes, "added_at": datetime.now(timezone.utc)}
     result = await db.watchlist.insert_one(doc)
-    return {"_id": str(result.inserted_id), "symbol": item.symbol.upper()}
+    return {"_id": str(result.inserted_id), "symbol": symbol}
 
 @router.delete("/{item_id}")
 async def remove_from_watchlist(item_id: str, current_user: dict = Depends(get_current_user)):
+    oid = validate_object_id(item_id)
     db = get_db()
-    result = await db.watchlist.delete_one({"_id": ObjectId(item_id), "user_id": ObjectId(current_user["_id"])})
+    result = await db.watchlist.delete_one({"_id": oid, "user_id": ObjectId(current_user["_id"])})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Not found")
     return {"message": "Removed"}

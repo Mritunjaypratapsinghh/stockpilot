@@ -1,6 +1,6 @@
 from ..database import get_db
 from ..services.notification_service import send_email
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 import httpx
 
 async def get_earnings_date(symbol: str):
@@ -11,13 +11,15 @@ async def get_earnings_date(symbol: str):
                 data = resp.json()["quoteSummary"]["result"][0].get("calendarEvents", {})
                 earnings = data.get("earnings", {}).get("earningsDate", [])
                 if earnings:
-                    return datetime.fromtimestamp(earnings[0]["raw"])
+                    return datetime.fromtimestamp(earnings[0]["raw"], tz=timezone.utc)
     except:
         pass
     return None
 
 async def check_earnings_alerts():
     db = get_db()
+    if db is None:
+        return
     alerts = await db.alerts.find({"alert_type": "EARNINGS", "is_active": True}).to_list(100)
     
     for alert in alerts:
@@ -25,7 +27,7 @@ async def check_earnings_alerts():
         if not earnings_date:
             continue
         
-        days_until = (earnings_date.date() - datetime.utcnow().date()).days
+        days_until = (earnings_date.date() - datetime.now(timezone.utc).date()).days
         
         if days_until <= alert.get("target_value", 3) and days_until >= 0:
             user = await db.users.find_one({"_id": alert["user_id"]})
@@ -43,4 +45,4 @@ async def check_earnings_alerts():
                 if user.get("email"):
                     await send_email(user["email"], f"Earnings Alert: {alert['symbol']}", f"<p>{msg}</p>")
             
-            await db.alerts.update_one({"_id": alert["_id"]}, {"$set": {"triggered_at": datetime.utcnow(), "notification_sent": True, "is_active": False}})
+            await db.alerts.update_one({"_id": alert["_id"]}, {"$set": {"triggered_at": datetime.now(timezone.utc), "notification_sent": True, "is_active": False}})

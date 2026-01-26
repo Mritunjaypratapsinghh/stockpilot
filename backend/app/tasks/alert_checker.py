@@ -1,7 +1,7 @@
 from ..database import get_db
 from ..services.price_service import get_bulk_prices
 from ..services.notification_service import send_alert_notification
-from datetime import datetime
+from datetime import datetime, timezone
 import httpx
 
 async def get_52week_data(symbol: str):
@@ -20,6 +20,8 @@ async def get_52week_data(symbol: str):
 
 async def check_alerts():
     db = get_db()
+    if db is None:
+        return
     alerts = await db.alerts.find({"is_active": True, "notification_sent": False}).to_list(200)
     
     if not alerts:
@@ -28,7 +30,6 @@ async def check_alerts():
     symbols = list(set(a["symbol"] for a in alerts))
     prices = await get_bulk_prices(symbols)
     
-    # Fetch 52-week data for relevant alerts
     week52_data = {}
     for a in alerts:
         if a["alert_type"] in ["WEEK_52_HIGH", "WEEK_52_LOW", "VOLUME_SPIKE"] and a["symbol"] not in week52_data:
@@ -68,6 +69,6 @@ async def check_alerts():
         if triggered:
             await db.alerts.update_one(
                 {"_id": alert["_id"]},
-                {"$set": {"triggered_at": datetime.utcnow(), "notification_sent": True, "is_active": False}}
+                {"$set": {"triggered_at": datetime.now(timezone.utc), "notification_sent": True, "is_active": False}}
             )
             await send_alert_notification(alert, current_price)

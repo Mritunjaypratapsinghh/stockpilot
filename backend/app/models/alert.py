@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 class AlertType(str, Enum):
@@ -15,9 +15,9 @@ class AlertType(str, Enum):
     EARNINGS = "EARNINGS"
 
 class AlertCreate(BaseModel):
-    symbol: str
+    symbol: str = Field(..., min_length=1, max_length=30)
     alert_type: AlertType
-    target_value: float
+    target_value: float = Field(..., gt=0)
 
 class Alert(BaseModel):
     id: Optional[str] = Field(None, alias="_id")
@@ -28,7 +28,7 @@ class Alert(BaseModel):
     is_active: bool = True
     triggered_at: Optional[datetime] = None
     notification_sent: bool = False
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     class Config:
         populate_by_name = True

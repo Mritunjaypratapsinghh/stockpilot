@@ -3,14 +3,13 @@ import os
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from motor.motor_asyncio import AsyncIOMotorClient
+from bson import ObjectId
 import httpx
 
-# Config
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 MONGODB_URI = os.getenv("MONGODB_URI", "")
 MONGODB_DB = os.getenv("MONGODB_DB", "stockpilot")
 
-# MongoDB
 db = None
 
 async def init_db():
@@ -24,7 +23,6 @@ async def get_user_by_telegram(chat_id: str):
         return await db.users.find_one({"telegram_chat_id": str(chat_id)})
     return None
 
-# Commands
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🚀 *Welcome to StockPilot Bot!*\n\n"
@@ -55,7 +53,8 @@ async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Account not linked. Use /link EMAIL")
             return
         
-        holdings = await db.holdings.find({"user_id": str(user["_id"])}).to_list(50)
+        # Fix: Query with ObjectId, not string
+        holdings = await db.holdings.find({"user_id": ObjectId(user["_id"])}).to_list(50)
         if not holdings:
             await update.message.reply_text("📭 No holdings found. Add via web app.")
             return
@@ -98,7 +97,8 @@ async def alerts(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Account not linked. Use /link EMAIL")
         return
     
-    alerts_list = await db.alerts.find({"user_id": str(user["_id"]), "is_active": True}).to_list(20)
+    # Fix: Query with ObjectId, not string
+    alerts_list = await db.alerts.find({"user_id": ObjectId(user["_id"]), "is_active": True}).to_list(20)
     if not alerts_list:
         await update.message.reply_text("🔕 No active alerts.")
         return
@@ -171,7 +171,6 @@ async def main():
     await app.start()
     await app.updater.start_polling()
     
-    # Keep running
     while True:
         await asyncio.sleep(1)
 

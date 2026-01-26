@@ -1,32 +1,48 @@
 from motor.motor_asyncio import AsyncIOMotorClient
+from fastapi import HTTPException
+import asyncio
 from .config import get_settings
+from .logger import logger
 
 settings = get_settings()
 
 client: AsyncIOMotorClient = None
 db = None
 
-async def connect_db():
+async def connect_db(max_retries: int = 3, retry_delay: int = 2):
+    """Connect to MongoDB with retry logic and connection pooling"""
     global client, db
-    try:
-        client = AsyncIOMotorClient(settings.mongodb_uri, serverSelectionTimeoutMS=10000)
-        db = client[settings.mongodb_db]
-        # Test connection
-        await client.admin.command('ping')
-        # Create indexes
-        await db.holdings.create_index([("user_id", 1), ("symbol", 1)])
-        await db.alerts.create_index([("user_id", 1), ("is_active", 1)])
-        print(f"✅ Connected to MongoDB: {settings.mongodb_db}")
-    except Exception as e:
-        print(f"⚠️ MongoDB connection failed: {e}")
-        print("⚠️ Running without database - some features won't work")
-        # Don't raise - allow app to start for testing
+    
+    for attempt in range(1, max_retries + 1):
+        try:
+            client = AsyncIOMotorClient(
+                settings.mongodb_uri,
+                serverSelectionTimeoutMS=10000,
+                maxPoolSize=50,
+                minPoolSize=5,
+                maxIdleTimeMS=30000,
+                retryWrites=True,
+                retryReads=True
+            )
+            db = client[settings.mongodb_db]
+            await client.admin.command('ping')
+            logger.info(f"✅ Connected to MongoDB: {settings.mongodb_db}")
+            return
+        except Exception as e:
+            logger.warning(f"MongoDB connection attempt {attempt}/{max_retries} failed: {e}")
+            if attempt < max_retries:
+                await asyncio.sleep(retry_delay * attempt)
+            else:
+                logger.error("❌ MongoDB connection failed after all retries")
+                raise RuntimeError(f"Database connection failed: {e}")
 
 async def close_db():
     global client
     if client:
         client.close()
-        print("MongoDB connection closed")
+        logger.info("MongoDB connection closed")
 
 def get_db():
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database unavailable")
     return db

@@ -63,6 +63,22 @@ async def get_stock_data(symbol: str):
         return None
 
 
+async def fetch_stock_news(symbol: str) -> list:
+    """Fetch recent news for a stock"""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                f"https://query1.finance.yahoo.com/v1/finance/search?q={symbol}&newsCount=3",
+                headers={"User-Agent": "Mozilla/5.0"}
+            )
+            if resp.status_code == 200:
+                news = resp.json().get("news", [])
+                return [{"title": n.get("title", ""), "publisher": n.get("publisher", "")} for n in news[:2]]
+    except:
+        pass
+    return []
+
+
 async def get_bulk_stock_data(symbols: list):
     """Fetch stock data for multiple symbols concurrently"""
     results = await asyncio.gather(*[get_stock_data(s) for s in symbols], return_exceptions=True)
@@ -150,6 +166,7 @@ def generate_recommendation(symbol: str, avg_price: float, quantity: float, indi
     
     action = None
     reasons = []
+    detailed_reasons = []
     target = None
     stop_loss = None
     
@@ -158,20 +175,26 @@ def generate_recommendation(symbol: str, avg_price: float, quantity: float, indi
         action = "STRONG BUY"
         reasons.append("Stock has fallen sharply and looks very cheap")
         reasons.append("Trading near its lowest price in a year - good entry point")
+        detailed_reasons.append(f"RSI is at {rsi:.1f} (below 25 = extremely oversold). RSI measures momentum on a 0-100 scale. Below 25 means the stock has been heavily sold and may be due for a bounce as selling pressure exhausts.")
+        detailed_reasons.append(f"Stock is in the bottom {indicators['range_position']:.0f}% of its 52-week range. This means it's trading very close to its yearly low of ₹{indicators.get('low_52w', current * 0.9):.2f}. Historically, buying near 52-week lows can offer good risk-reward if the company's fundamentals are intact.")
         target = indicators["sma_20"]
     
     # === BUY / ACCUMULATE CONDITIONS ===
     elif rsi < 35 and indicators["above_sma200"] != False:
         action = "BUY MORE"
         reasons.append("Stock is oversold - price dropped faster than usual")
+        detailed_reasons.append(f"RSI is at {rsi:.1f} (below 35 = oversold zone). This indicates the stock has fallen rapidly and may be undervalued in the short term. The 200-day moving average support suggests the long-term trend is still intact.")
         if pnl_pct < -10:
             reasons.append(f"Good chance to lower your average cost (currently down {abs(pnl_pct):.1f}%)")
+            detailed_reasons.append(f"Your current position is down {abs(pnl_pct):.1f}%. Buying more at lower prices reduces your average cost per share (called 'averaging down'). For example, if you bought at ₹{avg_price:.2f} and buy more at ₹{current:.2f}, your new average will be lower, meaning you need a smaller recovery to break even.")
         target = indicators["sma_50"]
     
     elif indicators["day_change"] < -4 and rsi < 45 and indicators["vol_ratio"] > 1.5:
         action = "BUY MORE"
         reasons.append(f"Stock dropped {abs(indicators['day_change']):.1f}% today with heavy trading")
         reasons.append("Could bounce back soon - potential buying opportunity")
+        detailed_reasons.append(f"Stock fell {abs(indicators['day_change']):.1f}% today with {indicators['vol_ratio']:.1f}x normal volume. Large single-day drops often trigger a technical bounce as bargain hunters step in. The high volume suggests this move is significant and may have flushed out weak holders.")
+        detailed_reasons.append(f"RSI at {rsi:.1f} is not yet oversold, meaning there's room for further decline, but the sharp drop creates a potential entry point. Consider buying in tranches rather than all at once.")
         target = indicators["sma_20"]
     
     # === SELL CONDITIONS ===
@@ -179,24 +202,33 @@ def generate_recommendation(symbol: str, avg_price: float, quantity: float, indi
         action = "SELL"
         reasons.append("Stock has risen too fast, too quickly - may correct soon")
         reasons.append("Trading near its highest price in a year")
+        detailed_reasons.append(f"RSI is at {rsi:.1f} (above 75 = extremely overbought). This means buying pressure has been intense and the stock may be due for a pullback. Overbought conditions don't mean the stock will crash, but the risk of a correction increases significantly.")
+        detailed_reasons.append(f"Stock is in the top {100 - indicators['range_position']:.0f}% of its 52-week range, near its yearly high. The 52-week high often acts as psychological resistance where many investors choose to take profits.")
         if pnl_pct > 20:
             reasons.append(f"You're up {pnl_pct:.1f}% - good time to book profits")
+            detailed_reasons.append(f"You have a {pnl_pct:.1f}% profit on this position. The old saying 'no one ever went broke taking profits' applies here. Even if the stock continues higher, locking in gains protects you from potential reversals.")
     
     elif rsi > 70 and pnl_pct > 30:
         action = "PARTIAL SELL"
         reasons.append("Stock is overheated - risen faster than normal")
         reasons.append(f"You're up {pnl_pct:.1f}% - consider selling some to lock in gains")
+        detailed_reasons.append(f"RSI at {rsi:.1f} indicates overbought conditions. Combined with your {pnl_pct:.1f}% profit, this is an ideal time for partial profit booking. Consider selling 25-50% of your position to lock in gains while keeping exposure for further upside.")
+        detailed_reasons.append("Partial selling is a risk management strategy - you secure profits while maintaining a position if the stock continues to rise. This removes the emotional stress of timing the exact top.")
     
     elif pnl_pct > 50 and indicators["day_change"] > 5:
         action = "PARTIAL SELL"
         reasons.append(f"Excellent profit of {pnl_pct:.1f}% - don't let it slip away")
         reasons.append(f"Stock jumped {indicators['day_change']:.1f}% today - good exit point")
+        detailed_reasons.append(f"Your position has gained {pnl_pct:.1f}%, which is an exceptional return. Today's {indicators['day_change']:.1f}% jump provides liquidity and a strong price to sell into. Large single-day gains often see partial reversals in subsequent days.")
+        detailed_reasons.append("The principle of 'selling into strength' suggests taking profits when the stock is rising strongly, rather than waiting for weakness. This ensures you get good execution prices.")
     
     # === HOLD CONDITIONS ===
     elif 40 <= rsi <= 60 and indicators["above_sma50"]:
         action = "HOLD"
         reasons.append("Stock is in a healthy uptrend")
         reasons.append("No action needed - let your profits grow")
+        detailed_reasons.append(f"RSI at {rsi:.1f} is in the neutral zone (40-60), indicating balanced buying and selling pressure. This is healthy - not overbought or oversold. The stock is trading above its 50-day moving average, confirming the uptrend is intact.")
+        detailed_reasons.append(f"Target: ₹{indicators['resistance']:.2f} (resistance level). Stop-loss: ₹{indicators['support']:.2f} (support level). These levels are calculated from recent price action and represent where the stock has previously found buyers (support) or sellers (resistance).")
         target = indicators["resistance"]
         stop_loss = indicators["support"]
     
@@ -206,27 +238,35 @@ def generate_recommendation(symbol: str, avg_price: float, quantity: float, indi
             action = "HOLD - WATCH"
             reasons.append("Stock is weakening - falling below its recent averages")
             reasons.append("Set a stop-loss to protect your gains")
+            detailed_reasons.append(f"Stock is trading below both its 20-day (₹{indicators['sma_20']:.2f}) and 50-day (₹{indicators['sma_50']:.2f}) moving averages. This pattern indicates weakening momentum - the recent trend has turned negative. However, you're still in profit.")
+            detailed_reasons.append(f"Recommended stop-loss: ₹{indicators['support']:.2f}. A stop-loss is a pre-set price at which you'll sell to limit losses. Setting it at support level means you exit if the stock breaks below a key price where buyers previously stepped in.")
             stop_loss = indicators["support"]
         else:
             action = "WAIT"
             reasons.append("Stock is in a downtrend - not a good time to buy more")
             reasons.append("Wait for it to become cheaper before adding")
+            detailed_reasons.append(f"Stock is below both moving averages (20-day: ₹{indicators['sma_20']:.2f}, 50-day: ₹{indicators['sma_50']:.2f}), indicating a downtrend. The phrase 'don't catch a falling knife' applies - buying during a downtrend often leads to further losses.")
+            detailed_reasons.append("Wait for either: (1) RSI to drop below 30 (oversold), or (2) price to reclaim the 20-day moving average. These would signal the selling pressure is exhausting or the trend is reversing.")
     
     # === EXIT CONDITIONS ===
     elif pnl_pct < -20 and not indicators["above_sma50"] and rsi > 50:
         action = "EXIT"
         reasons.append(f"Stock is down {abs(pnl_pct):.1f}% with no signs of recovery")
         reasons.append("Consider selling and investing elsewhere")
+        detailed_reasons.append(f"Your position is down {abs(pnl_pct):.1f}%, the stock is below its 50-day average, and RSI at {rsi:.1f} shows no oversold bounce is imminent. This combination suggests the stock may continue to underperform.")
+        detailed_reasons.append("Consider the 'opportunity cost' - money stuck in a losing position could be invested elsewhere with better prospects. Selling a loser is not admitting defeat; it's reallocating capital to better opportunities. Tax-loss harvesting can also offset gains elsewhere.")
     
     # Default
     if not action:
         action = "HOLD"
         reasons.append("No clear signal right now - continue holding")
+        detailed_reasons.append(f"Current indicators (RSI: {rsi:.1f}, Price: ₹{current:.2f}) don't show strong buy or sell signals. The stock is in a neutral zone. Continue holding and monitor for changes in trend or momentum.")
     
     return {
         "symbol": symbol,
         "action": action,
         "reasons": reasons,
+        "detailed_reasons": detailed_reasons,
         "current_price": current,
         "avg_price": avg_price,
         "pnl_pct": pnl_pct,
@@ -320,8 +360,14 @@ async def run_portfolio_advisor():
                 indicators
             )
             
-            # Only include actionable recommendations (not plain HOLD)
+            # Fetch news for actionable recommendations
             if rec["action"] not in ["HOLD"]:
+                news = await fetch_stock_news(h["symbol"])
+                if news and news[0].get("title"):
+                    rec["news"] = news
+                    # Add news to detailed reasons
+                    if rec.get("detailed_reasons"):
+                        rec["detailed_reasons"].append(f"📰 Recent news: {news[0]['title']} (Source: {news[0].get('publisher', 'News')})")
                 recommendations.append(rec)
         
         # Check if we already sent today

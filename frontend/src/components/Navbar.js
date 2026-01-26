@@ -22,6 +22,7 @@ const planningMenu = [
   { href: '/goals', label: 'Goals', icon: Target },
   { href: '/tax', label: 'Tax Center', icon: Receipt },
   { href: '/sip', label: 'SIP Tracker', icon: RefreshCw },
+  { href: '/rebalance', label: 'Rebalance', icon: BarChart3 },
 ];
 
 const trackingMenu = [

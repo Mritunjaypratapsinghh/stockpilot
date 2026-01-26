@@ -7,6 +7,7 @@ from .api import auth, portfolio, alerts, market
 from .api import research, ipo, transactions, watchlist, notifications
 from .api import import_holdings, dividends, export
 from .api import goals, tax, analytics
+from .api import screener, sip, corporate_actions, compare
 from .tasks.scheduler import start_scheduler
 from .logger import logger
 
@@ -61,6 +62,10 @@ app.include_router(export.router, prefix="/api/export", tags=["Export"])
 app.include_router(goals.router, prefix="/api/goals", tags=["Goals"])
 app.include_router(tax.router, prefix="/api/tax", tags=["Tax"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
+app.include_router(screener.router, prefix="/api/screener", tags=["Screener"])
+app.include_router(sip.router, prefix="/api/sip", tags=["SIP"])
+app.include_router(corporate_actions.router, prefix="/api/corporate-actions", tags=["Corporate Actions"])
+app.include_router(compare.router, prefix="/api/compare", tags=["Compare"])
 
 @app.get("/")
 async def root():

@@ -1,7 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { RefreshCw, Target, TrendingUp, TrendingDown, AlertCircle, Check, Edit2, Save } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { RefreshCw, TrendingUp, TrendingDown, AlertCircle, Check, Edit2, Save } from 'lucide-react';
+import { api } from '../../lib/api';
+import Navbar from '../../components/Navbar';
 
 const COLORS = { Equity: '#6366f1', Debt: '#22c55e', Gold: '#eab308', Cash: '#64748b' };
 
@@ -13,38 +15,43 @@ export default function RebalancePage() {
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
-    const token = localStorage.getItem('token');
-    const [allocRes, suggestRes] = await Promise.all([
-      fetch('/api/rebalance/allocation', { headers: { Authorization: `Bearer ${token}` } }),
-      fetch('/api/rebalance/suggestions', { headers: { Authorization: `Bearer ${token}` } })
-    ]);
-    const alloc = await allocRes.json();
-    const suggest = await suggestRes.json();
-    setData(alloc);
-    setSuggestions(suggest);
-    if (alloc.target) setTarget(alloc.target);
+    try {
+      const [alloc, suggest] = await Promise.all([
+        api('/api/rebalance/allocation'),
+        api('/api/rebalance/suggestions')
+      ]);
+      setData(alloc);
+      setSuggestions(suggest);
+      if (alloc.target) setTarget(alloc.target);
+    } catch (e) {
+      console.error(e);
+    }
     setLoading(false);
   };
 
   useEffect(() => { fetchData(); }, []);
 
   const saveTarget = async () => {
-    const token = localStorage.getItem('token');
-    await fetch('/api/rebalance/target', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(target)
-    });
-    setEditing(false);
-    fetchData();
+    try {
+      await api('/api/rebalance/target', {
+        method: 'POST',
+        body: JSON.stringify(target)
+      });
+      setEditing(false);
+      fetchData();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const chartData = data ? Object.entries(data.current).map(([name, value]) => ({ name, value })).filter(d => d.value > 0) : [];
 
-  if (loading) return <div className="p-6 text-[var(--text-secondary)]">Loading...</div>;
+  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-6 text-[var(--text-secondary)]">Loading...</div></div>;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
+      <Navbar />
+      <main className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Portfolio Rebalancing</h1>
@@ -155,6 +162,7 @@ export default function RebalancePage() {
           {suggestions?.note}
         </p>
       </div>
+      </main>
     </div>
   );
 }

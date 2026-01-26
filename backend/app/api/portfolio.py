@@ -319,7 +319,7 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
         total_inv += inv
         total_val += val
         
-        sector = SECTOR_MAP.get(h["symbol"], "Others")
+        sector = SECTOR_MAP.get(h["symbol"], "Others") if h.get("holding_type") != "MF" else h.get("name", h["symbol"])
         sector_values[sector] = sector_values.get(sector, 0) + val
         
         holdings_list.append({
@@ -334,7 +334,8 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
             "current_value": round(val, 2),
             "total_investment": round(inv, 2),
             "pnl": round(pnl, 2),
-            "pnl_pct": round((pnl / inv * 100) if inv > 0 else 0, 2)
+            "pnl_pct": round((pnl / inv * 100) if inv > 0 else 0, 2),
+            "sector": sector
         })
     
     # Sectors

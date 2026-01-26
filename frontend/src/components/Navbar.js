@@ -1,12 +1,13 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Bell, Search, TrendingUp, LogOut, Briefcase, Eye, Calendar, Zap, Sun, Moon, Settings, Target, Receipt, BarChart3, Filter, RefreshCw, Scissors, ArrowRightLeft, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Bell, Search, TrendingUp, LogOut, Briefcase, Eye, Calendar, Zap, Sun, Moon, Settings, Target, Receipt, BarChart3, Filter, RefreshCw, Scissors, ArrowRightLeft, ChevronDown, Wallet, CalendarDays, Activity } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 
 const mainNav = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/portfolio', label: 'Portfolio', icon: Briefcase },
+  { href: '/networth', label: 'Net Worth', icon: Wallet },
   { href: '/market', label: 'Market', icon: TrendingUp },
 ];
 
@@ -14,6 +15,7 @@ const toolsMenu = [
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/screener', label: 'Screener', icon: Filter },
   { href: '/compare', label: 'Compare', icon: ArrowRightLeft },
+  { href: '/mf-health', label: 'MF Health', icon: Activity },
   { href: '/signals', label: 'Signals', icon: Zap },
   { href: '/research', label: 'Research', icon: Search },
 ];
@@ -23,6 +25,7 @@ const planningMenu = [
   { href: '/tax', label: 'Tax Center', icon: Receipt },
   { href: '/sip', label: 'SIP Tracker', icon: RefreshCw },
   { href: '/rebalance', label: 'Rebalance', icon: BarChart3 },
+  { href: '/pnl', label: 'P&L Calendar', icon: CalendarDays },
 ];
 
 const trackingMenu = [

@@ -8,6 +8,7 @@ from .api import research, ipo, transactions, watchlist, notifications
 from .api import import_holdings, dividends, export
 from .api import goals, tax, analytics
 from .api import screener, sip, corporate_actions, compare, rebalance
+from .api import networth, pnl_calendar, mf_health
 from .tasks.scheduler import start_scheduler
 from .logger import logger
 
@@ -67,6 +68,9 @@ app.include_router(sip.router, prefix="/api/sip", tags=["SIP"])
 app.include_router(corporate_actions.router, prefix="/api/corporate-actions", tags=["Corporate Actions"])
 app.include_router(compare.router, prefix="/api/compare", tags=["Compare"])
 app.include_router(rebalance.router, prefix="/api/rebalance", tags=["Rebalance"])
+app.include_router(networth.router, prefix="/api/networth", tags=["Net Worth"])
+app.include_router(pnl_calendar.router, prefix="/api/pnl", tags=["P&L Calendar"])
+app.include_router(mf_health.router, prefix="/api/mf", tags=["MF Health"])
 
 @app.get("/")
 async def root():

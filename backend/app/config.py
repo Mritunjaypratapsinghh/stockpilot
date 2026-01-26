@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     smtp_pass: str = ""
     
     class Config:
-        env_file = ".env"
+        env_file = "../.env"
 
 @lru_cache()
 def get_settings():

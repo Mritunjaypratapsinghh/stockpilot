@@ -15,7 +15,9 @@ export default function RootLayout({ children }) {
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             var theme = localStorage.getItem('theme') || 'dark';
+            var accent = localStorage.getItem('accent') || 'indigo';
             document.documentElement.setAttribute('data-theme', theme);
+            document.documentElement.setAttribute('data-accent', accent);
           })();
         `}} />
       </head>

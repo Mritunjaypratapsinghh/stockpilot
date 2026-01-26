@@ -6,9 +6,21 @@ from bson import ObjectId
 from bs4 import BeautifulSoup
 from ..database import get_db
 from ..api.auth import get_current_user
+from ..services.enhanced_analysis import get_combined_analysis
 
 router = APIRouter()
 _cache = {}
+
+@router.get("/enhanced/{symbol}")
+async def get_enhanced_analysis(symbol: str, exchange: str = "NSE"):
+    """
+    Get comprehensive analysis from multiple sources:
+    - Yahoo Finance (price data)
+    - NSEpy (NSE official data with VWAP, delivery %)
+    - Screener.in (fundamentals: P/E, P/B, Market Cap)
+    - MoneyControl (news)
+    """
+    return await get_combined_analysis(symbol.upper(), exchange)
 
 @router.get("/news/{symbol}")
 async def get_stock_news(symbol: str):
@@ -60,10 +72,19 @@ async def get_chart_data(symbol: str, range: str = "6mo", interval: str = "1d"):
     return {"symbol": symbol, "candles": []}
 
 @router.get("/analysis/{symbol}")
-async def get_technical_analysis(symbol: str):
+async def get_technical_analysis(symbol: str, exchange: str = "NSE"):
+    """Get technical analysis with automatic NSE->BSE fallback"""
     try:
+        suffix = ".NS" if exchange == "NSE" else ".BO"
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.NS?interval=1d&range=6mo", headers={"User-Agent": "Mozilla/5.0"})
+            resp = await client.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}{suffix}?interval=1d&range=6mo", headers={"User-Agent": "Mozilla/5.0"})
+            
+            # If NSE fails, try BSE automatically
+            if resp.status_code != 200 and exchange == "NSE":
+                resp = await client.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.BO?interval=1d&range=6mo", headers={"User-Agent": "Mozilla/5.0"})
+                if resp.status_code == 200:
+                    exchange = "BSE"  # Update exchange for response
+            
             if resp.status_code == 200:
                 result = resp.json()["chart"]["result"][0]
                 closes = result["indicators"]["quote"][0]["close"]
@@ -73,39 +94,48 @@ async def get_technical_analysis(symbol: str):
                 highs = [h for h in highs if h]
                 lows = [l for l in lows if l]
                 
-                if len(closes) < 20:
-                    return {"symbol": symbol, "error": "Insufficient data"}
+                if len(closes) < 2:
+                    return {"symbol": symbol, "error": "Insufficient data - stock may be newly listed or illiquid", "data_points": len(closes)}
                 
-                sma_20 = sum(closes[-20:]) / 20
+                current = closes[-1]
+                
+                # Adjust calculations based on available data
+                sma_period = min(20, len(closes))
+                sma_20 = sum(closes[-sma_period:]) / sma_period
                 sma_50 = sum(closes[-50:]) / 50 if len(closes) >= 50 else None
                 sma_200 = sum(closes[-200:]) / 200 if len(closes) >= 200 else None
                 
-                # RSI
-                gains, losses = [], []
-                for i in range(1, min(15, len(closes))):
-                    diff = closes[-i] - closes[-i-1]
-                    if diff > 0:
-                        gains.append(diff)
-                    else:
-                        losses.append(abs(diff))
-                avg_gain = sum(gains) / 14 if gains else 0
-                avg_loss = sum(losses) / 14 if losses else 0.001
-                rs = avg_gain / avg_loss
-                rsi = 100 - (100 / (1 + rs))
+                # RSI (adjust period based on available data)
+                if len(closes) >= 3:
+                    rsi_period = min(14, len(closes) - 1)
+                    gains, losses = [], []
+                    for i in range(1, rsi_period + 1):
+                        if i >= len(closes):
+                            break
+                        diff = closes[-i] - closes[-i-1]
+                        if diff > 0:
+                            gains.append(diff)
+                        else:
+                            losses.append(abs(diff))
+                    avg_gain = sum(gains) / rsi_period if gains else 0
+                    avg_loss = sum(losses) / rsi_period if losses else 0.001
+                    rs = avg_gain / avg_loss
+                    rsi = 100 - (100 / (1 + rs))
+                else:
+                    rsi = 50  # Neutral for very limited data
                 
-                current = closes[-1]
                 trend = "BULLISH" if current > sma_20 else "BEARISH"
                 
-                # Support/Resistance
-                recent = closes[-20:]
-                support = min(recent)
-                resistance = max(recent)
+                # Support/Resistance (use all available data)
+                support = min(closes)
+                resistance = max(closes)
                 
-                # Chart Pattern Detection
-                pattern = detect_pattern(closes[-30:], highs[-30:], lows[-30:])
+                # Pattern detection only if enough data
+                pattern = detect_pattern(closes, highs, lows) if len(closes) >= 5 else "INSUFFICIENT_DATA"
                 
                 return {
                     "symbol": symbol,
+                    "exchange": exchange,  # Return actual exchange used
                     "current_price": round(current, 2),
                     "sma_20": round(sma_20, 2),
                     "sma_50": round(sma_50, 2) if sma_50 else None,

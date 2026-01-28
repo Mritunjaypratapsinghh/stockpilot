@@ -1,8 +1,10 @@
 from motor.motor_asyncio import AsyncIOMotorClient
+from beanie import init_beanie
 from fastapi import HTTPException
 import asyncio
 from .config import get_settings
 from .logger import logger
+from .models.documents import ALL_DOCUMENTS
 
 settings = get_settings()
 
@@ -26,7 +28,10 @@ async def connect_db(max_retries: int = 3, retry_delay: int = 2):
             )
             db = client[settings.mongodb_db]
             await client.admin.command('ping')
-            logger.info(f"✅ Connected to MongoDB: {settings.mongodb_db}")
+            
+            # Initialize Beanie with all document models
+            await init_beanie(database=db, document_models=ALL_DOCUMENTS)
+            logger.info(f"✅ Connected to MongoDB: {settings.mongodb_db} (Beanie initialized)")
             return
         except Exception as e:
             logger.warning(f"MongoDB connection attempt {attempt}/{max_retries} failed: {e}")

@@ -1,12 +1,12 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, TrendingUp, TrendingDown } from 'lucide-react';
 import Link from 'next/link';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
 
-export default function StockPage() {
+function StockContent() {
   const searchParams = useSearchParams();
   const symbol = searchParams.get('s') || '';
   const [data, setData] = useState(null);
@@ -288,5 +288,13 @@ export default function StockPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function StockPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><main className="p-6 text-center py-20"><p className="text-[var(--text-muted)]">Loading...</p></main></div>}>
+      <StockContent />
+    </Suspense>
   );
 }

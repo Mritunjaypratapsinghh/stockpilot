@@ -275,11 +275,12 @@ async def get_portfolio_xirr(current_user: dict = Depends(get_current_user)):
         rate = guess
         for _ in range(100):
             npv = xnpv(rate, cashflows)
-            # Derivative approximation
             npv_deriv = (xnpv(rate + 0.0001, cashflows) - npv) / 0.0001
             if abs(npv_deriv) < 1e-10:
                 break
             new_rate = rate - npv / npv_deriv
+            # Bound rate to prevent divergence
+            new_rate = max(-0.99, min(new_rate, 10))
             if abs(new_rate - rate) < 1e-6:
                 return new_rate
             rate = new_rate
@@ -287,6 +288,8 @@ async def get_portfolio_xirr(current_user: dict = Depends(get_current_user)):
     
     try:
         xirr_value = xirr_calc(cashflows) * 100
+        if abs(xirr_value) > 1000:
+            return {"xirr": 0, "message": "XIRR calculation did not converge"}
         return {"xirr": round(xirr_value, 2), "cashflows_count": len(cashflows)}
     except:
         return {"xirr": 0, "message": "Could not calculate XIRR"}
@@ -367,10 +370,12 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
                 cashflows.sort(key=lambda x: x[0])
                 # Simple XIRR approximation
                 days = (cashflows[-1][0] - cashflows[0][0]).days
-                if days > 0:
+                if days > 7:
                     total_out = sum(-cf for _, cf in cashflows if cf < 0)
                     if total_out > 0:
-                        xirr_val = round(((total_val / total_out) ** (365 / days) - 1) * 100, 2)
+                        ratio = total_val / total_out
+                        if 0.01 < ratio < 100:
+                            xirr_val = round(((ratio) ** (365 / days) - 1) * 100, 2)
         except:
             pass
     

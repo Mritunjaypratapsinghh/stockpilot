@@ -76,6 +76,6 @@ app.include_router(mf_health.router, prefix="/api/mf", tags=["MF Health"])
 async def root():
     return {"message": "StockPilot API", "version": "0.1.0"}
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health():
     return {"status": "healthy"}

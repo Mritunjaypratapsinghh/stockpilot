@@ -1,3 +1,4 @@
+"""Authentication routes for user registration, login, and settings."""
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
@@ -16,7 +17,8 @@ security = HTTPBearer()
 settings = get_settings()
 
 
-def create_access_token(data: dict, email: str = None) -> str:
+def create_access_token(data: dict, email: str | None = None) -> str:
+    """Create JWT access token with expiration."""
     to_encode = data.copy()
     if email:
         to_encode["email"] = email
@@ -26,6 +28,7 @@ def create_access_token(data: dict, email: str = None) -> str:
 
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+    """Extract and validate current user from JWT token."""
     try:
         payload = jwt.decode(credentials.credentials, settings.secret_key, algorithms=[settings.jwt_algorithm])
         user_id = payload.get("sub")
@@ -37,7 +40,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 
 @router.post("/register", summary="Register new user", description="Create a new user account with email and password", dependencies=[Depends(rate_limit("auth"))])
-async def register(user_data: UserCreate):
+async def register(user_data: UserCreate) -> StandardResponse:
+    """Register a new user account."""
     existing = await User.find_one(User.email == user_data.email)
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -49,7 +53,8 @@ async def register(user_data: UserCreate):
 
 
 @router.post("/login", summary="User login", description="Authenticate user and return JWT token", dependencies=[Depends(rate_limit("auth"))])
-async def login(user_data: UserLogin):
+async def login(user_data: UserLogin) -> StandardResponse:
+    """Authenticate user and return JWT token."""
     user = await User.find_one(User.email == user_data.email)
     if not user or not verify_password(user_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -58,7 +63,8 @@ async def login(user_data: UserLogin):
 
 
 @router.get("/me", summary="Get current user", description="Get authenticated user profile")
-async def get_me(current_user: dict = Depends(get_current_user)):
+async def get_me(current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Get current authenticated user profile."""
     user = await User.get(PydanticObjectId(current_user["_id"]))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -69,7 +75,8 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
 
 @router.put("/settings", summary="Update user settings", description="Update user preferences and notification settings")
-async def update_settings(data: SettingsUpdate, current_user: dict = Depends(get_current_user)):
+async def update_settings(data: SettingsUpdate, current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Update user settings and preferences."""
     user = await User.get(PydanticObjectId(current_user["_id"]))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

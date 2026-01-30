@@ -1,4 +1,4 @@
-"""Market routes - quotes, search, indices, research, screener, compare, corporate actions"""
+"""Market routes - quotes, search, indices, research, screener, compare, corporate actions."""
 from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime
 from beanie import PydanticObjectId
@@ -16,7 +16,8 @@ router = APIRouter()
 
 
 @router.get("/quote/{symbol}", summary="Get stock quote", description="Get real-time price for a stock")
-async def get_quote(symbol: str, exchange: str = "NSE"):
+async def get_quote(symbol: str, exchange: str = "NSE") -> StandardResponse:
+    """Get real-time stock quote."""
     price_data = await get_stock_price(symbol.upper(), exchange)
     if not price_data:
         raise HTTPException(status_code=404, detail="Stock not found")
@@ -24,14 +25,16 @@ async def get_quote(symbol: str, exchange: str = "NSE"):
 
 
 @router.get("/search", summary="Search stocks", description="Search for stocks by name or symbol", dependencies=[Depends(rate_limit("search"))])
-async def search(q: str):
+async def search(q: str) -> StandardResponse:
+    """Search for stocks by name or symbol."""
     return StandardResponse.ok(await search_stock(q))
 
 
 @router.get("/indices", summary="Get market indices", description="Get NIFTY, SENSEX, BANKNIFTY prices")
-async def get_indices():
+async def get_indices() -> StandardResponse:
+    """Get major market indices prices."""
     indices = {"NIFTY50": "^NSEI", "SENSEX": "^BSESN", "BANKNIFTY": "^NSEBANK"}
-    result = {}
+    result: dict = {}
     async with httpx.AsyncClient(timeout=10) as client:
         for name, symbol in indices.items():
             try:
@@ -47,18 +50,21 @@ async def get_indices():
 
 
 @router.get("/quotes", summary="Get bulk quotes", description="Get prices for multiple stocks")
-async def get_bulk_quotes(symbols: str):
+async def get_bulk_quotes(symbols: str) -> StandardResponse:
+    """Get prices for multiple stocks at once."""
     symbol_list = [s.strip().upper() for s in symbols.split(",")]
     return StandardResponse.ok(await get_bulk_prices(symbol_list))
 
 
 @router.get("/research/{symbol}", summary="Get stock research", description="Get detailed analysis for a stock")
-async def get_enhanced_analysis(symbol: str, exchange: str = "NSE"):
+async def get_enhanced_analysis(symbol: str, exchange: str = "NSE") -> StandardResponse:
+    """Get detailed stock analysis and research."""
     return StandardResponse.ok(await get_combined_analysis(symbol.upper(), exchange))
 
 
 @router.get("/research/{symbol}/news", summary="Get stock news", description="Get latest news for a stock")
-async def get_stock_news(symbol: str):
+async def get_stock_news(symbol: str) -> StandardResponse:
+    """Get latest news for a stock."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(f"https://query1.finance.yahoo.com/v1/finance/search?q={symbol}", headers={"User-Agent": "Mozilla/5.0"})
@@ -70,7 +76,8 @@ async def get_stock_news(symbol: str):
 
 
 @router.get("/research/{symbol}/chart", summary="Get chart data", description="Get OHLCV candle data for charts")
-async def get_chart_data(symbol: str, range: str = "6mo", interval: str = "1d"):
+async def get_chart_data(symbol: str, range: str = "6mo", interval: str = "1d") -> StandardResponse:
+    """Get OHLCV chart data for a stock."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.NS?interval={interval}&range={range}", headers={"User-Agent": "Mozilla/5.0"})
@@ -87,7 +94,8 @@ async def get_chart_data(symbol: str, range: str = "6mo", interval: str = "1d"):
 
 
 @router.get("/screener/gainers", summary="Get top gainers/losers", description="Get top gaining and losing stocks")
-async def get_top_gainers():
+async def get_top_gainers() -> StandardResponse:
+    """Get top gaining and losing stocks."""
     symbols = ["RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "KOTAKBANK", "SBIN", "BHARTIARTL", "ITC", "LT"]
     prices = await get_bulk_prices(symbols)
     sorted_stocks = sorted([{"symbol": s, **prices.get(s, {})} for s in symbols if prices.get(s)], key=lambda x: x.get("day_change_pct", 0), reverse=True)
@@ -95,9 +103,10 @@ async def get_top_gainers():
 
 
 @router.get("/screener/52week", summary="Get 52-week highs/lows", description="Get stocks near 52-week high or low")
-async def get_52week_highs_lows():
+async def get_52week_highs_lows() -> StandardResponse:
+    """Get stocks near 52-week high or low."""
     symbols = ["RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK"]
-    result = {"near_high": [], "near_low": []}
+    result: dict = {"near_high": [], "near_low": []}
     async with httpx.AsyncClient(timeout=10) as client:
         for symbol in symbols:
             try:
@@ -105,7 +114,7 @@ async def get_52week_highs_lows():
                 if resp.status_code == 200:
                     data = resp.json()["chart"]["result"][0]
                     highs = [h for h in data["indicators"]["quote"][0]["high"] if h]
-                    lows = [l for l in data["indicators"]["quote"][0]["low"] if l]
+                    lows = [low for low in data["indicators"]["quote"][0]["low"] if low]
                     current = data["meta"].get("regularMarketPrice", 0)
                     if highs and current >= max(highs) * 0.95:
                         result["near_high"].append({"symbol": symbol, "price": current, "high_52w": max(highs)})
@@ -117,20 +126,22 @@ async def get_52week_highs_lows():
 
 
 @router.get("/compare", summary="Compare stocks", description="Compare multiple stocks side by side")
-async def compare_stocks(symbols: str):
+async def compare_stocks(symbols: str) -> StandardResponse:
+    """Compare multiple stocks side by side."""
     symbol_list = [s.strip().upper() for s in symbols.split(",")][:5]
     prices = await get_bulk_prices(symbol_list)
     return StandardResponse.ok({"stocks": [{"symbol": s, **prices.get(s, {})} for s in symbol_list]})
 
 
 @router.get("/corporate-actions", summary="Get corporate actions", description="Get dividends and splits for portfolio stocks")
-async def get_corporate_actions(current_user: dict = Depends(get_current_user)):
+async def get_corporate_actions(current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Get corporate actions for portfolio stocks."""
     holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
     if not holdings:
         return StandardResponse.ok({"actions": []})
 
     symbols = [h.symbol for h in holdings if h.holding_type != "MF"][:10]
-    actions = []
+    actions: list = []
 
     async with httpx.AsyncClient(timeout=10) as client:
         for symbol in symbols:

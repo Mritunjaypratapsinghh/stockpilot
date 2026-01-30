@@ -1,6 +1,7 @@
-"""Portfolio routes - holdings, transactions, import, MF health"""
+"""Portfolio routes - holdings, transactions, import, MF health."""
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from beanie import PydanticObjectId
+from typing import List
 import csv
 import io
 
@@ -17,13 +18,14 @@ router = APIRouter()
 
 @router.get("", summary="Get portfolio summary", description="Get total investment, current value, and P&L")
 @router.get("/")
-async def get_portfolio_summary(current_user: dict = Depends(get_current_user)):
+async def get_portfolio_summary(current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Get portfolio summary with total investment, current value, and P&L."""
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
         return StandardResponse.ok(PortfolioSummary(total_investment=0, current_value=0, total_pnl=0, total_pnl_pct=0, day_pnl=0, day_pnl_pct=0, holdings_count=0))
 
     prices = await get_prices_for_holdings(holdings)
-    total_investment = current_value = day_pnl = 0
+    total_investment = current_value = day_pnl = 0.0
 
     for h in holdings:
         inv = h.quantity * h.avg_price
@@ -44,11 +46,12 @@ async def get_portfolio_summary(current_user: dict = Depends(get_current_user)):
 
 
 @router.get("/holdings", summary="Get all holdings", description="List all stock and MF holdings with current prices")
-async def get_holdings(current_user: dict = Depends(get_current_user)):
+async def get_holdings(current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Get all holdings with current prices and P&L."""
     holdings = await get_user_holdings(current_user["_id"])
     prices = await get_prices_for_holdings(holdings)
 
-    result = []
+    result: List[HoldingResponse] = []
     for h in holdings:
         p = prices.get(h.symbol, {})
         curr_price = p.get("current_price") or h.current_price or h.avg_price
@@ -66,7 +69,8 @@ async def get_holdings(current_user: dict = Depends(get_current_user)):
 
 
 @router.post("/holdings", summary="Add holding", description="Add a new stock or MF holding")
-async def add_holding(holding: HoldingCreate, current_user: dict = Depends(get_current_user)):
+async def add_holding(holding: HoldingCreate, current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Add a new holding to portfolio."""
     user_id = PydanticObjectId(current_user["_id"])
     existing = await Holding.find_one(Holding.user_id == user_id, Holding.symbol == holding.symbol)
     if existing:
@@ -79,7 +83,8 @@ async def add_holding(holding: HoldingCreate, current_user: dict = Depends(get_c
 
 
 @router.put("/holdings/{holding_id}", summary="Update holding", description="Update quantity or average price")
-async def update_holding(holding_id: str, update: HoldingUpdate, current_user: dict = Depends(get_current_user)):
+async def update_holding(holding_id: str, update: HoldingUpdate, current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Update holding quantity or average price."""
     if not PydanticObjectId.is_valid(holding_id):
         raise HTTPException(status_code=400, detail="Invalid ID")
     h = await Holding.find_one(Holding.id == PydanticObjectId(holding_id), Holding.user_id == PydanticObjectId(current_user["_id"]))
@@ -94,7 +99,8 @@ async def update_holding(holding_id: str, update: HoldingUpdate, current_user: d
 
 
 @router.delete("/holdings/{holding_id}", summary="Delete holding", description="Remove a holding from portfolio")
-async def delete_holding(holding_id: str, current_user: dict = Depends(get_current_user)):
+async def delete_holding(holding_id: str, current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Delete a holding from portfolio."""
     if not PydanticObjectId.is_valid(holding_id):
         raise HTTPException(status_code=400, detail="Invalid ID")
     h = await Holding.find_one(Holding.id == PydanticObjectId(holding_id), Holding.user_id == PydanticObjectId(current_user["_id"]))
@@ -105,14 +111,15 @@ async def delete_holding(holding_id: str, current_user: dict = Depends(get_curre
 
 
 @router.get("/sectors", summary="Get sector allocation", description="Get portfolio breakdown by sector")
-async def get_sector_allocation(current_user: dict = Depends(get_current_user)):
+async def get_sector_allocation(current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Get portfolio sector allocation breakdown."""
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
         return StandardResponse.ok({"sectors": [], "total_value": 0})
 
     prices = await get_prices_for_holdings(holdings)
-    sector_values = {}
-    total_value = 0
+    sector_values: dict[str, float] = {}
+    total_value = 0.0
 
     for h in holdings:
         curr_price = prices.get(h.symbol, {}).get("current_price") or h.avg_price
@@ -127,15 +134,17 @@ async def get_sector_allocation(current_user: dict = Depends(get_current_user)):
 
 
 @router.get("/dashboard", summary="Get dashboard data", description="Get complete portfolio dashboard with holdings, sectors, and transactions")
-async def get_dashboard(current_user: dict = Depends(get_current_user)):
+async def get_dashboard(current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Get complete dashboard with holdings, sectors, and recent transactions."""
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
         return StandardResponse.ok({"holdings": [], "sectors": [], "xirr": None, "transactions": [], "summary": {"invested": 0, "current": 0, "pnl": 0, "pnl_pct": 0}})
 
     prices = await get_prices_for_holdings(holdings)
-    holdings_list, txns = [], []
-    total_inv = total_val = 0
-    sector_values = {}
+    holdings_list: list = []
+    txns: list = []
+    total_inv = total_val = 0.0
+    sector_values: dict[str, float] = {}
 
     for h in holdings:
         p = prices.get(h.symbol, {})
@@ -169,12 +178,11 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
     })
 
 
-# ============ TRANSACTIONS ============
-
 @router.get("/transactions", summary="Get transactions", description="List all buy/sell transactions")
-async def get_transactions(current_user: dict = Depends(get_current_user)):
+async def get_transactions(current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Get all transactions across holdings."""
     holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
-    txns = []
+    txns: list = []
     for h in holdings:
         for i, t in enumerate(h.transactions):
             txns.append({"symbol": h.symbol, "holding_id": str(h.id), "index": i, **t.model_dump()})
@@ -182,7 +190,8 @@ async def get_transactions(current_user: dict = Depends(get_current_user)):
 
 
 @router.post("/transactions", summary="Add transaction", description="Record a buy or sell transaction")
-async def add_transaction(txn: TransactionCreate, current_user: dict = Depends(get_current_user)):
+async def add_transaction(txn: TransactionCreate, current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Add a buy or sell transaction."""
     user_id = PydanticObjectId(current_user["_id"])
     quantity = txn.quantity or (round(txn.amount / txn.price, 4) if txn.amount else None)
     if not quantity:
@@ -221,7 +230,8 @@ async def add_transaction(txn: TransactionCreate, current_user: dict = Depends(g
 
 
 @router.delete("/transactions/{holding_id}/{index}")
-async def delete_transaction(holding_id: str, index: int, current_user: dict = Depends(get_current_user)):
+async def delete_transaction(holding_id: str, index: int, current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Delete a transaction by index."""
     if not PydanticObjectId.is_valid(holding_id) or index < 0:
         raise HTTPException(status_code=400, detail="Invalid ID or index")
 
@@ -231,7 +241,7 @@ async def delete_transaction(holding_id: str, index: int, current_user: dict = D
 
     holding.transactions.pop(index)
     if holding.transactions:
-        qty, cost = 0, 0
+        qty, cost = 0.0, 0.0
         for t in holding.transactions:
             if t.type == "BUY":
                 cost += t.quantity * t.price
@@ -244,10 +254,9 @@ async def delete_transaction(holding_id: str, index: int, current_user: dict = D
     return StandardResponse.ok(message="Transaction deleted")
 
 
-# ============ IMPORT ============
-
 @router.post("/import", summary="Import holdings", description="Import holdings from CSV file (Zerodha, Groww)")
-async def import_holdings(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+async def import_holdings(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Import holdings from broker CSV file."""
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files supported")
 
@@ -296,9 +305,8 @@ async def import_holdings(file: UploadFile = File(...), current_user: dict = Dep
     return StandardResponse.ok(ImportResult(broker=broker, imported=imported, skipped=skipped))
 
 
-# ============ MF HEALTH ============
-
-def categorize_mf(name: str) -> tuple:
+def categorize_mf(name: str) -> tuple[str, int]:
+    """Categorize mutual fund by name and return expected benchmark return."""
     name = name.upper()
     if any(x in name for x in ["LIQUID", "OVERNIGHT"]):
         return "Liquid", 6
@@ -316,15 +324,17 @@ def categorize_mf(name: str) -> tuple:
 
 
 @router.get("/mf/health", summary="MF health check", description="Analyze mutual fund performance and health")
-async def mf_health_check(current_user: dict = Depends(get_current_user)):
+async def mf_health_check(current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Analyze mutual fund holdings for performance and health."""
     holdings = await get_user_holdings(current_user["_id"])
     mf_holdings = [h for h in holdings if h.holding_type == "MF"]
     if not mf_holdings:
         return StandardResponse.ok({"funds": [], "total_mf_value": 0, "health_score": 100})
 
     prices = await get_prices_for_holdings(mf_holdings)
-    analysis, issues = [], []
-    total_value = 0
+    analysis: list = []
+    issues: list = []
+    total_value = 0.0
 
     for h in mf_holdings:
         p = prices.get(h.symbol, {})

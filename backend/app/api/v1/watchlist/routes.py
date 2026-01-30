@@ -13,7 +13,8 @@ router = APIRouter()
 
 @router.get("", summary="Get watchlist", description="List all watchlist items with prices")
 @router.get("/")
-async def get_watchlist(current_user: dict = Depends(get_current_user)):
+async def get_watchlist(current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Get watchlist items."""
     items = await WatchlistItem.find(WatchlistItem.user_id == PydanticObjectId(current_user["_id"])).to_list()
     symbols = [w.symbol for w in items]
     prices = await get_bulk_prices(symbols) if symbols else {}
@@ -27,7 +28,8 @@ async def get_watchlist(current_user: dict = Depends(get_current_user)):
 
 
 @router.post("/", summary="Add to watchlist", description="Add a stock to watchlist")
-async def add_to_watchlist(item: WatchlistAdd, current_user: dict = Depends(get_current_user)):
+async def add_to_watchlist(item: WatchlistAdd, current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Add stock to watchlist."""
     user_id = PydanticObjectId(current_user["_id"])
     symbol = item.symbol.strip().upper()
     
@@ -41,7 +43,8 @@ async def add_to_watchlist(item: WatchlistAdd, current_user: dict = Depends(get_
 
 
 @router.delete("/{item_id}", summary="Remove from watchlist", description="Remove a stock from watchlist")
-async def remove_from_watchlist(item_id: str, current_user: dict = Depends(get_current_user)):
+async def remove_from_watchlist(item_id: str, current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Remove from watchlist."""
     if not PydanticObjectId.is_valid(item_id):
         raise HTTPException(status_code=400, detail="Invalid ID format")
     item = await WatchlistItem.find_one(WatchlistItem.id == PydanticObjectId(item_id), WatchlistItem.user_id == PydanticObjectId(current_user["_id"]))

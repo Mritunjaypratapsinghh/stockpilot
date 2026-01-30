@@ -40,7 +40,7 @@ def parse_ipo_dates(dates_str):
     return None, None, "UNKNOWN"
 
 
-async def get_ipos_from_db():
+async def get_ipos_from_db() -> StandardResponse:
     from ....models.documents import IPO
     ipos = await IPO.find(IPO.status.is_in(["OPEN", "UPCOMING"])).to_list()
     
@@ -72,24 +72,28 @@ async def get_ipos_from_db():
 
 
 @router.get("/upcoming", summary="Get upcoming IPOs", description="List upcoming and open IPOs")
-async def get_upcoming_ipos():
+async def get_upcoming_ipos() -> StandardResponse:
+    """Get upcoming IPOs."""
     return StandardResponse.ok(await get_ipos_from_db())
 
 
 @router.get("/gmp", summary="Get GMP tracker", description="Get IPO grey market premium data")
-async def get_gmp_tracker():
+async def get_gmp_tracker() -> StandardResponse:
+    """Get IPO GMP data."""
     return StandardResponse.ok(await get_ipos_from_db())
 
 
 @router.post("/refresh", summary="Refresh IPO data", description="Manually refresh IPO data from sources")
-async def refresh_ipo_data():
+async def refresh_ipo_data() -> StandardResponse:
+    """Refresh IPO data."""
     from ....tasks.ipo_tracker import scrape_ipo_data
     await scrape_ipo_data()
     return StandardResponse.ok(message="IPO data refreshed")
 
 
 @router.get("/all", summary="Get all IPOs", description="Get all IPOs with mainboard/SME split")
-async def get_all_ipos():
+async def get_all_ipos() -> StandardResponse:
+    """Get all IPOs."""
     ipos = await get_ipos_from_db()
     mainboard = [i for i in ipos if i["type"] == "MAINBOARD"]
     sme = [i for i in ipos if i["type"] == "SME"]

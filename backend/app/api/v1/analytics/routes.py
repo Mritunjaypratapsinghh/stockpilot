@@ -1,4 +1,4 @@
-"""Analytics routes - analytics, PnL calendar, rebalance, export"""
+"""Analytics routes - analytics, PnL calendar, rebalance, export."""
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from datetime import datetime
@@ -16,7 +16,8 @@ router = APIRouter()
 
 @router.get("", summary="Get analytics", description="Get portfolio analytics and sector breakdown")
 @router.get("/")
-async def get_analytics(current_user: dict = Depends(get_current_user)):
+async def get_analytics(current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Get portfolio analytics."""
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
         return StandardResponse.ok(AnalyticsSummary(total_value=0, sectors=[], holdings_count=0))
@@ -39,7 +40,8 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
 
 
 @router.get("/pnl-calendar", summary="Get PnL calendar", description="Get daily buy/sell activity calendar")
-async def get_pnl_calendar(current_user: dict = Depends(get_current_user)):
+async def get_pnl_calendar(current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Get PnL calendar data."""
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
         return StandardResponse.ok({"calendar": []})
@@ -61,7 +63,8 @@ async def get_pnl_calendar(current_user: dict = Depends(get_current_user)):
 
 
 @router.get("/rebalance", summary="Get rebalance suggestions", description="Get portfolio rebalancing recommendations")
-async def get_rebalance_suggestions(current_user: dict = Depends(get_current_user)):
+async def get_rebalance_suggestions(current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Get rebalancing suggestions."""
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
         return StandardResponse.ok({"suggestions": [], "current_allocation": {}})
@@ -91,7 +94,8 @@ async def get_rebalance_suggestions(current_user: dict = Depends(get_current_use
 
 
 @router.get("/export/csv", summary="Export to CSV", description="Download portfolio as CSV file")
-async def export_holdings_csv(current_user: dict = Depends(get_current_user)):
+async def export_holdings_csv(current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Export holdings to CSV."""
     holdings = await get_user_holdings(current_user["_id"])
     prices = await get_prices_for_holdings(holdings)
 

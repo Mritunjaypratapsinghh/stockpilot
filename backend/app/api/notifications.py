@@ -1,28 +1,31 @@
 from fastapi import APIRouter, Depends
-from datetime import datetime
-from bson import ObjectId
-from ..database import get_db
+from beanie import PydanticObjectId
+
+from ..models.documents import Notification, User
 from ..api.auth import get_current_user
 
 router = APIRouter()
 
+
 @router.get("/")
 async def get_notifications(current_user: dict = Depends(get_current_user)):
-    db = get_db()
-    notifs = await db.notifications.find({"user_id": ObjectId(current_user["_id"]), "read": False}).sort("created_at", -1).to_list(20)
-    for n in notifs:
-        n["_id"] = str(n["_id"])
-        n["user_id"] = str(n["user_id"])
-    return notifs
+    notifs = await Notification.find(
+        Notification.user_id == PydanticObjectId(current_user["_id"]),
+        Notification.read == False
+    ).sort(-Notification.created_at).limit(20).to_list()
+    return [{"_id": str(n.id), "user_id": str(n.user_id), "title": n.title, "message": n.message, "created_at": n.created_at} for n in notifs]
+
 
 @router.post("/mark-read")
 async def mark_all_read(current_user: dict = Depends(get_current_user)):
-    db = get_db()
-    await db.notifications.update_many({"user_id": ObjectId(current_user["_id"])}, {"$set": {"read": True}})
+    await Notification.find(Notification.user_id == PydanticObjectId(current_user["_id"])).update_many({"$set": {"read": True}})
     return {"message": "Marked all as read"}
+
 
 @router.post("/subscribe")
 async def subscribe_push(subscription: dict, current_user: dict = Depends(get_current_user)):
-    db = get_db()
-    await db.users.update_one({"_id": ObjectId(current_user["_id"])}, {"$set": {"push_subscription": subscription}})
+    user = await User.get(PydanticObjectId(current_user["_id"]))
+    if user:
+        user.push_subscription = subscription
+        await user.save()
     return {"message": "Subscribed"}

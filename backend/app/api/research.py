@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends
 import httpx
 import asyncio
 from datetime import datetime
-from bson import ObjectId
+from beanie import PydanticObjectId
 from bs4 import BeautifulSoup
-from ..database import get_db
+from ..models.documents import Holding
 from ..api.auth import get_current_user
 from ..services.enhanced_analysis import get_combined_analysis
 
@@ -343,12 +343,11 @@ async def run_advisor_now(current_user: dict = Depends(get_current_user)):
     """Manually trigger portfolio advisor for current user"""
     from ..tasks.portfolio_advisor import get_bulk_stock_data, calculate_indicators, generate_recommendation, analyze_ipo_opportunities
     
-    db = get_db()
-    holdings = await db.holdings.find({"user_id": ObjectId(current_user["_id"])}).to_list(100)
+    holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
     
     # Get equity symbols only
-    equity_holdings = [h for h in holdings if h.get("holding_type") != "MF"]
-    symbols = [h["symbol"] for h in equity_holdings]
+    equity_holdings = [h for h in holdings if h.holding_type != "MF"]
+    symbols = [h.symbol for h in equity_holdings]
     
     # Fetch all stock data concurrently
     stock_data = await get_bulk_stock_data(symbols)

@@ -162,14 +162,15 @@ async def get_all_ipos():
 
 async def get_ipos_from_db():
     """Get IPO data from database"""
-    from ..database import get_db
-    db = get_db()
-    ipos = await db.ipos.find({"status": {"$in": ["OPEN", "UPCOMING"]}, "price_band.high": {"$gt": 0}}).to_list(50)
+    from ..models.documents import IPO
+    ipos = await IPO.find(IPO.status.is_in(["OPEN", "UPCOMING"])).to_list()
     
     result = []
     for ipo in ipos:
-        price = ipo.get("price_band", {}).get("high", 0)
-        gmp = ipo.get("gmp", 0)
+        price = ipo.price_band.get("high", 0) if ipo.price_band else 0
+        if price <= 0:
+            continue
+        gmp = ipo.gmp or 0
         gmp_pct = (gmp / price * 100) if price > 0 else 0
         
         if gmp_pct > 15:
@@ -181,31 +182,20 @@ async def get_ipos_from_db():
         else:
             action = "AVOID"
         
-        # Format dates as string with year
-        dates_str = ipo.get("date_range", "")
-        if not dates_str:
-            dates_obj = ipo.get("dates", {})
-            if dates_obj.get("open") and dates_obj.get("close"):
-                try:
-                    open_dt = dates_obj["open"]
-                    close_dt = dates_obj["close"]
-                    if hasattr(open_dt, 'strftime'):
-                        dates_str = f"{open_dt.strftime('%d')}-{close_dt.strftime('%d %b %Y')}"
-                except:
-                    pass
+        dates_str = ipo.date_range or ""
         
         result.append({
-            "name": ipo["name"],
-            "type": ipo.get("ipo_type", "MAINBOARD"),
+            "name": ipo.name,
+            "type": ipo.ipo_type,
             "price": price,
-            "lot_size": ipo.get("lot_size", 0),
-            "min_investment": ipo.get("lot_size", 0) * price,
+            "lot_size": ipo.lot_size,
+            "min_investment": ipo.lot_size * price,
             "gmp": gmp,
             "gmp_pct": round(gmp_pct, 2),
             "estimated_listing": round(price + gmp, 2) if price > 0 else 0,
             "dates": dates_str,
             "action": action,
-            "status": ipo.get("status", "UPCOMING")
+            "status": ipo.status
         })
     
     return result

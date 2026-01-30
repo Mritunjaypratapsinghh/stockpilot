@@ -1,5 +1,4 @@
 from pydantic import Field
-from typing import Optional, Literal
 from .base import BaseDocument
 
 class Notification(BaseDocument):

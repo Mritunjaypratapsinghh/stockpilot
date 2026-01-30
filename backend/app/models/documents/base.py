@@ -1,7 +1,6 @@
 from beanie import Document, PydanticObjectId
 from pydantic import Field
 from datetime import datetime, timezone
-from typing import Optional
 
 class BaseDocument(Document):
     user_id: PydanticObjectId

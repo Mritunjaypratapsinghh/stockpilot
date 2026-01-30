@@ -1,15 +1,25 @@
-# from beanie import Indexed
-from pydantic import Field
-from typing import Optional, Literal
-from datetime import datetime
+from pydantic import Field, BaseModel
+from typing import Optional, Literal, List
 from .base import BaseDocument
+
+
+class Installment(BaseModel):
+    amount: float
+    nav: float
+    units: float
+    date: str
+
 
 class SIP(BaseDocument):
     symbol: str
-    name: str
     amount: float = Field(..., gt=0)
-    sip_date: int = Field(..., ge=1, le=31)
-    active: bool = True
-    
+    frequency: Literal["monthly", "weekly", "quarterly"] = "monthly"
+    sip_date: int = Field(1, ge=1, le=28)
+    start_date: str
+    end_date: Optional[str] = None
+    is_active: bool = True
+    last_nav: Optional[float] = None
+    installments: List[Installment] = []
+
     class Settings:
         name = "sips"

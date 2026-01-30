@@ -51,6 +51,8 @@ export const getXirr = () => api('/api/portfolio/xirr');
 export const getDashboard = () => api('/api/portfolio/dashboard');
 export const getTransactions = () => api('/api/transactions');
 export const addTransaction = (data) => api('/api/transactions/', { method: 'POST', body: JSON.stringify(data) });
+export const deleteTransaction = (holdingId, index) => api(`/api/transactions/${holdingId}/${index}`, { method: 'DELETE' });
+export const getTransactionsList = () => api('/api/transactions');
 export const importHoldings = (file) => uploadFile('/api/portfolio/import', file);
 export const getAlerts = () => api('/api/alerts');
 export const getWatchlist = () => api('/api/watchlist');

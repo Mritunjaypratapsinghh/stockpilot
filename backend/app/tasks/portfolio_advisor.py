@@ -5,7 +5,6 @@ Analyzes portfolio holdings and sends actionable alerts
 from ..models.documents import User, Holding, IPO, AdvisorHistory
 from ..services.notification.service import send_email
 from ..core.config import settings
-from ..services.market.price_service import is_market_open
 from ..utils.logger import logger
 from datetime import datetime
 import httpx

@@ -1,6 +1,5 @@
 # from beanie import Indexed
 from pydantic import Field
-from typing import Optional, Literal
 from .base import BaseDocument
 
 class SignalHistory(BaseDocument):

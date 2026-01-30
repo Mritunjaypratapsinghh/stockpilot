@@ -1,5 +1,4 @@
 from fastapi import HTTPException
-from typing import Optional
 
 
 class AppException(HTTPException):

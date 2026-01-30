@@ -1,6 +1,6 @@
 """Portfolio schemas"""
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, Literal, List
+from typing import Optional, Literal
 from datetime import date
 
 

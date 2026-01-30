@@ -15,7 +15,7 @@ from ....utils.logger import logger
 router = APIRouter()
 
 
-@router.get("/quote/{symbol}")
+@router.get("/quote/{symbol}", summary="Get stock quote", description="Get real-time price for a stock")
 async def get_quote(symbol: str, exchange: str = "NSE"):
     price_data = await get_stock_price(symbol.upper(), exchange)
     if not price_data:
@@ -23,12 +23,12 @@ async def get_quote(symbol: str, exchange: str = "NSE"):
     return StandardResponse.ok(price_data)
 
 
-@router.get("/search", dependencies=[Depends(rate_limit("search"))])
+@router.get("/search", summary="Search stocks", description="Search for stocks by name or symbol", dependencies=[Depends(rate_limit("search"))])
 async def search(q: str):
     return StandardResponse.ok(await search_stock(q))
 
 
-@router.get("/indices")
+@router.get("/indices", summary="Get market indices", description="Get NIFTY, SENSEX, BANKNIFTY prices")
 async def get_indices():
     indices = {"NIFTY50": "^NSEI", "SENSEX": "^BSESN", "BANKNIFTY": "^NSEBANK"}
     result = {}
@@ -46,18 +46,18 @@ async def get_indices():
     return StandardResponse.ok(result)
 
 
-@router.get("/quotes")
+@router.get("/quotes", summary="Get bulk quotes", description="Get prices for multiple stocks")
 async def get_bulk_quotes(symbols: str):
     symbol_list = [s.strip().upper() for s in symbols.split(",")]
     return StandardResponse.ok(await get_bulk_prices(symbol_list))
 
 
-@router.get("/research/{symbol}")
+@router.get("/research/{symbol}", summary="Get stock research", description="Get detailed analysis for a stock")
 async def get_enhanced_analysis(symbol: str, exchange: str = "NSE"):
     return StandardResponse.ok(await get_combined_analysis(symbol.upper(), exchange))
 
 
-@router.get("/research/{symbol}/news")
+@router.get("/research/{symbol}/news", summary="Get stock news", description="Get latest news for a stock")
 async def get_stock_news(symbol: str):
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -69,7 +69,7 @@ async def get_stock_news(symbol: str):
     return StandardResponse.ok({"symbol": symbol, "news": []})
 
 
-@router.get("/research/{symbol}/chart")
+@router.get("/research/{symbol}/chart", summary="Get chart data", description="Get OHLCV candle data for charts")
 async def get_chart_data(symbol: str, range: str = "6mo", interval: str = "1d"):
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -86,7 +86,7 @@ async def get_chart_data(symbol: str, range: str = "6mo", interval: str = "1d"):
     return StandardResponse.ok({"symbol": symbol, "candles": []})
 
 
-@router.get("/screener/gainers")
+@router.get("/screener/gainers", summary="Get top gainers/losers", description="Get top gaining and losing stocks")
 async def get_top_gainers():
     symbols = ["RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "KOTAKBANK", "SBIN", "BHARTIARTL", "ITC", "LT"]
     prices = await get_bulk_prices(symbols)
@@ -94,7 +94,7 @@ async def get_top_gainers():
     return StandardResponse.ok({"gainers": sorted_stocks[:5], "losers": sorted_stocks[-5:][::-1]})
 
 
-@router.get("/screener/52week")
+@router.get("/screener/52week", summary="Get 52-week highs/lows", description="Get stocks near 52-week high or low")
 async def get_52week_highs_lows():
     symbols = ["RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK"]
     result = {"near_high": [], "near_low": []}
@@ -116,14 +116,14 @@ async def get_52week_highs_lows():
     return StandardResponse.ok(result)
 
 
-@router.get("/compare")
+@router.get("/compare", summary="Compare stocks", description="Compare multiple stocks side by side")
 async def compare_stocks(symbols: str):
     symbol_list = [s.strip().upper() for s in symbols.split(",")][:5]
     prices = await get_bulk_prices(symbol_list)
     return StandardResponse.ok({"stocks": [{"symbol": s, **prices.get(s, {})} for s in symbol_list]})
 
 
-@router.get("/corporate-actions")
+@router.get("/corporate-actions", summary="Get corporate actions", description="Get dividends and splits for portfolio stocks")
 async def get_corporate_actions(current_user: dict = Depends(get_current_user)):
     holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
     if not holdings:

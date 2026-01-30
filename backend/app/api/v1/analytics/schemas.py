@@ -1,6 +1,6 @@
 """Analytics schemas"""
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List
 
 
 class SectorAllocation(BaseModel):

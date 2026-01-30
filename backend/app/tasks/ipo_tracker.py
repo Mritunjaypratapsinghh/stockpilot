@@ -1,8 +1,7 @@
 from ..models.documents import IPO, User
-from ..services.notification.service import send_email
 from ..core.config import settings
 from ..utils.logger import logger
-from datetime import datetime, timedelta
+from datetime import datetime
 import httpx
 import re
 

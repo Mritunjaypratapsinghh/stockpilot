@@ -36,7 +36,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
-@router.post("/register", dependencies=[Depends(rate_limit("auth"))])
+@router.post("/register", summary="Register new user", description="Create a new user account with email and password", dependencies=[Depends(rate_limit("auth"))])
 async def register(user_data: UserCreate):
     existing = await User.find_one(User.email == user_data.email)
     if existing:
@@ -48,7 +48,7 @@ async def register(user_data: UserCreate):
     return StandardResponse.ok(Token(access_token=token), "Registration successful")
 
 
-@router.post("/login", dependencies=[Depends(rate_limit("auth"))])
+@router.post("/login", summary="User login", description="Authenticate user and return JWT token", dependencies=[Depends(rate_limit("auth"))])
 async def login(user_data: UserLogin):
     user = await User.find_one(User.email == user_data.email)
     if not user or not verify_password(user_data.password, user.password_hash):
@@ -57,7 +57,7 @@ async def login(user_data: UserLogin):
     return StandardResponse.ok(Token(access_token=token), "Login successful")
 
 
-@router.get("/me")
+@router.get("/me", summary="Get current user", description="Get authenticated user profile")
 async def get_me(current_user: dict = Depends(get_current_user)):
     user = await User.get(PydanticObjectId(current_user["_id"]))
     if not user:
@@ -68,7 +68,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
     ))
 
 
-@router.put("/settings")
+@router.put("/settings", summary="Update user settings", description="Update user preferences and notification settings")
 async def update_settings(data: SettingsUpdate, current_user: dict = Depends(get_current_user)):
     user = await User.get(PydanticObjectId(current_user["_id"]))
     if not user:

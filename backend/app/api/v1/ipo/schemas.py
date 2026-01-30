@@ -1,6 +1,6 @@
 """IPO schemas"""
 from pydantic import BaseModel
-from typing import Optional, Literal
+from typing import Optional
 
 
 class IPOResponse(BaseModel):

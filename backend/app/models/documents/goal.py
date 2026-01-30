@@ -1,6 +1,5 @@
 from pydantic import Field, BaseModel
-from typing import Optional, Literal, List
-from datetime import datetime
+from typing import Literal, List
 from .base import BaseDocument
 
 

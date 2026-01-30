@@ -1,7 +1,6 @@
 from fastapi import APIRouter
 from datetime import datetime
 import re
-from ....utils.logger import logger
 from ....core.response_handler import StandardResponse
 
 router = APIRouter()
@@ -72,24 +71,24 @@ async def get_ipos_from_db():
     return result
 
 
-@router.get("/upcoming")
+@router.get("/upcoming", summary="Get upcoming IPOs", description="List upcoming and open IPOs")
 async def get_upcoming_ipos():
     return StandardResponse.ok(await get_ipos_from_db())
 
 
-@router.get("/gmp")
+@router.get("/gmp", summary="Get GMP tracker", description="Get IPO grey market premium data")
 async def get_gmp_tracker():
     return StandardResponse.ok(await get_ipos_from_db())
 
 
-@router.post("/refresh")
+@router.post("/refresh", summary="Refresh IPO data", description="Manually refresh IPO data from sources")
 async def refresh_ipo_data():
     from ....tasks.ipo_tracker import scrape_ipo_data
     await scrape_ipo_data()
     return StandardResponse.ok(message="IPO data refreshed")
 
 
-@router.get("/all")
+@router.get("/all", summary="Get all IPOs", description="Get all IPOs with mainboard/SME split")
 async def get_all_ipos():
     ipos = await get_ipos_from_db()
     mainboard = [i for i in ipos if i["type"] == "MAINBOARD"]

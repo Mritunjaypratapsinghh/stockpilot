@@ -1,6 +1,5 @@
 import httpx
 import smtplib
-import json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from ...core.database import get_database as get_db

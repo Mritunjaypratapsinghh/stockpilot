@@ -1,6 +1,7 @@
 import httpx
 import asyncio
 import time
+import re
 from typing import Optional, Dict, List
 from datetime import datetime
 from ...utils.logger import logger
@@ -10,6 +11,21 @@ from ...core.constants import YAHOO_CHART_URL, YAHOO_SEARCH_URL
 _last_request_time = 0
 _rate_lock = asyncio.Lock()
 _cache: Dict[str, tuple] = {}  # symbol -> (data, timestamp)
+
+# Input validation pattern - alphanumeric, dash, ampersand only
+SYMBOL_PATTERN = re.compile(r'^[A-Z0-9&-]{1,20}$')
+
+
+def sanitize_symbol(symbol: str) -> Optional[str]:
+    """Sanitize and validate stock symbol input."""
+    if not symbol:
+        return None
+    cleaned = symbol.strip().upper().replace(" ", "")
+    if not SYMBOL_PATTERN.match(cleaned):
+        logger.warning(f"Invalid symbol rejected: {symbol}")
+        return None
+    return cleaned
+
 
 def is_market_open() -> bool:
     """Check if Indian stock market is open (NSE/BSE)"""
@@ -118,7 +134,11 @@ async def _fetch_google(symbol: str) -> Optional[Dict]:
     return None
 
 async def get_stock_price(symbol: str, exchange: str = "NSE") -> Optional[Dict]:
-    """Fetch stock price with multi-source fallback"""
+    """Fetch stock price with multi-source fallback."""
+    symbol = sanitize_symbol(symbol)
+    if not symbol:
+        return None
+    
     cache_key = f"{symbol}:{exchange}"
     cache_ttl = get_cache_ttl()
     
@@ -137,14 +157,15 @@ async def get_stock_price(symbol: str, exchange: str = "NSE") -> Optional[Dict]:
     
     if data:
         _cache[cache_key] = (data, time.time())
-        logger.info(f"Price for {symbol} from {data.get('source', 'unknown')}")
         return data
     
     logger.warning(f"All sources failed for {symbol}")
     return None
 
+
 async def get_bulk_prices(symbols: List[str], exchange: str = "NSE") -> Dict[str, Dict]:
-    """Fetch prices for multiple symbols concurrently"""
+    """Fetch prices for multiple symbols concurrently."""
+    symbols = [s for s in (sanitize_symbol(s) for s in symbols) if s]
     if not symbols:
         return {}
     

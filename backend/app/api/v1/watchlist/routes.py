@@ -11,7 +11,7 @@ from .schemas import WatchlistAdd, WatchlistItemResponse
 router = APIRouter()
 
 
-@router.get("")
+@router.get("", summary="Get watchlist", description="List all watchlist items with prices")
 @router.get("/")
 async def get_watchlist(current_user: dict = Depends(get_current_user)):
     items = await WatchlistItem.find(WatchlistItem.user_id == PydanticObjectId(current_user["_id"])).to_list()
@@ -26,7 +26,7 @@ async def get_watchlist(current_user: dict = Depends(get_current_user)):
     ) for w in items])
 
 
-@router.post("/")
+@router.post("/", summary="Add to watchlist", description="Add a stock to watchlist")
 async def add_to_watchlist(item: WatchlistAdd, current_user: dict = Depends(get_current_user)):
     user_id = PydanticObjectId(current_user["_id"])
     symbol = item.symbol.strip().upper()
@@ -40,7 +40,7 @@ async def add_to_watchlist(item: WatchlistAdd, current_user: dict = Depends(get_
     return StandardResponse.ok({"id": str(doc.id), "symbol": symbol}, "Added to watchlist")
 
 
-@router.delete("/{item_id}")
+@router.delete("/{item_id}", summary="Remove from watchlist", description="Remove a stock from watchlist")
 async def remove_from_watchlist(item_id: str, current_user: dict = Depends(get_current_user)):
     if not PydanticObjectId.is_valid(item_id):
         raise HTTPException(status_code=400, detail="Invalid ID format")

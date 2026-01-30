@@ -1,4 +1,3 @@
-from pydantic import Field
 from typing import Optional
 from datetime import datetime
 from .base import BaseDocument

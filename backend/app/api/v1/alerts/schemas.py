@@ -1,6 +1,6 @@
 """Alerts schemas"""
 from pydantic import BaseModel, Field
-from typing import Optional, Literal
+from typing import Literal
 from datetime import datetime
 
 

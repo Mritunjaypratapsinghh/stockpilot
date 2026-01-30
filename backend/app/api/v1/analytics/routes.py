@@ -14,7 +14,7 @@ from .schemas import SectorAllocation, AnalyticsSummary, PnLCalendarEntry, Rebal
 router = APIRouter()
 
 
-@router.get("")
+@router.get("", summary="Get analytics", description="Get portfolio analytics and sector breakdown")
 @router.get("/")
 async def get_analytics(current_user: dict = Depends(get_current_user)):
     holdings = await get_user_holdings(current_user["_id"])
@@ -38,7 +38,7 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
     return StandardResponse.ok(AnalyticsSummary(total_value=round(total_value, 2), sectors=sectors, holdings_count=len(holdings)))
 
 
-@router.get("/pnl-calendar")
+@router.get("/pnl-calendar", summary="Get PnL calendar", description="Get daily buy/sell activity calendar")
 async def get_pnl_calendar(current_user: dict = Depends(get_current_user)):
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
@@ -60,7 +60,7 @@ async def get_pnl_calendar(current_user: dict = Depends(get_current_user)):
     return StandardResponse.ok({"calendar": entries})
 
 
-@router.get("/rebalance")
+@router.get("/rebalance", summary="Get rebalance suggestions", description="Get portfolio rebalancing recommendations")
 async def get_rebalance_suggestions(current_user: dict = Depends(get_current_user)):
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
@@ -90,7 +90,7 @@ async def get_rebalance_suggestions(current_user: dict = Depends(get_current_use
     return StandardResponse.ok({"suggestions": suggestions, "current_allocation": {s: round(v / total_value * 100, 1) for s, v in sector_values.items()}})
 
 
-@router.get("/export/csv")
+@router.get("/export/csv", summary="Export to CSV", description="Download portfolio as CSV file")
 async def export_holdings_csv(current_user: dict = Depends(get_current_user)):
     holdings = await get_user_holdings(current_user["_id"])
     prices = await get_prices_for_holdings(holdings)

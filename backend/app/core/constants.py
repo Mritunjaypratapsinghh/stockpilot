@@ -33,6 +33,18 @@ BENCHMARKS = {
 # Default asset allocation
 DEFAULT_ALLOCATION = {"Equity": 60, "Debt": 30, "Gold": 5, "Cash": 5}
 
+# Magic numbers - thresholds and limits
+XIRR_MAX_THRESHOLD = 1000  # Cap XIRR at 1000% to avoid outliers
+NEAR_52W_HIGH_PCT = 0.95   # Within 5% of 52-week high
+NEAR_52W_LOW_PCT = 1.05    # Within 5% of 52-week low
+REBALANCE_THRESHOLD_PCT = 5  # Trigger rebalance if allocation differs by 5%
+MF_UNDERPERFORM_THRESHOLD = 5  # MF underperforming if returns < benchmark - 5%
+GMP_APPLY_THRESHOLD = 15   # IPO GMP > 15% = APPLY
+GMP_MAY_APPLY_THRESHOLD = 5  # IPO GMP > 5% = MAY APPLY
+RATE_LIMIT_REQUESTS = 10   # Max requests per second
+CACHE_TTL_SECONDS = 60     # Price cache TTL
+API_TIMEOUT_SECONDS = 10   # External API timeout
+
 # External API URLs
 YAHOO_FINANCE_BASE = "https://query1.finance.yahoo.com"
 YAHOO_CHART_URL = f"{YAHOO_FINANCE_BASE}/v8/finance/chart"

@@ -15,7 +15,7 @@ from .schemas import HoldingCreate, HoldingUpdate, TransactionCreate, HoldingRes
 router = APIRouter()
 
 
-@router.get("")
+@router.get("", summary="Get portfolio summary", description="Get total investment, current value, and P&L")
 @router.get("/")
 async def get_portfolio_summary(current_user: dict = Depends(get_current_user)):
     holdings = await get_user_holdings(current_user["_id"])
@@ -43,7 +43,7 @@ async def get_portfolio_summary(current_user: dict = Depends(get_current_user)):
     ))
 
 
-@router.get("/holdings")
+@router.get("/holdings", summary="Get all holdings", description="List all stock and MF holdings with current prices")
 async def get_holdings(current_user: dict = Depends(get_current_user)):
     holdings = await get_user_holdings(current_user["_id"])
     prices = await get_prices_for_holdings(holdings)
@@ -65,7 +65,7 @@ async def get_holdings(current_user: dict = Depends(get_current_user)):
     return StandardResponse.ok(result)
 
 
-@router.post("/holdings")
+@router.post("/holdings", summary="Add holding", description="Add a new stock or MF holding")
 async def add_holding(holding: HoldingCreate, current_user: dict = Depends(get_current_user)):
     user_id = PydanticObjectId(current_user["_id"])
     existing = await Holding.find_one(Holding.user_id == user_id, Holding.symbol == holding.symbol)
@@ -78,7 +78,7 @@ async def add_holding(holding: HoldingCreate, current_user: dict = Depends(get_c
     return StandardResponse.ok({"id": str(doc.id), "symbol": holding.symbol}, "Holding added")
 
 
-@router.put("/holdings/{holding_id}")
+@router.put("/holdings/{holding_id}", summary="Update holding", description="Update quantity or average price")
 async def update_holding(holding_id: str, update: HoldingUpdate, current_user: dict = Depends(get_current_user)):
     if not PydanticObjectId.is_valid(holding_id):
         raise HTTPException(status_code=400, detail="Invalid ID")
@@ -93,7 +93,7 @@ async def update_holding(holding_id: str, update: HoldingUpdate, current_user: d
     return StandardResponse.ok(message="Holding updated")
 
 
-@router.delete("/holdings/{holding_id}")
+@router.delete("/holdings/{holding_id}", summary="Delete holding", description="Remove a holding from portfolio")
 async def delete_holding(holding_id: str, current_user: dict = Depends(get_current_user)):
     if not PydanticObjectId.is_valid(holding_id):
         raise HTTPException(status_code=400, detail="Invalid ID")
@@ -104,7 +104,7 @@ async def delete_holding(holding_id: str, current_user: dict = Depends(get_curre
     return StandardResponse.ok(message="Holding deleted")
 
 
-@router.get("/sectors")
+@router.get("/sectors", summary="Get sector allocation", description="Get portfolio breakdown by sector")
 async def get_sector_allocation(current_user: dict = Depends(get_current_user)):
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
@@ -126,7 +126,7 @@ async def get_sector_allocation(current_user: dict = Depends(get_current_user)):
     return StandardResponse.ok({"sectors": sectors, "total_value": round(total_value, 2)})
 
 
-@router.get("/dashboard")
+@router.get("/dashboard", summary="Get dashboard data", description="Get complete portfolio dashboard with holdings, sectors, and transactions")
 async def get_dashboard(current_user: dict = Depends(get_current_user)):
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
@@ -171,7 +171,7 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
 
 # ============ TRANSACTIONS ============
 
-@router.get("/transactions")
+@router.get("/transactions", summary="Get transactions", description="List all buy/sell transactions")
 async def get_transactions(current_user: dict = Depends(get_current_user)):
     holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
     txns = []
@@ -181,7 +181,7 @@ async def get_transactions(current_user: dict = Depends(get_current_user)):
     return StandardResponse.ok(sorted(txns, key=lambda x: x.get("date", ""), reverse=True))
 
 
-@router.post("/transactions")
+@router.post("/transactions", summary="Add transaction", description="Record a buy or sell transaction")
 async def add_transaction(txn: TransactionCreate, current_user: dict = Depends(get_current_user)):
     user_id = PydanticObjectId(current_user["_id"])
     quantity = txn.quantity or (round(txn.amount / txn.price, 4) if txn.amount else None)
@@ -246,7 +246,7 @@ async def delete_transaction(holding_id: str, index: int, current_user: dict = D
 
 # ============ IMPORT ============
 
-@router.post("/import")
+@router.post("/import", summary="Import holdings", description="Import holdings from CSV file (Zerodha, Groww)")
 async def import_holdings(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files supported")
@@ -315,7 +315,7 @@ def categorize_mf(name: str) -> tuple:
     return "Equity", 12
 
 
-@router.get("/mf/health")
+@router.get("/mf/health", summary="MF health check", description="Analyze mutual fund performance and health")
 async def mf_health_check(current_user: dict = Depends(get_current_user)):
     holdings = await get_user_holdings(current_user["_id"])
     mf_holdings = [h for h in holdings if h.holding_type == "MF"]

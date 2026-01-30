@@ -1,2 +1,4 @@
-# Re-export from parent api for gradual migration
+# IPO module
 from ...ipo import router
+
+__all__ = ["router"]

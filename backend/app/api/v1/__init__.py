@@ -19,3 +19,5 @@ api_router.include_router(watchlist_router, prefix="/watchlist", tags=["watchlis
 api_router.include_router(finance_router, prefix="/finance", tags=["finance"])
 api_router.include_router(analytics_router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(ipo_router, prefix="/ipo", tags=["ipo"])
+
+__all__ = ["api_router"]

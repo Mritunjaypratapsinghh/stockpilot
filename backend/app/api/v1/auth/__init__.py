@@ -1,2 +1,4 @@
-# Re-export from parent api for gradual migration
-from ...auth import router
+from .routes import router
+from .schemas import UserCreate, UserLogin, Token, UserResponse
+
+__all__ = ["router", "UserCreate", "UserLogin", "Token", "UserResponse"]

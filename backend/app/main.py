@@ -13,6 +13,7 @@ from .api import screener, sip, corporate_actions, compare, rebalance
 from .api import networth, pnl_calendar, mf_health
 from .tasks.scheduler import start_scheduler
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting StockPilot API...")
@@ -23,6 +24,7 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
     await close_db()
 
+
 app = FastAPI(
     title="StockPilot API",
     description="Personal Portfolio Intelligence Platform",
@@ -31,7 +33,7 @@ app = FastAPI(
     redirect_slashes=False
 )
 
-# Request logging middleware
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start = time.time()
@@ -39,6 +41,7 @@ async def log_requests(request: Request, call_next):
     duration = round((time.time() - start) * 1000)
     logger.info(f"{request.method} {request.url.path} - {response.status_code} ({duration}ms)")
     return response
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -48,7 +51,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
+# Legacy routes (for backward compatibility with frontend)
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(portfolio.router, prefix="/api/portfolio", tags=["Portfolio"])
 app.include_router(alerts.router, prefix="/api/alerts", tags=["Alerts"])
@@ -73,9 +76,11 @@ app.include_router(networth.router, prefix="/api/networth", tags=["Net Worth"])
 app.include_router(pnl_calendar.router, prefix="/api/pnl", tags=["P&L Calendar"])
 app.include_router(mf_health.router, prefix="/api/mf", tags=["MF Health"])
 
+
 @app.get("/")
 async def root():
     return {"message": "StockPilot API", "version": "0.1.0"}
+
 
 @app.api_route("/health", methods=["GET", "HEAD"])
 async def health():

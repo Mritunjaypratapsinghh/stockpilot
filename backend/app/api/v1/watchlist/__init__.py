@@ -1,2 +1,4 @@
-# Re-export from parent api for gradual migration
+# Watchlist module
 from ...watchlist import router
+
+__all__ = ["router"]

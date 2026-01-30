@@ -1,11 +1,10 @@
-from ..database import get_db
+from ..models.documents import IPO, User
 from ..services.notification_service import send_email
-from ..config import get_settings
+from ..core.config import settings
 from datetime import datetime, timedelta
 import httpx
 import re
 
-settings = get_settings()
 
 async def parse_date_range(date_text):
     """Parse date range like '13-16 Jan' into open/close dates"""
@@ -26,15 +25,19 @@ async def parse_date_range(date_text):
         pass
     return None, None
 
+
 async def scrape_ipo_data():
     """Scrape IPO data from ipowatch.in and insert/update IPOs"""
-    db = get_db()
-    
     # Mark old IPOs as CLOSED
-    await db.ipos.update_many(
-        {"dates.close": {"$lt": datetime.utcnow()}, "status": {"$in": ["OPEN", "UPCOMING"]}},
-        {"$set": {"status": "CLOSED", "updated_at": datetime.utcnow()}}
-    )
+    old_ipos = await IPO.find(
+        IPO.status.is_in(["OPEN", "UPCOMING"])
+    ).to_list()
+    
+    for ipo in old_ipos:
+        if ipo.dates and ipo.dates.get("close") and ipo.dates["close"] < datetime.utcnow():
+            ipo.status = "CLOSED"
+            ipo.updated_at = datetime.utcnow()
+            await ipo.save()
     
     try:
         async with httpx.AsyncClient(timeout=15) as client:
@@ -70,7 +73,6 @@ async def scrape_ipo_data():
                             
                             open_date, close_date = await parse_date_range(date_text)
                             
-                            # Determine status based on dates
                             today = datetime.utcnow().date()
                             if close_date and close_date.date() < today:
                                 status = "CLOSED"
@@ -82,62 +84,63 @@ async def scrape_ipo_data():
                             ipo_type = "SME" if "SME" in type_text.upper() else "MAINBOARD"
                             lot_size = max(1, int(100000 / price)) if ipo_type == "SME" and price > 0 else max(1, int(15000 / price)) if price > 0 else 1
                             
-                            await db.ipos.update_one(
-                                {"name": name},
-                                {"$set": {
-                                    "name": name,
-                                    "ipo_type": ipo_type,
-                                    "price_band": {"low": price * 0.95, "high": price},
-                                    "lot_size": lot_size,
-                                    "gmp": gmp,
-                                    "date_range": date_text,
-                                    "dates": {"open": open_date, "close": close_date},
-                                    "status": status,
-                                    "updated_at": datetime.utcnow()
-                                }, "$setOnInsert": {
-                                    "created_at": datetime.utcnow()
-                                }},
-                                upsert=True
-                            )
+                            existing = await IPO.find_one(IPO.name == name)
+                            if existing:
+                                existing.ipo_type = ipo_type
+                                existing.price_band = {"low": price * 0.95, "high": price}
+                                existing.lot_size = lot_size
+                                existing.gmp = gmp
+                                existing.date_range = date_text
+                                existing.dates = {"open": open_date, "close": close_date}
+                                existing.status = status
+                                existing.updated_at = datetime.utcnow()
+                                await existing.save()
+                            else:
+                                await IPO(
+                                    name=name, ipo_type=ipo_type,
+                                    price_band={"low": price * 0.95, "high": price},
+                                    lot_size=lot_size, gmp=gmp, date_range=date_text,
+                                    dates={"open": open_date, "close": close_date},
+                                    status=status, created_at=datetime.utcnow(), updated_at=datetime.utcnow()
+                                ).insert()
     except Exception as e:
         print(f"IPO scrape error: {e}")
 
+
 async def check_ipo_alerts():
     """Check for IPO-related alerts (allotment, listing)"""
-    db = get_db()
     today = datetime.utcnow().date()
     
-    # Find IPOs with allotment or listing today
-    ipos = await db.ipos.find({
-        "$or": [
-            {"dates.allotment": {"$gte": datetime.combine(today, datetime.min.time()), "$lt": datetime.combine(today, datetime.max.time())}},
-            {"dates.listing": {"$gte": datetime.combine(today, datetime.min.time()), "$lt": datetime.combine(today, datetime.max.time())}}
-        ]
-    }).to_list(20)
+    ipos = await IPO.find().to_list()
+    relevant_ipos = [
+        ipo for ipo in ipos
+        if ipo.dates and (
+            (ipo.dates.get("allotment") and ipo.dates["allotment"].date() == today) or
+            (ipo.dates.get("listing") and ipo.dates["listing"].date() == today)
+        )
+    ]
     
-    if not ipos:
+    if not relevant_ipos:
         return
     
-    # Notify all users with daily_digest enabled
-    users = await db.users.find({"settings.alerts_enabled": True}).to_list(500)
+    users = await User.find(User.settings.alerts_enabled == True).to_list()
     
-    for ipo in ipos:
-        is_allotment = ipo.get("dates", {}).get("allotment") and ipo["dates"]["allotment"].date() == today
-        is_listing = ipo.get("dates", {}).get("listing") and ipo["dates"]["listing"].date() == today
+    for ipo in relevant_ipos:
+        is_allotment = ipo.dates.get("allotment") and ipo.dates["allotment"].date() == today
+        is_listing = ipo.dates.get("listing") and ipo.dates["listing"].date() == today
         
         if is_allotment:
-            msg = f"📋 IPO Allotment Today: {ipo['name']}\nCheck your allotment status!"
+            msg = f"📋 IPO Allotment Today: {ipo.name}\nCheck your allotment status!"
         elif is_listing:
-            gmp = ipo.get("gmp", 0)
-            msg = f"🔔 IPO Listing Today: {ipo['name']}\nGMP: ₹{gmp}"
+            msg = f"🔔 IPO Listing Today: {ipo.name}\nGMP: ₹{ipo.gmp or 0}"
         else:
             continue
         
         for user in users:
-            if user.get("telegram_chat_id") and settings.telegram_bot_token:
+            if user.telegram_chat_id and settings.telegram_bot_token:
                 try:
                     async with httpx.AsyncClient() as client:
                         await client.post(f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage",
-                            json={"chat_id": user["telegram_chat_id"], "text": msg})
+                            json={"chat_id": user.telegram_chat_id, "text": msg})
                 except:
                     pass

@@ -2,7 +2,9 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import time
-from .database import connect_db, close_db
+
+from .core.database import init_db, close_db
+from .utils.logger import logger
 from .api import auth, portfolio, alerts, market
 from .api import research, ipo, transactions, watchlist, notifications
 from .api import import_holdings, dividends, export
@@ -10,12 +12,11 @@ from .api import goals, tax, analytics
 from .api import screener, sip, corporate_actions, compare, rebalance
 from .api import networth, pnl_calendar, mf_health
 from .tasks.scheduler import start_scheduler
-from .logger import logger
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting StockPilot API...")
-    await connect_db()
+    await init_db()
     start_scheduler()
     logger.info("StockPilot API ready")
     yield

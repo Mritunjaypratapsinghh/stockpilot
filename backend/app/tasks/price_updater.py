@@ -1,13 +1,11 @@
-from ..database import get_db
+from ..models.documents import Holding, PriceCache
 from ..services.price_service import get_bulk_prices
 from datetime import datetime, timezone
 
+
 async def update_all_prices():
-    db = get_db()
-    if db is None:
-        return
-    holdings = await db.holdings.find({}, {"symbol": 1}).to_list(500)
-    symbols = list(set(h["symbol"] for h in holdings))
+    holdings = await Holding.find().to_list()
+    symbols = list(set(h.symbol for h in holdings))
     
     if not symbols:
         return
@@ -16,8 +14,11 @@ async def update_all_prices():
     
     for symbol, data in prices.items():
         if data.get("current_price"):
-            await db.price_cache.update_one(
-                {"_id": symbol},
-                {"$set": {**data, "symbol": symbol, "updated_at": datetime.now(timezone.utc)}},
-                upsert=True
-            )
+            cache = await PriceCache.find_one(PriceCache.symbol == symbol)
+            if cache:
+                for k, v in data.items():
+                    setattr(cache, k, v)
+                cache.updated_at = datetime.now(timezone.utc)
+                await cache.save()
+            else:
+                await PriceCache(symbol=symbol, **data, updated_at=datetime.now(timezone.utc)).insert()

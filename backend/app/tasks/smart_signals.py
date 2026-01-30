@@ -1,10 +1,8 @@
-from ..database import get_db
+from ..models.documents import User, Holding, WatchlistItem, SignalHistory
 from ..services.notification_service import send_email
-from ..config import get_settings
+from ..core.config import settings
 from datetime import datetime
 import httpx
-
-settings = get_settings()
 
 
 async def fetch_stock_news(symbol: str, client: httpx.AsyncClient) -> list:
@@ -219,52 +217,42 @@ async def analyze_stock(symbol: str):
 
 async def check_smart_signals():
     """Check all user holdings for buy/sell signals and notify"""
-    db = get_db()
-    
-    # Get all users with alerts enabled
-    users = await db.users.find({"settings.alerts_enabled": {"$ne": False}}).to_list(500)
+    users = await User.find(User.settings.alerts_enabled != False).to_list()
     
     for user in users:
-        # Get user's holdings
-        holdings = await db.holdings.find({"user_id": user["_id"]}).to_list(100)
+        holdings = await Holding.find(Holding.user_id == user.id).to_list()
         if not holdings:
             continue
         
-        # Get watchlist too
-        watchlist = await db.watchlist.find({"user_id": user["_id"]}).to_list(50)
+        watchlist = await WatchlistItem.find(WatchlistItem.user_id == user.id).to_list()
         
-        # Combine symbols
-        symbols = list(set([h["symbol"] for h in holdings] + [w["symbol"] for w in watchlist]))
+        symbols = list(set([h.symbol for h in holdings] + [w.symbol for w in watchlist]))
         
         alerts_to_send = []
         
         for symbol in symbols:
-            # Skip MFs
-            holding = next((h for h in holdings if h["symbol"] == symbol), None)
-            if holding and holding.get("holding_type") == "MF":
+            holding = next((h for h in holdings if h.symbol == symbol), None)
+            if holding and holding.holding_type == "MF":
                 continue
             
             analysis = await analyze_stock(symbol)
             if not analysis or not analysis["signals"]:
                 continue
             
-            # Only send strong signals or multiple moderate signals
             strong_signals = [s for s in analysis["signals"] if s["strength"] == "STRONG"]
             buy_signals = [s for s in analysis["signals"] if s["type"] == "BUY"]
             sell_signals = [s for s in analysis["signals"] if s["type"] == "SELL"]
             
-            # Check if we already sent this signal today
             today = datetime.utcnow().date().isoformat()
-            existing = await db.signal_history.find_one({
-                "user_id": user["_id"],
-                "symbol": symbol,
-                "date": today
-            })
+            existing = await SignalHistory.find_one(
+                SignalHistory.user_id == user.id,
+                SignalHistory.symbol == symbol,
+                SignalHistory.date == today
+            )
             if existing:
                 continue
             
             if strong_signals or len(buy_signals) >= 2 or len(sell_signals) >= 2:
-                # Determine overall signal
                 if len(buy_signals) > len(sell_signals):
                     signal_type = "🟢 BUY"
                     reasons = [s["reason"] for s in buy_signals]
@@ -272,27 +260,25 @@ async def check_smart_signals():
                     signal_type = "🔴 SELL"
                     reasons = [s["reason"] for s in sell_signals]
                 else:
-                    continue  # Mixed signals, skip
+                    continue
                 
                 alerts_to_send.append({
                     "symbol": symbol,
                     "price": analysis["price"],
                     "signal": signal_type,
-                    "reasons": reasons[:3]  # Top 3 reasons
+                    "reasons": reasons[:3]
                 })
                 
-                # Record that we sent this signal
-                await db.signal_history.insert_one({
-                    "user_id": user["_id"],
-                    "symbol": symbol,
-                    "date": today,
-                    "signal": signal_type,
-                    "created_at": datetime.utcnow()
-                })
+                await SignalHistory(
+                    user_id=user.id,
+                    symbol=symbol,
+                    date=today,
+                    signal=signal_type,
+                    created_at=datetime.utcnow()
+                ).insert()
         
-        # Send consolidated alert
         if alerts_to_send:
-            await send_smart_alert(user, alerts_to_send)
+            await send_smart_alert({"telegram_chat_id": user.telegram_chat_id, "email": user.email}, alerts_to_send)
 
 
 async def send_smart_alert(user: dict, alerts: list):

@@ -1,6 +1,7 @@
 from ..models.documents import User, Holding, WatchlistItem, SignalHistory
-from ..services.notification_service import send_email
+from ..services.notification.service import send_email
 from ..core.config import settings
+from ..utils.logger import logger
 from datetime import datetime
 import httpx
 
@@ -16,7 +17,7 @@ async def fetch_stock_news(symbol: str, client: httpx.AsyncClient) -> list:
             data = resp.json()
             news = data.get("news", [])
             return [{"title": n.get("title", ""), "publisher": n.get("publisher", ""), "link": n.get("link", "")} for n in news[:3]]
-    except:
+    except (httpx.HTTPError, KeyError, ValueError):
         pass
     return []
 
@@ -211,7 +212,7 @@ async def analyze_stock(symbol: str):
                 "news": news
             }
     except Exception as e:
-        print(f"Error analyzing {symbol}: {e}")
+        logger.error(f"Error analyzing {symbol}: {e}")
         return None
 
 
@@ -302,7 +303,7 @@ async def send_smart_alert(user: dict, alerts: list):
                     json={"chat_id": user["telegram_chat_id"], "text": msg, "parse_mode": "Markdown"}
                 )
         except Exception as e:
-            print(f"Telegram error: {e}")
+            logger.error(f"Telegram error: {e}")
     
     # Email
     if user.get("email"):

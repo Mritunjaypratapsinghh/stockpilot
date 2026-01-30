@@ -1,5 +1,5 @@
 from ..models.documents import Holding, PriceCache
-from ..services.price_service import get_bulk_prices
+from ..services.market.price_service import get_bulk_prices
 from datetime import datetime, timezone
 
 

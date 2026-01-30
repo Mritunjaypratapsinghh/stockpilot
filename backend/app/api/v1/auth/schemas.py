@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 
 
 class UserCreate(BaseModel):
@@ -21,3 +22,12 @@ class UserResponse(BaseModel):
     email: str
     settings: dict
     telegram_chat_id: str = ""
+
+
+class SettingsUpdate(BaseModel):
+    telegram_chat_id: Optional[str] = None
+    email: Optional[EmailStr] = None
+    daily_digest: Optional[bool] = None
+    alerts_enabled: Optional[bool] = None
+    email_alerts: Optional[bool] = None
+    hourly_alerts: Optional[bool] = None

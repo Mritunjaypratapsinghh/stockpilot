@@ -1,4 +1,4 @@
-# IPO module
-from ...ipo import router
+"""IPO module"""
+from .routes import router
 
 __all__ = ["router"]

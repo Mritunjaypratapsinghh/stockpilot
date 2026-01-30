@@ -2,6 +2,7 @@ from beanie import Document
 from pydantic import Field, EmailStr
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
+from pymongo import IndexModel, ASCENDING
 
 
 class User(Document):
@@ -16,3 +17,6 @@ class User(Document):
 
     class Settings:
         name = "users"
+        indexes = [
+            IndexModel([("email", ASCENDING)], unique=True),
+        ]

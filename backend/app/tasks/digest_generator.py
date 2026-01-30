@@ -1,6 +1,6 @@
 from ..models.documents import User, Holding, DailyDigest
-from ..services.price_service import get_bulk_prices
-from ..services.notification_service import send_daily_digest
+from ..services.market.price_service import get_bulk_prices
+from ..services.notification.service import send_daily_digest
 from datetime import datetime, timezone
 
 

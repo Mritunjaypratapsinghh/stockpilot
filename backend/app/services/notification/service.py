@@ -3,8 +3,9 @@ import smtplib
 import json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from ..database import get_db
-from ..config import get_settings
+from ...core.database import get_database as get_db
+from ...core.config import get_settings
+from ...utils.logger import logger
 
 settings = get_settings()
 
@@ -23,7 +24,7 @@ async def send_email(to_email: str, subject: str, body: str):
             server.login(settings.smtp_user, settings.smtp_pass)
             server.send_message(msg)
     except Exception as e:
-        print(f"Email error: {e}")
+        logger.error(f"Email error: {e}")
 
 async def send_web_push(user_id, title: str, body: str):
     """Send web push notification if user has subscription"""
@@ -61,8 +62,8 @@ async def send_alert_notification(alert: dict, current_price: float):
                     f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage",
                     json={"chat_id": user["telegram_chat_id"], "text": msg, "parse_mode": "Markdown"}
                 )
-        except:
-            pass
+        except httpx.HTTPError as e:
+            logger.warning(f"Telegram alert error: {e}")
     
     # Email
     if user.get("email"):
@@ -90,8 +91,8 @@ async def send_daily_digest(user_id, digest: dict):
                     f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage",
                     json={"chat_id": user["telegram_chat_id"], "text": msg, "parse_mode": "Markdown"}
                 )
-        except:
-            pass
+        except httpx.HTTPError as e:
+            logger.warning(f"Telegram digest error: {e}")
     
     # Email
     if user.get("email"):

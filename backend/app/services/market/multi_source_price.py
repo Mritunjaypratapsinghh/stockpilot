@@ -3,7 +3,7 @@ import httpx
 import asyncio
 import time
 from typing import Dict, Optional, List
-from ..logger import logger
+from ...utils.logger import logger
 
 # Cache: symbol -> (data, timestamp)
 _cache: Dict[str, tuple] = {}

@@ -1,6 +1,7 @@
 from pydantic import Field
 from typing import Optional, Literal
 from datetime import datetime
+from pymongo import IndexModel, ASCENDING
 from .base import BaseDocument
 
 
@@ -14,3 +15,7 @@ class Alert(BaseDocument):
 
     class Settings:
         name = "alerts"
+        indexes = [
+            IndexModel([("user_id", ASCENDING), ("is_active", ASCENDING)]),
+            IndexModel([("symbol", ASCENDING)]),
+        ]

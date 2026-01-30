@@ -3,9 +3,10 @@ Smart Portfolio Advisor - Automated Buy/Sell/Hold recommendations
 Analyzes portfolio holdings and sends actionable alerts
 """
 from ..models.documents import User, Holding, IPO, AdvisorHistory
-from ..services.notification_service import send_email
+from ..services.notification.service import send_email
 from ..core.config import settings
-from ..services.price_service import is_market_open
+from ..services.market.price_service import is_market_open
+from ..utils.logger import logger
 from datetime import datetime
 import httpx
 import asyncio
@@ -57,7 +58,8 @@ async def get_stock_data(symbol: str):
             }
             _advisor_cache[symbol] = (data, time.time())
             return data
-    except:
+    except (httpx.HTTPError, KeyError, ValueError) as e:
+        logger.debug(f"Stock data error for {symbol}: {e}")
         return None
 
 
@@ -72,7 +74,7 @@ async def fetch_stock_news(symbol: str) -> list:
             if resp.status_code == 200:
                 news = resp.json().get("news", [])
                 return [{"title": n.get("title", ""), "publisher": n.get("publisher", "")} for n in news[:2]]
-    except:
+    except (httpx.HTTPError, KeyError, ValueError):
         pass
     return []
 
@@ -434,7 +436,7 @@ async def send_advisor_alert(user: dict, stock_recs: list, ipo_recs: list):
                     json={"chat_id": user["telegram_chat_id"], "text": msg, "parse_mode": "Markdown"}
                 )
         except Exception as e:
-            print(f"Telegram error: {e}")
+            logger.error(f"Telegram error: {e}")
     
     # Send Email
     if user.get("email"):

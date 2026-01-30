@@ -1,2 +1,4 @@
 """Portfolio service - holdings, transactions management"""
-# TODO: Move portfolio logic from api/portfolio.py here
+from .service import get_user_holdings, get_prices_for_holdings
+
+__all__ = ["get_user_holdings", "get_prices_for_holdings"]

@@ -1,5 +1,6 @@
 from pydantic import Field, BaseModel
 from typing import Optional, Literal, List
+from pymongo import IndexModel, ASCENDING
 from .base import BaseDocument
 
 
@@ -28,3 +29,7 @@ class Holding(BaseDocument):
 
     class Settings:
         name = "holdings"
+        indexes = [
+            IndexModel([("user_id", ASCENDING), ("symbol", ASCENDING)], unique=True),
+            IndexModel([("user_id", ASCENDING)]),
+        ]

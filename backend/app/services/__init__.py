@@ -1,13 +1,9 @@
-from .market import get_stock_price, get_bulk_prices, is_market_open
-from .notification import send_telegram_notification, send_email_notification, send_alert_notification, send_daily_digest
-from .analytics import get_enhanced_analysis
-
-# Backward compatibility - keep old imports working
-from .price_service import get_stock_price, get_bulk_prices, is_market_open
-from .notification_service import send_telegram_notification, send_email_notification, send_alert_notification, send_daily_digest, send_email
+from .market.price_service import get_stock_price, get_bulk_prices, is_market_open, search_stock
+from .notification.service import send_email, send_alert_notification, send_daily_digest, send_web_push
+from .analytics.service import get_combined_analysis
 
 __all__ = [
-    "get_stock_price", "get_bulk_prices", "is_market_open",
-    "send_telegram_notification", "send_email_notification", "send_alert_notification", "send_daily_digest",
-    "get_enhanced_analysis",
+    "get_stock_price", "get_bulk_prices", "is_market_open", "search_stock",
+    "send_email", "send_alert_notification", "send_daily_digest", "send_web_push",
+    "get_combined_analysis",
 ]

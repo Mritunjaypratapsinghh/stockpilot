@@ -1,6 +1,7 @@
 from ..models.documents import IPO, User
-from ..services.notification_service import send_email
+from ..services.notification.service import send_email
 from ..core.config import settings
+from ..utils.logger import logger
 from datetime import datetime, timedelta
 import httpx
 import re
@@ -21,8 +22,8 @@ async def parse_date_range(date_text):
             if month:
                 year = datetime.utcnow().year
                 return datetime(year, month, start_day), datetime(year, month, end_day)
-    except:
-        pass
+    except (ValueError, AttributeError) as e:
+        logger.debug(f"Date parse error: {e}")
     return None, None
 
 
@@ -62,13 +63,13 @@ async def scrape_ipo_data():
                             
                             try:
                                 price = float(price_text) if price_text and price_text != "-" else 0
-                            except:
+                            except ValueError:
                                 price = 0
                             if price == 0:
                                 continue
                             try:
                                 gmp = float(gmp_text) if gmp_text and gmp_text != "-" else 0
-                            except:
+                            except ValueError:
                                 gmp = 0
                             
                             open_date, close_date = await parse_date_range(date_text)
@@ -104,7 +105,7 @@ async def scrape_ipo_data():
                                     status=status, created_at=datetime.utcnow(), updated_at=datetime.utcnow()
                                 ).insert()
     except Exception as e:
-        print(f"IPO scrape error: {e}")
+        logger.error(f"IPO scrape error: {e}")
 
 
 async def check_ipo_alerts():
@@ -142,5 +143,5 @@ async def check_ipo_alerts():
                     async with httpx.AsyncClient() as client:
                         await client.post(f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage",
                             json={"chat_id": user.telegram_chat_id, "text": msg})
-                except:
-                    pass
+                except httpx.HTTPError as e:
+                    logger.warning(f"Telegram notification error: {e}")

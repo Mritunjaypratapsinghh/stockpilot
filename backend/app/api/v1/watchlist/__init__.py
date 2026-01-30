@@ -1,4 +1,4 @@
-# Watchlist module
-from ...watchlist import router
+"""Watchlist module"""
+from .routes import router
 
 __all__ = ["router"]

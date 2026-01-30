@@ -9,7 +9,7 @@ import httpx
 from datetime import date, timedelta
 from typing import Optional, Dict
 from bs4 import BeautifulSoup
-from ..logger import logger
+from ...utils.logger import logger
 
 async def get_nse_data(symbol: str) -> Optional[Dict]:
     """Get data from NSE using nsepy"""
@@ -138,7 +138,7 @@ async def get_combined_analysis(symbol: str, exchange: str = "NSE") -> Dict:
     
     # 1. Yahoo Finance (primary - already implemented)
     try:
-        from ..services.price_service import get_stock_price
+        from ..services.market.price_service import get_stock_price
         yahoo_data = await get_stock_price(symbol, exchange)
         
         # If NSE fails, try BSE
@@ -205,7 +205,7 @@ def generate_recommendation(data: Dict) -> str:
                 score += 1
             elif pe_val > 40:
                 score -= 2
-        except:
+        except ValueError:
             pass
     
     # Check ROE
@@ -217,7 +217,7 @@ def generate_recommendation(data: Dict) -> str:
                 score += 2
             elif roe_val > 10:
                 score += 1
-        except:
+        except ValueError:
             pass
     
     # Check delivery percentage (NSE data)

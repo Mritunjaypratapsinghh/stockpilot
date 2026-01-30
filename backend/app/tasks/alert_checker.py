@@ -1,6 +1,7 @@
 from ..models.documents import Alert
-from ..services.price_service import get_bulk_prices
-from ..services.notification_service import send_alert_notification
+from ..services.market.price_service import get_bulk_prices
+from ..services.notification.service import send_alert_notification
+from ..utils.logger import logger
 from datetime import datetime, timezone
 import httpx
 
@@ -15,8 +16,8 @@ async def get_52week_data(symbol: str):
                 lows = [l for l in result["indicators"]["quote"][0]["low"] if l]
                 volumes = [v for v in result["indicators"]["quote"][0]["volume"] if v]
                 return {"high_52w": max(highs) if highs else None, "low_52w": min(lows) if lows else None, "avg_volume": sum(volumes[-20:]) / 20 if len(volumes) >= 20 else None}
-    except:
-        pass
+    except (httpx.HTTPError, KeyError, ValueError) as e:
+        logger.debug(f"52week data error for {symbol}: {e}")
     return {}
 
 

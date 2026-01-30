@@ -1,6 +1,7 @@
 from ..models.documents import Alert, User
-from ..services.notification_service import send_email
+from ..services.notification.service import send_email
 from ..core.config import settings
+from ..utils.logger import logger
 from datetime import datetime, timezone
 import httpx
 
@@ -14,8 +15,8 @@ async def get_earnings_date(symbol: str):
                 earnings = data.get("earnings", {}).get("earningsDate", [])
                 if earnings:
                     return datetime.fromtimestamp(earnings[0]["raw"], tz=timezone.utc)
-    except:
-        pass
+    except (httpx.HTTPError, KeyError, ValueError) as e:
+        logger.debug(f"Earnings date error for {symbol}: {e}")
     return None
 
 

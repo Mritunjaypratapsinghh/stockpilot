@@ -3,8 +3,8 @@ import asyncio
 import time
 from typing import Optional, Dict, List
 from datetime import datetime
-from ..logger import logger
-from ..config import YAHOO_CHART_URL, YAHOO_SEARCH_URL
+from ...utils.logger import logger
+from ...core.constants import YAHOO_CHART_URL, YAHOO_SEARCH_URL
 
 # Rate limiter: max 10 requests/sec
 _last_request_time = 0

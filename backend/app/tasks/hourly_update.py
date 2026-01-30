@@ -1,6 +1,7 @@
 from ..models.documents import User, Holding
-from ..services.price_service import get_bulk_prices
+from ..services.market.price_service import get_bulk_prices
 from ..core.config import settings
+from ..utils.logger import logger
 import httpx
 
 
@@ -28,5 +29,5 @@ async def send_hourly_update():
                 async with httpx.AsyncClient() as client:
                     await client.post(f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage",
                         json={"chat_id": user.telegram_chat_id, "text": msg, "parse_mode": "Markdown"})
-            except:
-                pass
+            except httpx.HTTPError as e:
+                logger.warning(f"Hourly update telegram error: {e}")

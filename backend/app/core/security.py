@@ -3,19 +3,20 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 from beanie import PydanticObjectId
-import hashlib
+from passlib.context import CryptContext
 
 from .config import settings
 
 security = HTTPBearer()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def get_password_hash(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+    return pwd_context.hash(password)
 
 
 def verify_password(password: str, hashed: str) -> bool:
-    return get_password_hash(password) == hashed
+    return pwd_context.verify(password, hashed)
 
 
 def create_access_token(data: dict, email: str = None) -> str:

@@ -14,15 +14,44 @@ router = APIRouter()
 
 @router.get("/goals", summary="Get goals", description="List all financial goals")
 async def get_goals(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Get all financial goals."""
+    """Get all financial goals with SIP calculations."""
+    from datetime import datetime
+    
     goals = await Goal.find(Goal.user_id == PydanticObjectId(current_user["_id"])).to_list()
     holdings = await get_user_holdings(current_user["_id"])
     portfolio_value = sum(h.quantity * h.avg_price for h in holdings) if holdings else 0
-    return StandardResponse.ok({
-        "goals": [GoalResponse(_id=str(g.id), name=g.name, target_amount=g.target_amount, current_amount=g.current_value,
-                 target_date=g.target_date, progress=round(g.current_value / g.target_amount * 100, 1) if g.target_amount > 0 else 0) for g in goals],
-        "portfolio_value": round(portfolio_value, 2)
-    })
+    
+    result = []
+    for g in goals:
+        target = g.target_amount
+        current = g.current_value
+        progress = (current / target * 100) if target > 0 else 0
+        
+        target_date = datetime.fromisoformat(g.target_date) if isinstance(g.target_date, str) else g.target_date
+        months_left = max(0, (target_date.year - datetime.now().year) * 12 + (target_date.month - datetime.now().month))
+        
+        remaining = target - current
+        if months_left > 0 and remaining > 0:
+            r = 0.12 / 12  # 12% annual return
+            required_sip = remaining * r / ((1 + r) ** months_left - 1)
+        else:
+            required_sip = remaining if remaining > 0 else 0
+        
+        result.append({
+            "_id": str(g.id),
+            "name": g.name,
+            "category": g.category if hasattr(g, 'category') else "general",
+            "target_amount": target,
+            "current_value": current,
+            "progress": round(progress, 1),
+            "target_date": g.target_date,
+            "months_left": months_left,
+            "monthly_sip": g.monthly_sip if hasattr(g, 'monthly_sip') else 0,
+            "required_sip": round(required_sip, 0),
+            "on_track": (g.monthly_sip if hasattr(g, 'monthly_sip') else 0) >= required_sip if required_sip > 0 else True
+        })
+    
+    return StandardResponse.ok({"goals": result, "portfolio_value": round(portfolio_value, 2)})
 
 
 @router.post("/goals", summary="Create goal", description="Create a new financial goal")
@@ -143,29 +172,85 @@ async def sip_calculator(monthly_amount: float, years: int, expected_return: flo
 
 @router.get("/goals/projections", summary="Get goal projections", description="Get portfolio projections for goals")
 async def get_goal_projections(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Get goal projections."""
+    """Get portfolio projections with conservative, moderate, and aggressive scenarios."""
     holdings = await get_user_holdings(current_user["_id"])
-    total = sum(h.quantity * h.avg_price for h in holdings) if holdings else 0
-    return StandardResponse.ok({"current_value": round(total, 2), "projected_5y": round(total * 1.6, 2), "projected_10y": round(total * 2.6, 2)})
+    prices = await get_prices_for_holdings(holdings) if holdings else {}
+    current_value = sum(h.quantity * (prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price) for h in holdings) if holdings else 0
+    
+    # Conservative: 8%, Moderate: 12%, Aggressive: 15% annual returns
+    projections = [
+        {
+            "years": y,
+            "conservative": round(current_value * (1.08 ** y), 0),
+            "moderate": round(current_value * (1.12 ** y), 0),
+            "aggressive": round(current_value * (1.15 ** y), 0)
+        }
+        for y in [1, 3, 5, 10]
+    ]
+    
+    return StandardResponse.ok({"current_value": round(current_value, 0), "projections": projections})
 
 
 @router.get("/tax/harvest", summary="Get tax harvest opportunities", description="Find tax loss harvesting opportunities")
 async def get_tax_harvest(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get tax loss harvesting opportunities."""
+    from datetime import datetime, timedelta
+    
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
-        return StandardResponse.ok({"opportunities": [], "potential_savings": 0})
+        return StandardResponse.ok({"suggestions": [], "total_harvestable_loss": 0, "potential_tax_saved": 0, "note": ""})
     
     prices = await get_prices_for_holdings(holdings)
-    opportunities = []
-    for h in holdings:
-        curr_price = prices.get(h.symbol, {}).get("current_price") or h.avg_price
-        loss = (h.avg_price - curr_price) * h.quantity
-        if loss > 1000:
-            opportunities.append({"symbol": h.symbol, "loss": round(loss, 2), "tax_saving": round(loss * 0.15, 2)})
+    suggestions = []
+    total_harvestable_loss = 0
+    one_year_ago = datetime.now() - timedelta(days=365)
+    LTCG_RATE = 0.125
+    STCG_RATE = 0.20
     
-    total_saving = sum(o["tax_saving"] for o in opportunities)
-    return StandardResponse.ok({"opportunities": opportunities, "potential_savings": round(total_saving, 2)})
+    for h in holdings:
+        if h.quantity <= 0:
+            continue
+        
+        curr_price = prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price
+        pnl = (curr_price - h.avg_price) * h.quantity
+        pnl_pct = ((curr_price - h.avg_price) / h.avg_price * 100) if h.avg_price > 0 else 0
+        
+        # Check if long-term (> 1 year)
+        first_buy = None
+        for t in h.transactions:
+            if t.type == "BUY":
+                t_date = datetime.fromisoformat(t.date) if isinstance(t.date, str) else t.date
+                if first_buy is None or t_date < first_buy:
+                    first_buy = t_date
+        
+        is_lt = first_buy and first_buy < one_year_ago
+        
+        # Suggest harvesting if loss > 5%
+        if pnl < 0 and pnl_pct < -5:
+            loss_amt = abs(pnl)
+            tax_rate = LTCG_RATE if is_lt else STCG_RATE
+            suggestions.append({
+                "symbol": h.symbol,
+                "quantity": h.quantity,
+                "avg_price": h.avg_price,
+                "current_price": round(curr_price, 2),
+                "loss": round(loss_amt, 2),
+                "loss_pct": round(pnl_pct, 1),
+                "type": "LTCG" if is_lt else "STCG",
+                "tax_saved": round(loss_amt * tax_rate, 2),
+                "recommendation": "Sell to book loss, can rebuy after 30 days"
+            })
+            total_harvestable_loss += loss_amt
+    
+    # Sort by loss amount
+    suggestions.sort(key=lambda x: x["loss"], reverse=True)
+    
+    return StandardResponse.ok({
+        "suggestions": suggestions[:10],
+        "total_harvestable_loss": round(total_harvestable_loss, 2),
+        "potential_tax_saved": round(total_harvestable_loss * STCG_RATE, 2),
+        "note": "Sell loss-making stocks before March 31 to offset gains. Avoid wash sale - wait 30 days before rebuying."
+    })
 
 
 @router.get("/tax", summary="Get tax summary", description="Calculate LTCG and STCG tax liability")
@@ -191,42 +276,45 @@ async def get_tax_summary(current_user: dict = Depends(get_current_user)) -> Sta
     unrealized_ltcg = unrealized_stcg = 0
 
     for h in holdings:
-        curr_price = prices.get(h.symbol, {}).get("current_price") or h.avg_price
+        curr_price = prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price
         pnl = (curr_price - h.avg_price) * h.quantity
         
-        if pnl > 0:
-            # Check holding period from first transaction
-            first_buy = None
-            for t in h.transactions:
-                if t.type == "BUY":
-                    t_date = datetime.fromisoformat(t.date) if isinstance(t.date, str) else t.date
-                    if first_buy is None or t_date < first_buy:
-                        first_buy = t_date
-            
-            # If held > 1 year, it's LTCG, else STCG
-            if first_buy and first_buy < one_year_ago:
-                unrealized_ltcg += pnl
-            else:
-                unrealized_stcg += pnl
+        # Check holding period from first transaction
+        first_buy = None
+        for t in h.transactions:
+            if t.type == "BUY":
+                t_date = datetime.fromisoformat(t.date) if isinstance(t.date, str) else t.date
+                if first_buy is None or t_date < first_buy:
+                    first_buy = t_date
+        
+        # If held > 1 year, it's LTCG, else STCG (includes both gains and losses)
+        if first_buy and first_buy < one_year_ago:
+            unrealized_ltcg += pnl
+        else:
+            unrealized_stcg += pnl
 
     # LTCG: 12.5% above 1.25L exemption, STCG: 20%
-    ltcg_taxable = max(0, unrealized_ltcg - 125000)
+    ltcg_exemption = 125000
+    ltcg_taxable = max(0, unrealized_ltcg - ltcg_exemption)
     ltcg_tax = ltcg_taxable * 0.125
-    stcg_tax = unrealized_stcg * 0.20
+    stcg_tax = max(0, unrealized_stcg) * 0.20  # Only tax on gains, not losses
 
     return StandardResponse.ok({
         "financial_year": fy,
-        "realized": {"stcg": 0, "ltcg": 0},
+        "realized": {"stcg": 0, "ltcg": 0, "total": 0},
         "unrealized": {
-            "total": round(unrealized_ltcg + unrealized_stcg, 2),
             "stcg": round(unrealized_stcg, 2),
-            "ltcg": round(unrealized_ltcg, 2)
+            "ltcg": round(unrealized_ltcg, 2),
+            "total": round(unrealized_ltcg + unrealized_stcg, 2)
         },
         "tax_liability": {
-            "stcg_tax": round(stcg_tax, 2),
+            "ltcg_exemption": ltcg_exemption,
+            "taxable_ltcg": round(ltcg_taxable, 2),
             "ltcg_tax": round(ltcg_tax, 2),
+            "stcg_tax": round(stcg_tax, 2),
             "total_tax": round(ltcg_tax + stcg_tax, 2)
-        }
+        },
+        "transactions": []
     })
 
 
@@ -248,7 +336,7 @@ async def get_networth(current_user: dict = Depends(get_current_user)) -> Standa
     
     equity = mf = 0
     for h in holdings:
-        curr_price = prices.get(h.symbol, {}).get("current_price") or h.avg_price
+        curr_price = prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price
         value = h.quantity * curr_price
         if h.holding_type == "MF":
             mf += value
@@ -373,7 +461,7 @@ async def take_networth_snapshot(current_user: dict = Depends(get_current_user))
     
     equity = mf = 0
     for h in holdings:
-        curr_price = prices.get(h.symbol, {}).get("current_price") or h.avg_price
+        curr_price = prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price
         value = h.quantity * curr_price
         if h.holding_type == "MF":
             mf += value

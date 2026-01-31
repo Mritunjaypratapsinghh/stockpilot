@@ -26,7 +26,7 @@ async def get_analytics(current_user: dict = Depends(get_current_user)) -> Stand
     total_value = 0
 
     for h in holdings:
-        curr_price = prices.get(h.symbol, {}).get("current_price") or h.avg_price
+        curr_price = prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price
         value = h.quantity * curr_price
         total_value += value
         sector = SECTOR_MAP.get(h.symbol, "Others")
@@ -65,41 +65,53 @@ async def get_pnl_calendar(year: int = None, month: int = None, current_user: di
 
 @router.get("/rebalance", summary="Get rebalance suggestions", description="Get portfolio rebalancing recommendations")
 async def get_rebalance_suggestions(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Get rebalancing suggestions."""
-    holdings = await get_user_holdings(current_user["_id"])
-    if not holdings:
-        return StandardResponse.ok({"suggestions": [], "current_allocation": {}, "note": "Add holdings to get rebalancing suggestions"})
-
-    prices = await get_prices_for_holdings(holdings)
-    sector_values = {}
-    total_value = 0
-
-    for h in holdings:
-        curr_price = prices.get(h.symbol, {}).get("current_price") or h.avg_price
-        value = h.quantity * curr_price
-        total_value += value
-        sector = SECTOR_MAP.get(h.symbol, "Others")
-        sector_values[sector] = sector_values.get(sector, 0) + value
-
-    target = {"IT": 25, "Banking": 20, "Finance": 15, "Pharma": 10, "FMCG": 10, "Others": 20}
+    """Get asset class rebalancing suggestions."""
+    # Get allocation data
+    alloc_response = await get_allocation(current_user)
+    alloc = alloc_response.data
+    
+    total = alloc["total_value"]
+    target = alloc["target"]
+    current = alloc["current"]
+    categories = alloc["categories"]
+    
     suggestions = []
-
-    for sector, target_pct in target.items():
-        current_pct = (sector_values.get(sector, 0) / total_value * 100) if total_value > 0 else 0
-        diff = target_pct - current_pct
-        if abs(diff) > 5:
-            action = "BUY" if diff > 0 else "SELL"
-            amount = abs(diff / 100 * total_value)
-            suggestions.append({
-                "category": sector,
-                "current_pct": round(current_pct, 1),
-                "target_pct": target_pct,
-                "action": action,
-                "amount": round(amount, 0),
-                "deviation_pct": round(diff, 1)
-            })
-
-    return StandardResponse.ok({"suggestions": suggestions, "current_allocation": {s: round(v / total_value * 100, 1) for s, v in sector_values.items()}, "note": "Suggestions based on target sector allocation"})
+    for cat in target:
+        target_val = total * target[cat] / 100
+        current_val = categories.get(cat, 0)
+        diff = target_val - current_val
+        
+        # Only suggest if deviation > 2%
+        if abs(diff) > total * 0.02:
+            s = {
+                "category": cat,
+                "action": "BUY" if diff > 0 else "SELL",
+                "amount": abs(round(diff, 0)),
+                "current_pct": current.get(cat, 0),
+                "target_pct": target[cat],
+                "deviation_pct": round(current.get(cat, 0) - target[cat], 1)
+            }
+            
+            # Add fund suggestions for BUY actions
+            if s["action"] == "BUY":
+                if cat == "Debt":
+                    s["suggested_funds"] = ["Axis Liquid Fund", "HDFC Money Market", "SBI Overnight"]
+                elif cat == "Gold":
+                    s["suggested_funds"] = ["Nippon Gold BeES", "SBI Gold ETF"]
+                elif cat == "Equity":
+                    s["suggested_funds"] = ["UTI Nifty 50 Index", "Motilal Oswal S&P 500"]
+            
+            suggestions.append(s)
+    
+    # Sort by absolute deviation
+    suggestions.sort(key=lambda x: abs(x["deviation_pct"]), reverse=True)
+    
+    return StandardResponse.ok({
+        "portfolio_value": total,
+        "suggestions": suggestions,
+        "rebalance_needed": len(suggestions) > 0,
+        "note": "Rebalance quarterly or when deviation exceeds 5%"
+    })
 
 
 @router.get("/export/csv", summary="Export to CSV", description="Download portfolio as CSV file")
@@ -113,7 +125,7 @@ async def export_holdings_csv(current_user: dict = Depends(get_current_user)) ->
     writer.writerow(["Symbol", "Name", "Type", "Quantity", "Avg Price", "Current Price", "Investment", "Current Value", "P&L", "P&L %"])
 
     for h in holdings:
-        curr_price = prices.get(h.symbol, {}).get("current_price") or h.avg_price
+        curr_price = prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price
         inv = h.quantity * h.avg_price
         val = h.quantity * curr_price
         pnl = val - inv
@@ -125,19 +137,65 @@ async def export_holdings_csv(current_user: dict = Depends(get_current_user)) ->
 
 @router.get("/metrics", summary="Get portfolio metrics", description="Get key portfolio metrics")
 async def get_metrics(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Get portfolio metrics."""
+    """Calculate advanced portfolio metrics."""
+    import math
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
-        return StandardResponse.ok({"metrics": {"beta": 1.0, "volatility_annual": 0}, "risk_profile": {"level": "Low", "description": "No holdings"}})
+        return StandardResponse.ok({"error": "No holdings found"})
     
     prices = await get_prices_for_holdings(holdings)
-    invested = sum(h.quantity * h.avg_price for h in holdings)
-    current = sum(h.quantity * (prices.get(h.symbol, {}).get("current_price") or h.avg_price) for h in holdings)
+    total_value = 0
+    holdings_data = []
+    
+    for h in holdings:
+        if h.holding_type == "MF":
+            continue
+        p = prices.get(h.symbol, {})
+        curr = p.get("current_price") or h.avg_price
+        value = h.quantity * curr
+        total_value += value
+        holdings_data.append({
+            "symbol": h.symbol,
+            "value": value,
+            "day_change_pct": p.get("day_change_pct", 0),
+            "beta": p.get("beta", 1.0)
+        })
+    
+    if total_value == 0:
+        return StandardResponse.ok({"error": "Portfolio value is zero"})
+    
+    for h in holdings_data:
+        h["weight"] = h["value"] / total_value
+    
+    portfolio_beta = sum(h["weight"] * h.get("beta", 1.0) for h in holdings_data)
+    daily_returns = [h["day_change_pct"] * h["weight"] for h in holdings_data]
+    portfolio_daily_return = sum(daily_returns)
+    volatility = abs(portfolio_daily_return) * math.sqrt(252) if portfolio_daily_return != 0 else 15
+    
+    sorted_holdings = sorted(holdings_data, key=lambda x: x["value"], reverse=True)
+    top_5_concentration = sum(h["weight"] for h in sorted_holdings[:5]) * 100
+    hhi = sum(h["weight"] ** 2 for h in holdings_data) * 10000
+    
+    def get_risk_profile(beta: float, vol: float):
+        if beta < 0.8 and vol < 15:
+            return {"level": "Conservative", "description": "Lower risk, stable returns"}
+        elif beta < 1.2 and vol < 25:
+            return {"level": "Moderate", "description": "Balanced risk-reward"}
+        else:
+            return {"level": "Aggressive", "description": "Higher risk, potential for higher returns"}
+    
     return StandardResponse.ok({
-        "metrics": {"beta": 1.05, "volatility_annual": 18.5, "sharpe_ratio": 0.85},
-        "risk_profile": {"level": "Moderate", "description": "Balanced risk-reward"},
-        "total_invested": round(invested, 2),
-        "current_value": round(current, 2)
+        "portfolio_value": round(total_value, 2),
+        "holdings_count": len(holdings_data),
+        "metrics": {
+            "beta": round(portfolio_beta, 2),
+            "volatility_annual": round(volatility, 1),
+            "top_5_concentration": round(top_5_concentration, 1),
+            "herfindahl_index": round(hhi, 0),
+            "diversification": "Good" if hhi < 1500 else "Moderate" if hhi < 2500 else "Concentrated"
+        },
+        "risk_profile": get_risk_profile(portfolio_beta, volatility),
+        "top_holdings": [{"symbol": h["symbol"], "weight": round(h["weight"] * 100, 1)} for h in sorted_holdings[:5]]
     })
 
 
@@ -152,7 +210,7 @@ async def get_returns(current_user: dict = Depends(get_current_user)) -> Standar
     
     prices = await get_prices_for_holdings(holdings)
     invested = sum(h.quantity * h.avg_price for h in holdings)
-    current = sum(h.quantity * (prices.get(h.symbol, {}).get("current_price") or h.avg_price) for h in holdings)
+    current = sum(h.quantity * (prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price) for h in holdings)
     pnl = current - invested
     pnl_pct = (pnl / invested * 100) if invested else 0
     
@@ -183,49 +241,133 @@ async def get_returns(current_user: dict = Depends(get_current_user)) -> Standar
         "absolute_return_pct": round(pnl_pct, 2),
         "cagr": round(cagr, 2),
         "holding_period_years": round(years_held, 1),
-        "benchmark_comparison": {"outperformance": round(cagr - nifty_benchmark, 2)}
+        "benchmark_comparison": {"nifty_cagr_5yr": nifty_benchmark, "outperformance": round(cagr - nifty_benchmark, 2)}
     })
 
 
 @router.get("/drawdown", summary="Get drawdown analysis", description="Get portfolio drawdown metrics")
 async def get_drawdown(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Get drawdown analysis."""
+    """Analyze portfolio drawdown."""
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
-        return StandardResponse.ok({"max_drawdown": 0, "current_drawdown": 0, "holdings_in_loss": 0})
+        return StandardResponse.ok({"portfolio_drawdown": 0, "holdings_in_drawdown": [], "total_holdings_down": 0})
     
     prices = await get_prices_for_holdings(holdings)
-    losses = []
-    for h in holdings:
-        curr = prices.get(h.symbol, {}).get("current_price") or h.avg_price
-        if curr < h.avg_price:
-            losses.append({"symbol": h.symbol, "drawdown": round((h.avg_price - curr) / h.avg_price * 100, 2)})
+    total_invested = sum(h.quantity * h.avg_price for h in holdings)
+    total_current = sum(h.quantity * (prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price) for h in holdings)
     
-    max_dd = max((l["drawdown"] for l in losses), default=0)
-    return StandardResponse.ok({"max_drawdown": max_dd, "current_drawdown": max_dd, "holdings_in_loss": len(losses), "losses": losses})
+    # Estimate peak
+    if total_current < total_invested:
+        estimated_peak = total_invested * 1.1
+        current_drawdown = ((estimated_peak - total_current) / estimated_peak) * 100
+    else:
+        estimated_peak = total_current
+        current_drawdown = 0
+    
+    holdings_in_drawdown = []
+    for h in holdings:
+        # Use stored current_price for MF, live price for stocks
+        curr = prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price
+        if curr < h.avg_price:
+            dd_pct = ((h.avg_price - curr) / h.avg_price) * 100
+            holdings_in_drawdown.append({
+                "symbol": h.symbol,
+                "drawdown_pct": round(dd_pct, 1),
+                "loss": round((h.avg_price - curr) * h.quantity, 2)
+            })
+    
+    holdings_in_drawdown.sort(key=lambda x: x["drawdown_pct"], reverse=True)
+    
+    return StandardResponse.ok({
+        "portfolio_drawdown": round(current_drawdown, 1),
+        "estimated_peak": round(estimated_peak, 2),
+        "current_value": round(total_current, 2),
+        "recovery_needed": round((estimated_peak / total_current - 1) * 100, 1) if total_current > 0 else 0,
+        "holdings_in_drawdown": holdings_in_drawdown[:10],
+        "total_holdings_down": len(holdings_in_drawdown),
+        "risk_note": "A 50% loss requires 100% gain to recover. Consider rebalancing if drawdown exceeds 20%."
+    })
 
 
 @router.get("/sector-risk", summary="Get sector risk", description="Get sector concentration risk")
 async def get_sector_risk(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Get sector risk analysis."""
+    """Analyze sector concentration risk with MF categorization."""
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
-        return StandardResponse.ok({"sectors": [], "risk_level": "Low"})
+        return StandardResponse.ok({"sectors": [], "total_sectors": 0, "recommendations": []})
+    
+    def get_mf_category(symbol: str) -> str:
+        s = symbol.upper()
+        if any(x in s for x in ['LIQ', 'LIQUID', 'OVERNIGHT', 'MONEY', '-LM']):
+            return "Liquid/Debt"
+        if any(x in s for x in ['GILT', 'GSEC', 'BOND', 'DEBT', 'INCOME']):
+            return "Debt"
+        if any(x in s for x in ['HYBRID', 'BAL', 'BALANCED']):
+            return "Hybrid"
+        if any(x in s for x in ['SMALL', '-SC', 'SMALLCAP']):
+            return "Small Cap"
+        if any(x in s for x in ['-MC', 'MID', 'MIDCAP']):
+            return "Mid Cap"
+        if any(x in s for x in ['LARGE', 'BLUECHIP', 'NIFTY', 'INDEX', 'ALPHA']):
+            return "Large Cap"
+        if any(x in s for x in ['FLEXI', 'MULTI', 'DIVERSIFIED', 'PPFAS', 'PARAG']):
+            return "Flexi Cap"
+        if any(x in s for x in ['TAX', 'ELSS']):
+            return "ELSS"
+        if any(x in s for x in ['BANK', 'FIN', 'PSU']):
+            return "Sectoral-BFSI"
+        if any(x in s for x in ['IT', 'TECH', 'DIGI']):
+            return "Sectoral-IT"
+        if any(x in s for x in ['PHARMA', 'HEALTH']):
+            return "Sectoral-Pharma"
+        if any(x in s for x in ['USD', 'GLOBAL', 'US', 'NASDAQ', 'INTERNATIONAL', 'PGIM']):
+            return "International"
+        if any(x in s for x in ['GOLD', 'SILVER', 'COMMODITY']):
+            return "Commodity"
+        if any(x in s for x in ['MOM', 'MOMENTUM', 'ETF']):
+            return "ETF/Factor"
+        return "Equity-Other"
     
     prices = await get_prices_for_holdings(holdings)
     sector_values = {}
-    total = 0
-    for h in holdings:
-        curr = prices.get(h.symbol, {}).get("current_price") or h.avg_price
-        val = h.quantity * curr
-        total += val
-        sector = SECTOR_MAP.get(h.symbol, "Others")
-        sector_values[sector] = sector_values.get(sector, 0) + val
+    total_value = 0
     
-    sectors = [{"sector": s, "value": round(v, 2), "pct": round(v / total * 100, 1)} for s, v in sector_values.items()]
-    max_pct = max((s["pct"] for s in sectors), default=0)
-    risk = "High" if max_pct > 40 else "Medium" if max_pct > 25 else "Low"
-    return StandardResponse.ok({"sectors": sorted(sectors, key=lambda x: x["pct"], reverse=True), "risk_level": risk})
+    for h in holdings:
+        value = h.quantity * (prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price)
+        total_value += value
+        
+        if h.holding_type == "MF":
+            sector = get_mf_category(h.symbol)
+        else:
+            sector = SECTOR_MAP.get(h.symbol, "Others")
+        
+        sector_values[sector] = sector_values.get(sector, 0) + value
+    
+    sectors = []
+    for sector, value in sorted(sector_values.items(), key=lambda x: x[1], reverse=True):
+        weight = (value / total_value * 100) if total_value > 0 else 0
+        risk = "High" if weight > 30 else "Moderate" if weight > 20 else "Low"
+        sectors.append({
+            "sector": sector,
+            "value": round(value, 2),
+            "weight": round(weight, 1),
+            "concentration_risk": risk
+        })
+    
+    recommendations = []
+    for s in sectors:
+        if s["weight"] > 30:
+            recommendations.append(f"Reduce {s['sector']} exposure (currently {s['weight']}%)")
+    
+    if len(sectors) < 5:
+        recommendations.append("Consider diversifying into more sectors")
+    
+    return StandardResponse.ok({
+        "sectors": sectors,
+        "total_sectors": len(sectors),
+        "recommendations": recommendations,
+        "ideal_allocation": "No single sector should exceed 25-30% for balanced risk"
+    })
 
 
 @router.get("/pnl-monthly", summary="Get monthly PnL", description="Get monthly PnL summary")
@@ -236,47 +378,47 @@ async def get_pnl_monthly(year: int, current_user: dict = Depends(get_current_us
 
 @router.get("/rebalance/allocation", summary="Get current allocation", description="Get current vs target allocation")
 async def get_allocation(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Get current asset class allocation."""
+    """Get current asset class allocation with deviation."""
     holdings = await get_user_holdings(current_user["_id"])
     default_target = {"Equity": 60, "Debt": 30, "Gold": 5, "Cash": 5}
     
     if not holdings:
-        return StandardResponse.ok({"current": {}, "target": default_target, "total_value": 0})
+        return StandardResponse.ok({"current": {}, "target": default_target, "total_value": 0, "deviation": {}, "categories": {}})
     
     prices = await get_prices_for_holdings(holdings)
     
     # Calculate allocation by asset class
-    allocation = {"Equity": 0, "Debt": 0, "Gold": 0, "Cash": 0}
+    categories = {"Equity": 0, "Debt": 0, "Gold": 0, "Cash": 0}
     total = 0
     
     for h in holdings:
-        curr_price = prices.get(h.symbol, {}).get("current_price") or h.avg_price
+        curr_price = prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price
         value = h.quantity * curr_price
         total += value
         
-        name_upper = h.name.upper() if h.name else ""
+        name_upper = (h.name or "").upper()
         symbol_upper = h.symbol.upper()
         
         # Categorize by asset class
-        if any(x in name_upper for x in ["LIQUID", "DEBT", "BOND", "GILT"]) or any(x in symbol_upper for x in ["LIQ", "DEBT"]):
-            allocation["Debt"] += value
-        elif any(x in symbol_upper for x in ["GOLD", "SGOLD", "GOLDBEES"]):
-            allocation["Gold"] += value
+        if any(x in name_upper for x in ["LIQUID", "DEBT", "BOND", "GILT", "OVERNIGHT"]) or any(x in symbol_upper for x in ["LIQ", "DEBT"]):
+            categories["Debt"] += value
+        elif any(x in symbol_upper for x in ["GOLD", "SGOLD", "GOLDBEES", "SILVER"]):
+            categories["Gold"] += value
+        elif h.holding_type == "MF" and "MONEY" in name_upper:
+            categories["Cash"] += value
         else:
-            allocation["Equity"] += value
+            categories["Equity"] += value
     
     # Convert to percentages
-    current_pct = {}
-    if total > 0:
-        for k, v in allocation.items():
-            pct = round(v / total * 100, 1)
-            if pct > 0:
-                current_pct[k] = pct
+    current_pct = {cat: round(val / total * 100, 1) if total > 0 else 0 for cat, val in categories.items()}
+    deviation = {cat: round(current_pct.get(cat, 0) - default_target[cat], 1) for cat in default_target}
     
     return StandardResponse.ok({
-        "current": current_pct,
+        "total_value": round(total, 2),
         "target": default_target,
-        "total_value": round(total, 2)
+        "current": current_pct,
+        "deviation": deviation,
+        "categories": {k: round(v, 2) for k, v in categories.items()}
     })
 
 
@@ -288,72 +430,31 @@ async def set_target_allocation(target: dict, current_user: dict = Depends(get_c
 
 @router.post("/signals", summary="Get trading signals", description="Get AI-powered trading signals")
 async def get_signals(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Get trading signals based on technical and fundamental analysis."""
+    """Get trading signals using comprehensive technical analysis."""
+    from ....tasks.portfolio_advisor import get_bulk_stock_data, calculate_indicators, generate_recommendation, analyze_ipo_opportunities
+    
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
         return StandardResponse.ok({"portfolio": [], "ipos": []})
     
-    prices = await get_prices_for_holdings(holdings)
-    signals = []
+    # Get equity holdings only
+    equity_holdings = [h for h in holdings if h.holding_type != "MF"]
+    symbols = [h.symbol for h in equity_holdings]
     
-    for h in holdings:
-        p = prices.get(h.symbol, {})
-        curr = p.get("current_price") or h.avg_price
-        prev_close = p.get("previous_close") or curr
-        day_high = p.get("day_high") or curr
-        day_low = p.get("day_low") or curr
-        
-        pnl_pct = ((curr - h.avg_price) / h.avg_price * 100) if h.avg_price else 0
-        day_change = ((curr - prev_close) / prev_close * 100) if prev_close else 0
-        
-        # Simple RSI approximation based on price position in day's range
-        if day_high != day_low:
-            rsi = round(((curr - day_low) / (day_high - day_low)) * 100, 0)
-        else:
-            rsi = 50
-        
-        # Determine action based on multiple factors
-        action = "HOLD"
-        reasons = []
-        
-        # Check for oversold/overbought
-        if pnl_pct < -20:
-            action = "ADD"
-            reasons.append(f"Down {abs(pnl_pct):.1f}% from avg - potential value buy")
-            if rsi < 30:
-                reasons.append(f"RSI {rsi} indicates oversold")
-            reasons.append("Consider averaging down if fundamentals intact")
-        elif pnl_pct > 40:
-            action = "BOOK PARTIAL"
-            reasons.append(f"Up {pnl_pct:.1f}% - strong gains")
-            if rsi > 70:
-                reasons.append(f"RSI {rsi} indicates overbought")
-            reasons.append("Consider booking 25-50% profits")
-        elif pnl_pct < -10:
-            reasons.append(f"Down {abs(pnl_pct):.1f}% - monitor closely")
-            if day_change < -3:
-                reasons.append(f"Today down {abs(day_change):.1f}% - check for news")
-        elif pnl_pct > 20:
-            reasons.append(f"Up {pnl_pct:.1f}% - performing well")
-            reasons.append("Consider trailing stop loss")
-        else:
-            reasons.append("Position performing as expected")
-            reasons.append("Continue holding")
-        
-        signals.append({
-            "symbol": h.symbol,
-            "action": action,
-            "current_price": round(curr, 2),
-            "avg_price": round(h.avg_price, 2),
-            "pnl_pct": round(pnl_pct, 2),
-            "rsi": int(rsi),
-            "target": round(curr * 1.15, 2) if action == "ADD" else None,
-            "stop_loss": round(curr * 0.92, 2) if action == "ADD" else None,
-            "reasons": reasons
-        })
+    # Fetch all stock data concurrently
+    stock_data = await get_bulk_stock_data(symbols)
     
-    # Sort by action priority: ADD first, then BOOK PARTIAL, then HOLD
-    action_order = {"ADD": 0, "BOOK PARTIAL": 1, "HOLD": 2}
-    signals.sort(key=lambda x: action_order.get(x["action"], 3))
+    recommendations = []
+    for h in equity_holdings:
+        data = stock_data.get(h.symbol)
+        if not data:
+            continue
+        
+        indicators = calculate_indicators(data)
+        rec = generate_recommendation(h.symbol, h.avg_price, h.quantity, indicators)
+        recommendations.append(rec)
     
-    return StandardResponse.ok({"portfolio": signals, "ipos": []})
+    # Get IPO recommendations
+    ipo_recs = await analyze_ipo_opportunities()
+    
+    return StandardResponse.ok({"portfolio": recommendations, "ipos": ipo_recs})

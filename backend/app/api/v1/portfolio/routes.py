@@ -121,7 +121,7 @@ async def get_sector_allocation(current_user: dict = Depends(get_current_user)) 
     total_value = 0.0
 
     for h in holdings:
-        curr_price = prices.get(h.symbol, {}).get("current_price") or h.avg_price
+        curr_price = prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price
         value = h.quantity * curr_price
         total_value += value
         sector = SECTOR_MAP.get(h.symbol, "Others")
@@ -324,41 +324,126 @@ def categorize_mf(name: str) -> tuple[str, int]:
 
 @router.get("/mf/health", summary="MF health check", description="Analyze mutual fund performance and health")
 async def mf_health_check(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Analyze mutual fund holdings for performance and health."""
+    """Analyze mutual fund portfolio health with benchmarks and recommendations."""
     holdings = await get_user_holdings(current_user["_id"])
     mf_holdings = [h for h in holdings if h.holding_type == "MF"]
+    
     if not mf_holdings:
-        return StandardResponse.ok({"funds": [], "total_mf_value": 0, "health_score": 100, "avg_expense_ratio": 0, "total_annual_expense": 0})
-
+        return StandardResponse.ok({"message": "No mutual funds in portfolio", "funds": [], "total_mf_value": 0, "health_score": 100})
+    
     prices = await get_prices_for_holdings(mf_holdings)
-    analysis: list = []
-    issues: list = []
-    total_value = 0.0
-    total_expense = 0.0
-
+    analysis = []
+    issues = []
+    total_expense = 0
+    total_value = 0
+    
     for h in mf_holdings:
-        p = prices.get(h.symbol, {})
-        curr_price = p.get("current_price") or h.avg_price
+        name = (h.name or "").upper()
+        curr_price = prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price
         value = h.quantity * curr_price
         total_value += value
-        expense_ratio = 0.2 if "INDEX" in h.name.upper() else 1.5
-        total_expense += value * expense_ratio / 100
-        category, benchmark = categorize_mf(h.name)
-        inv = h.quantity * h.avg_price
-        returns_pct = ((value - inv) / inv * 100) if inv > 0 else 0
-        status = "Underperforming" if returns_pct < benchmark - 5 else "On Track"
-
-        analysis.append({"symbol": h.symbol, "name": h.name, "category": category, "value": round(value, 2),
-                         "returns_pct": round(returns_pct, 2), "expense_ratio": expense_ratio, "status": status})
-
-    avg_expense = sum(f["expense_ratio"] for f in analysis) / len(analysis) if analysis else 0
+        
+        # Estimate expense ratio
+        if "DIRECT" in name:
+            expense_ratio = 0.5
+        elif "INDEX" in name or "ETF" in name:
+            expense_ratio = 0.2
+        else:
+            expense_ratio = 1.5
+        
+        annual_expense = value * expense_ratio / 100
+        total_expense += annual_expense
+        
+        # Categorize and get benchmark
+        if "LIQUID" in name or "OVERNIGHT" in name or "MONEY" in name:
+            category, benchmark_return = "Liquid", 6
+        elif "DEBT" in name or "BOND" in name or "GILT" in name:
+            category, benchmark_return = "Debt", 7
+        elif "SMALL" in name:
+            category, benchmark_return = "Small Cap", 15
+        elif "MID" in name:
+            category, benchmark_return = "Mid Cap", 14
+        elif "LARGE" in name or "BLUECHIP" in name:
+            category, benchmark_return = "Large Cap", 12
+        elif "FLEXI" in name or "MULTI" in name:
+            category, benchmark_return = "Flexi Cap", 13
+        elif "INDEX" in name or "NIFTY" in name or "SENSEX" in name:
+            category, benchmark_return = "Index", 12
+        elif "INTERNATIONAL" in name or "US" in name or "GLOBAL" in name or "NASDAQ" in name:
+            category, benchmark_return = "International", 14
+        else:
+            category, benchmark_return = "Equity", 12
+        
+        # Calculate returns
+        invested = h.quantity * h.avg_price
+        returns_pct = ((value - invested) / invested * 100) if invested > 0 else 0
+        
+        # Status
+        if returns_pct < benchmark_return - 5:
+            status = "Underperforming"
+            issues.append(f"{h.symbol} is underperforming benchmark by {round(benchmark_return - returns_pct, 1)}%")
+        elif returns_pct > benchmark_return + 5:
+            status = "Outperforming"
+        else:
+            status = "On Track"
+        
+        analysis.append({
+            "symbol": h.symbol,
+            "name": h.name,
+            "category": category,
+            "value": round(value, 2),
+            "returns_pct": round(returns_pct, 2),
+            "benchmark_return": benchmark_return,
+            "expense_ratio": expense_ratio,
+            "annual_expense": round(annual_expense, 2),
+            "status": status
+        })
+    
+    # Check overlap
+    categories = [a["category"] for a in analysis]
+    category_counts = {c: categories.count(c) for c in set(categories)}
+    for cat, count in category_counts.items():
+        if count > 2:
+            issues.append(f"High overlap: {count} funds in {cat} category")
+    
+    # Check expense
+    avg_expense = (total_expense / total_value * 100) if total_value > 0 else 0
+    if avg_expense > 1:
+        issues.append(f"High expense ratio: {round(avg_expense, 2)}% - Consider switching to direct plans")
+    
+    # Recommendations
+    recommendations = []
+    underperformers = [a for a in analysis if a["status"] == "Underperforming"]
+    if underperformers:
+        recommendations.append({
+            "type": "switch",
+            "message": f"Consider switching {len(underperformers)} underperforming fund(s)",
+            "funds": [u["symbol"] for u in underperformers]
+        })
+    
+    high_expense = [a for a in analysis if a["expense_ratio"] > 1]
+    if high_expense:
+        recommendations.append({
+            "type": "expense",
+            "message": "Switch to direct plans to save on expense ratio",
+            "potential_savings": round(sum(a["annual_expense"] * 0.5 for a in high_expense), 2)
+        })
+    
+    if not any("Index" in a["category"] for a in analysis):
+        recommendations.append({
+            "type": "add",
+            "message": "Consider adding low-cost index funds for core allocation"
+        })
+    
     return StandardResponse.ok({
         "total_mf_value": round(total_value, 2),
+        "total_annual_expense": round(total_expense, 2),
+        "avg_expense_ratio": round(avg_expense, 2),
         "funds": analysis,
         "issues": issues,
-        "health_score": 100 - len(issues) * 10,
-        "avg_expense_ratio": round(avg_expense, 2),
-        "total_annual_expense": round(total_expense, 2)
+        "health_score": max(10, 100 - len(issues) * 10),
+        "recommendations": recommendations,
+        "note": "Returns comparison is vs annual benchmarks. Short holding periods may show underperformance."
     })
 
 
@@ -375,22 +460,56 @@ async def mf_overlap(current_user: dict = Depends(get_current_user)) -> Standard
 
 @router.get("/mf/expense-impact", summary="MF expense impact", description="Calculate long-term expense ratio impact")
 async def mf_expense_impact(years: int = 20, current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Calculate expense ratio impact over time."""
+    """Calculate long-term impact of expense ratios with direct plan comparison."""
     holdings = await get_user_holdings(current_user["_id"])
     mf_holdings = [h for h in holdings if h.holding_type == "MF"]
     if not mf_holdings:
-        return StandardResponse.ok({"total_expense_impact": 0, "funds": []})
+        return StandardResponse.ok({"current_value": 0, "potential_savings": 0, "message": "No mutual funds"})
     
     prices = await get_prices_for_holdings(mf_holdings)
-    funds = []
-    total_impact = 0
+    total_value = 0
+    total_expense_current = 0
+    total_expense_direct = 0
     
     for h in mf_holdings:
-        curr = prices.get(h.symbol, {}).get("current_price") or h.avg_price
+        name = (h.name or "").upper()
+        curr = prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price
         value = h.quantity * curr
-        expense = 0.2 if "INDEX" in h.name.upper() else 1.5
-        impact = value * (expense / 100) * years
-        total_impact += impact
-        funds.append({"symbol": h.symbol, "name": h.name, "expense_ratio": expense, "impact": round(impact, 2)})
+        total_value += value
+        
+        # Current vs direct expense ratios
+        if "DIRECT" in name:
+            current_exp, direct_exp = 0.5, 0.5
+        elif "INDEX" in name:
+            current_exp, direct_exp = 0.2, 0.1
+        else:
+            current_exp, direct_exp = 1.5, 0.5
+        
+        total_expense_current += value * current_exp / 100
+        total_expense_direct += value * direct_exp / 100
     
-    return StandardResponse.ok({"total_expense_impact": round(total_impact, 2), "years": years, "funds": funds})
+    # Project with 12% return
+    def project_value(principal, expense_ratio, years):
+        value = principal
+        for _ in range(years):
+            value = value * (1 + 0.12 - expense_ratio/100)
+        return value
+    
+    current_expense_ratio = (total_expense_current / total_value * 100) if total_value > 0 else 0
+    direct_expense_ratio = (total_expense_direct / total_value * 100) if total_value > 0 else 0
+    
+    future_current = project_value(total_value, current_expense_ratio, years)
+    future_direct = project_value(total_value, direct_expense_ratio, years)
+    
+    return StandardResponse.ok({
+        "current_value": round(total_value, 2),
+        "current_expense_ratio": round(current_expense_ratio, 2),
+        "direct_expense_ratio": round(direct_expense_ratio, 2),
+        "annual_expense_current": round(total_expense_current, 2),
+        "annual_expense_direct": round(total_expense_direct, 2),
+        "projection_years": years,
+        "future_value_current": round(future_current, 2),
+        "future_value_direct": round(future_direct, 2),
+        "potential_savings": round(future_direct - future_current, 2),
+        "message": f"Switching to direct plans could save you ₹{round((future_direct - future_current)/100000, 1)}L over {years} years"
+    })

@@ -22,7 +22,9 @@ export async function api(endpoint, options = {}) {
     throw new Error(error.detail || 'Request failed');
   }
 
-  return res.json();
+  const json = await res.json();
+  // Auto-extract data from StandardResponse format
+  return json.data !== undefined ? json.data : json;
 }
 
 export async function uploadFile(endpoint, file) {
@@ -49,23 +51,22 @@ export const getPerformance = () => api('/api/portfolio/performance');
 export const getSectors = () => api('/api/portfolio/sectors');
 export const getXirr = () => api('/api/portfolio/xirr');
 export const getDashboard = () => api('/api/portfolio/dashboard');
-export const getTransactions = () => api('/api/transactions');
-export const addTransaction = (data) => api('/api/transactions/', { method: 'POST', body: JSON.stringify(data) });
-export const deleteTransaction = (holdingId, index) => api(`/api/transactions/${holdingId}/${index}`, { method: 'DELETE' });
-export const getTransactionsList = () => api('/api/transactions');
+export const getTransactions = () => api('/api/portfolio/transactions');
+export const addTransaction = (data) => api('/api/portfolio/transactions', { method: 'POST', body: JSON.stringify(data) });
+export const deleteTransaction = (holdingId, index) => api(`/api/portfolio/transactions/${holdingId}/${index}`, { method: 'DELETE' });
+export const getTransactionsList = () => api('/api/portfolio/transactions');
 export const importHoldings = (file) => uploadFile('/api/portfolio/import', file);
 export const getAlerts = () => api('/api/alerts');
 export const getWatchlist = () => api('/api/watchlist');
 export const getIndices = () => api('/api/market/indices');
-export const getMarketSummary = () => api('/api/research/market-summary');
-export const getAnalysis = (symbol, exchange = 'NSE') => api(`/api/research/analysis/${symbol}?exchange=${exchange}`);
-export const getEnhancedAnalysis = (symbol, exchange = 'NSE') => api(`/api/research/enhanced/${symbol}?exchange=${exchange}`);
-export const getNews = (symbol) => api(`/api/research/news/${symbol}`);
-export const getNotifications = () => api('/api/notifications');
-export const getDividends = () => api('/api/dividends');
-export const getDividendSummary = () => api('/api/dividends/summary');
-export const addDividend = (data) => api('/api/dividends', { method: 'POST', body: JSON.stringify(data) });
-export const deleteDividend = (id) => api(`/api/dividends/${id}`, { method: 'DELETE' });
+export const getMarketSummary = () => api('/api/market/summary');
+export const getAnalysis = (symbol, exchange = 'NSE') => api(`/api/market/research/${symbol}?exchange=${exchange}`);
+export const getEnhancedAnalysis = (symbol, exchange = 'NSE') => api(`/api/market/research/${symbol}?exchange=${exchange}`);
+export const getNews = (symbol) => api(`/api/market/news/${symbol}`);
+export const getNotifications = () => api('/api/alerts/notifications');
+export const getDividends = () => api('/api/finance/dividends');
+export const addDividend = (data) => api('/api/finance/dividends', { method: 'POST', body: JSON.stringify(data) });
+export const deleteDividend = (id) => api(`/api/finance/dividends/${id}`, { method: 'DELETE' });
 
 export const downloadExport = async (type) => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;

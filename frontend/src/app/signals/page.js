@@ -10,7 +10,7 @@ export default function SignalsPage() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState({});
 
-  const loadSignals = async () => { setLoading(true); try { const data = await api('/api/research/advisor/run', { method: 'POST' }); setRecommendations(data.portfolio || []); setIpos(data.ipos || []); } catch (e) {} setLoading(false); };
+  const loadSignals = async () => { setLoading(true); try { const data = await api('/api/analytics/signals', { method: 'POST' }); setRecommendations(data.portfolio || []); setIpos(data.ipos || []); } catch (e) {} setLoading(false); };
   useEffect(() => { loadSignals(); }, []);
 
   const toggleExpand = (i) => setExpanded(prev => ({ ...prev, [i]: !prev[i] }));

@@ -26,28 +26,29 @@ export default function NetWorthPage() {
 
   const fetchData = async () => {
     try {
-      const [nw, assetList, hist, monthlyData, detail] = await Promise.all([
-        api('/api/networth/'),
-        api('/api/networth/assets'),
-        api('/api/networth/history'),
-        api(`/api/networth/monthly?year=${year}`),
-        api(`/api/networth/history-detail?year=${year}`)
-      ]);
+      const nw = await api('/api/finance/networth');
       setData(nw);
-      setAssets(assetList.assets || []);
-      setHistory(hist.history || []);
-      setMonthly(monthlyData);
-      setHistoryDetail(detail.history || []);
+      setAssets(nw.assets || []);
+      
+      if (view === 'monthly') {
+        const hist = await api(`/api/finance/networth/history?year=${year}`);
+        setMonthly(hist);
+        setHistoryDetail(hist.monthly.filter(m => m.has_data));
+      } else {
+        setHistory([]);
+        setMonthly({});
+        setHistoryDetail([]);
+      }
     } catch (e) { console.error(e); }
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, [year]);
+  useEffect(() => { fetchData(); }, [year, view]);
 
   const addAsset = async () => {
     if (!newAsset.name || !newAsset.value) return;
     try {
-      await api('/api/networth/asset', { method: 'POST', body: JSON.stringify({ ...newAsset, value: parseFloat(newAsset.value) }) });
+      await api('/api/finance/asset', { method: 'POST', body: JSON.stringify({ ...newAsset, value: parseFloat(newAsset.value) }) });
       setShowAdd(false);
       setNewAsset({ name: '', category: 'Fixed Deposits', value: '' });
       fetchData();
@@ -56,7 +57,7 @@ export default function NetWorthPage() {
 
   const deleteAsset = async (id) => {
     try {
-      await api(`/api/networth/asset/${id}`, { method: 'DELETE' });
+      await api(`/api/finance/asset/${id}`, { method: 'DELETE' });
       fetchData();
     } catch (e) { console.error(e); }
   };
@@ -64,7 +65,7 @@ export default function NetWorthPage() {
   const updateAsset = async () => {
     if (!editAsset) return;
     try {
-      await api(`/api/networth/asset/${editAsset._id}`, { method: 'PUT', body: JSON.stringify({ name: editAsset.name, category: editAsset.category, value: parseFloat(editAsset.value) }) });
+      await api(`/api/finance/asset/${editAsset.id}`, { method: 'PUT', body: JSON.stringify({ name: editAsset.name, category: editAsset.category, value: parseFloat(editAsset.value) }) });
       setEditAsset(null);
       fetchData();
     } catch (e) { console.error(e); }
@@ -89,7 +90,7 @@ export default function NetWorthPage() {
         return { date, total, breakdown };
       }).filter(s => s.date && s.total);
       
-      await api('/api/networth/import-history', { method: 'POST', body: JSON.stringify({ snapshots }) });
+      await api('/api/finance/networth/import-history', { method: 'POST', body: JSON.stringify({ snapshots }) });
       setShowImport(false);
       setImportText('');
       fetchData();
@@ -98,12 +99,17 @@ export default function NetWorthPage() {
 
   const takeSnapshot = async () => {
     try {
-      await api('/api/networth/snapshot', { method: 'POST' });
+      await api('/api/finance/networth/snapshot', { method: 'POST' });
       fetchData();
     } catch (e) { console.error(e); }
   };
 
-  const chartData = data ? Object.entries(data.categories || {}).map(([name, value], i) => ({ name, value, color: COLORS[i % COLORS.length] })) : [];
+  // Convert API response to chart format
+  const chartData = data?.categories ? Object.entries(data.categories).map(([name, value], i) => ({ 
+    name, 
+    value, 
+    color: COLORS[i % COLORS.length] 
+  })).filter(item => item.value > 0) : [];
 
   if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-6">Loading...</div></div>;
 
@@ -135,7 +141,7 @@ export default function NetWorthPage() {
             <Wallet className="w-8 h-8" />
             <span className="text-lg opacity-90">Total Net Worth</span>
           </div>
-          <div className="text-4xl font-bold">₹{(data?.total_networth || 0).toLocaleString('en-IN')}</div>
+          <div className="text-4xl font-bold">₹{(data?.total || 0).toLocaleString('en-IN')}</div>
           <div className="text-sm opacity-75 mt-1">{data?.assets_count || 0} assets tracked</div>
         </div>
 
@@ -193,7 +199,7 @@ export default function NetWorthPage() {
             <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Other Assets</h2>
             <div className="space-y-2">
               {assets.map((a) => (
-                <div key={a._id} className="flex items-center justify-between p-3 bg-[var(--bg-tertiary)] rounded-lg">
+                <div key={a.id || a._id} className="flex items-center justify-between p-3 bg-[var(--bg-tertiary)] rounded-lg">
                   <div>
                     <div className="font-medium text-[var(--text-primary)]">{a.name}</div>
                     <div className="text-sm text-[var(--text-secondary)]">{a.category}</div>

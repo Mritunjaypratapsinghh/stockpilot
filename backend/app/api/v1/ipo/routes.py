@@ -42,7 +42,8 @@ def parse_ipo_dates(dates_str):
 
 async def get_ipos_from_db() -> StandardResponse:
     from ....models.documents import IPO
-    ipos = await IPO.find(IPO.status.is_in(["OPEN", "UPCOMING"])).to_list()
+    from beanie.operators import In
+    ipos = await IPO.find(In(IPO.status, ["OPEN", "UPCOMING"])).to_list()
     
     result = []
     for ipo in ipos:

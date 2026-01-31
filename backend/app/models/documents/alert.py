@@ -4,10 +4,17 @@ from datetime import datetime
 from pymongo import IndexModel, ASCENDING
 from .base import BaseDocument
 
+AlertType = Literal[
+    "PRICE_ABOVE", "PRICE_BELOW", 
+    "PERCENT_CHANGE", "PERCENT_UP", "PERCENT_DOWN",
+    "WEEK_52_HIGH", "WEEK_52_LOW", 
+    "VOLUME_SPIKE", "EARNINGS"
+]
+
 
 class Alert(BaseDocument):
     symbol: str
-    alert_type: Literal["PRICE_ABOVE", "PRICE_BELOW"] = "PRICE_ABOVE"
+    alert_type: AlertType = "PRICE_ABOVE"
     target_value: float = Field(..., gt=0)
     is_active: bool = True
     triggered_at: Optional[datetime] = None

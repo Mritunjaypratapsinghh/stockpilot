@@ -13,9 +13,9 @@ export default function MFHealthPage() {
   const fetchData = async () => {
     try {
       const [h, o, e] = await Promise.all([
-        api('/api/mf/health'),
-        api('/api/mf/overlap'),
-        api('/api/mf/expense-impact?years=20')
+        api('/api/portfolio/mf/health'),
+        api('/api/portfolio/mf/overlap'),
+        api('/api/portfolio/mf/expense-impact?years=20')
       ]);
       setHealth(h);
       setOverlap(o);

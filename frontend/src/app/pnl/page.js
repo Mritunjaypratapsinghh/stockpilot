@@ -19,8 +19,8 @@ export default function PnLCalendarPage() {
     setLoading(true);
     try {
       const [daily, monthlyData] = await Promise.all([
-        api(`/api/pnl/daily?year=${year}&month=${month}`),
-        api(`/api/pnl/monthly?year=${year}`)
+        api(`/api/analytics/pnl-calendar?year=${year}&month=${month}`),
+        api(`/api/analytics/pnl-monthly?year=${year}`)
       ]);
       setData(daily);
       setMonthly(monthlyData);

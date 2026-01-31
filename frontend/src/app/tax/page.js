@@ -15,7 +15,7 @@ export default function TaxPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [sumData, harvestData] = await Promise.all([api('/api/tax/summary'), api('/api/tax/harvest')]);
+      const [sumData, harvestData] = await Promise.all([api('/api/finance/tax'), api('/api/finance/tax/harvest')]);
       setSummary(sumData);
       setHarvest(harvestData);
     } catch (e) { console.error(e); }

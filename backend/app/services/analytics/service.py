@@ -27,7 +27,7 @@ async def get_nse_data(symbol: str) -> Optional[Dict]:
             index=False
         )
         
-        if df.empty:
+        if df is None or df.empty:
             return None
         
         # Convert to dict
@@ -81,7 +81,7 @@ async def get_screener_fundamentals(symbol: str) -> Optional[Dict]:
                 data['company_name'] = name_tag.text.strip()
             
             return data
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.error(f"Screener scraping error for {symbol}: {e}")
         return None
 
@@ -116,7 +116,7 @@ async def get_moneycontrol_news(symbol: str) -> list:
                     })
             
             return news
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.error(f"MoneyControl scraping error for {symbol}: {e}")
         return []
 
@@ -125,20 +125,16 @@ async def get_combined_analysis(symbol: str, exchange: str = "NSE") -> Dict:
     Combine data from multiple sources for comprehensive analysis
     Auto-fallback from NSE to BSE if data not available
     """
+    from ..market.price_service import get_stock_price
+    
     result = {
         "symbol": symbol,
         "exchange": exchange,
         "sources": {}
     }
     
-    # Import here to avoid circular dependency
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-    
     # 1. Yahoo Finance (primary - already implemented)
     try:
-        from ..services.market.price_service import get_stock_price
         yahoo_data = await get_stock_price(symbol, exchange)
         
         # If NSE fails, try BSE
@@ -151,7 +147,7 @@ async def get_combined_analysis(symbol: str, exchange: str = "NSE") -> Dict:
         if yahoo_data:
             result["sources"]["yahoo"] = yahoo_data
             result["current_price"] = yahoo_data.get("current_price")
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.error(f"Yahoo Finance error: {e}")
     
     # 2. NSE Data (if NSE exchange)

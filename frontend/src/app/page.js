@@ -17,7 +17,11 @@ export default function Dashboard() {
     setToken(t);
     if (t) {
       Promise.all([getPortfolio(), getHoldings(), getIndices().catch(() => ({}))])
-        .then(([p, h, idx]) => { setPortfolio(p); setHoldings(h); setIndices(idx); })
+        .then(([p, h, idx]) => { 
+          setPortfolio(p); 
+          setHoldings(h); 
+          setIndices(idx); 
+        })
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
@@ -50,12 +54,12 @@ export default function Dashboard() {
         {/* Market Indices */}
         {Object.keys(indices).length > 0 && (
           <div className="flex gap-4 mb-6">
-            {Object.entries(indices).map(([name, data]) => (
+            {Object.entries(indices).filter(([, data]) => data).map(([name, data]) => (
               <div key={name} className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg px-5 py-3">
                 <div className="text-sm text-[var(--text-muted)] mb-1">{name}</div>
                 <div className="text-lg font-semibold tabular">{data.price?.toLocaleString('en-IN')}</div>
-                <div className={`flex items-center gap-1 text-sm ${data.change_pct >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
-                  {data.change_pct >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                <div className={`flex items-center gap-1 text-sm ${(data.change_pct || 0) >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
+                  {(data.change_pct || 0) >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
                   {Math.abs(data.change_pct || 0).toFixed(2)}%
                 </div>
               </div>

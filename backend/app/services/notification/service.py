@@ -8,7 +8,7 @@ from ...utils.logger import logger
 
 settings = get_settings()
 
-async def send_email(to_email: str, subject: str, body: str):
+async def send_email(to_email: str, subject: str, body: str) -> None:
     if not settings.smtp_host or not settings.smtp_user:
         return
     try:
@@ -22,10 +22,10 @@ async def send_email(to_email: str, subject: str, body: str):
             server.starttls()
             server.login(settings.smtp_user, settings.smtp_pass)
             server.send_message(msg)
-    except Exception as e:
+    except (smtplib.SMTPException, OSError) as e:
         logger.error(f"Email error: {e}")
 
-async def send_web_push(user_id, title: str, body: str):
+async def send_web_push(user_id, title: str, body: str) -> None:
     """Send web push notification if user has subscription"""
     db = get_db()
     if db is None:
@@ -44,7 +44,7 @@ async def send_web_push(user_id, title: str, body: str):
         "created_at": datetime.now(timezone.utc)
     })
 
-async def send_alert_notification(alert: dict, current_price: float):
+async def send_alert_notification(alert: dict, current_price: float) -> None:
     db = get_db()
     user = await db.users.find_one({"_id": alert["user_id"]})
     
@@ -72,7 +72,7 @@ async def send_alert_notification(alert: dict, current_price: float):
     # Web Push
     await send_web_push(alert["user_id"], f"Alert: {alert['symbol']}", msg)
 
-async def send_daily_digest(user_id, digest: dict):
+async def send_daily_digest(user_id, digest: dict) -> None:
     db = get_db()
     user = await db.users.find_one({"_id": user_id})
     

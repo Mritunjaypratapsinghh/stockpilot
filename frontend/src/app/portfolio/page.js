@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Edit2, X, TrendingUp, BarChart3, Search, Upload, PieChart, Percent, ArrowDownLeft, ArrowUpRight, Calendar, Download, DollarSign } from 'lucide-react';
 import Navbar from '../../components/Navbar';
-import { getDashboard, addTransaction, importHoldings, api, getDividendSummary, addDividend, getDividends, deleteDividend, downloadExport, deleteTransaction } from '../../lib/api';
+import { getDashboard, addTransaction, importHoldings, api, addDividend, getDividends, deleteDividend, downloadExport, deleteTransaction } from '../../lib/api';
 
 export default function PortfolioPage() {
   const [holdings, setHoldings] = useState([]);
@@ -36,14 +36,16 @@ export default function PortfolioPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [data, divs, divSum] = await Promise.all([getDashboard(), getDividends(), getDividendSummary()]);
+      const [data, divsData] = await Promise.all([getDashboard(), getDividends()]);
       setHoldings(data.holdings || []);
       setSectors(data.sectors || []);
       setXirr(data.xirr);
       setTransactions(data.transactions || []);
       setSummary(data.summary || { invested: 0, current: 0, pnl: 0, pnl_pct: 0 });
-      setDividends(divs || []);
-      setDivSummary(divSum || { total_dividend: 0, dividend_yield: 0, by_year: [], by_symbol: [] });
+      const dividendsList = divsData.dividends || [];
+      const dividendsTotal = divsData.total || 0;
+      setDividends(dividendsList);
+      setDivSummary({ total_dividend: dividendsTotal, dividend_yield: 0, by_year: [], by_symbol: [] });
     } catch (e) { console.error(e); }
     setLoading(false);
   };
@@ -209,7 +211,7 @@ export default function PortfolioPage() {
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
             <div className="text-sm text-[var(--text-muted)] mb-1">XIRR</div>
             <div className={`text-xl font-semibold tabular ${(xirr || 0) >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
-              {xirr !== null ? `${xirr >= 0 ? '+' : ''}${xirr.toFixed(2)}%` : '—'}
+              {xirr != null ? `${xirr >= 0 ? '+' : ''}${xirr.toFixed(2)}%` : '—'}
             </div>
           </div>
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">

@@ -14,7 +14,7 @@ class GoalCreate(BaseModel):
 class SIPCreate(BaseModel):
     symbol: str
     amount: float = Field(..., gt=0)
-    frequency: Literal["MONTHLY", "WEEKLY"] = "MONTHLY"
+    frequency: Literal["monthly", "weekly", "quarterly"] = "monthly"
     sip_date: int = Field(1, ge=1, le=28)
 
 
@@ -48,5 +48,27 @@ class TaxSummary(BaseModel):
 
 class NetworthSummary(BaseModel):
     total: float
+
+
+class AssetCreate(BaseModel):
+    name: str
+    category: str
+    value: float = Field(..., gt=0)
+
+
+class AssetUpdate(BaseModel):
+    name: str
+    category: str
+    value: float = Field(..., gt=0)
+
+
+class NetworthSnapshot(BaseModel):
+    date: str
+    total: float
+    breakdown: dict[str, float] = {}
+
+
+class ImportHistory(BaseModel):
+    snapshots: list[NetworthSnapshot]
     equity: float
     mf: float

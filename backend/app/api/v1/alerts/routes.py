@@ -11,7 +11,6 @@ router = APIRouter()
 
 
 @router.get("", summary="Get alerts", description="List all price alerts")
-@router.get("/")
 async def get_alerts(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get all price alerts for user."""
     alerts = await Alert.find(Alert.user_id == PydanticObjectId(current_user["_id"])).to_list()

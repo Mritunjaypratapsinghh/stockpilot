@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     cors_origins: Optional[str] = None  # Comma-separated list of allowed origins
 
     class Config:
-        env_file = "../.env"
+        env_file = "../.env"  # Relative to backend/ directory where uvicorn is run
 
 
 @lru_cache()

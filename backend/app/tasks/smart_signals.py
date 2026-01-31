@@ -22,7 +22,7 @@ async def fetch_stock_news(symbol: str, client: httpx.AsyncClient) -> list:
     return []
 
 
-async def analyze_stock(symbol: str):
+async def analyze_stock(symbol: str) -> dict | None:
     """Analyze stock and return buy/sell signals"""
     try:
         async with httpx.AsyncClient(timeout=15) as client:
@@ -211,12 +211,12 @@ async def analyze_stock(symbol: str):
                 "signals": signals,
                 "news": news
             }
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.error(f"Error analyzing {symbol}: {e}")
         return None
 
 
-async def check_smart_signals():
+async def check_smart_signals() -> None:
     """Check all user holdings for buy/sell signals and notify"""
     users = await User.find(User.settings.alerts_enabled != False).to_list()
     
@@ -282,7 +282,7 @@ async def check_smart_signals():
             await send_smart_alert({"telegram_chat_id": user.telegram_chat_id, "email": user.email}, alerts_to_send)
 
 
-async def send_smart_alert(user: dict, alerts: list):
+async def send_smart_alert(user: dict, alerts: list) -> None:
     """Send smart signal alert to user"""
     
     msg = "📊 *Smart Signals Alert*\n\n"
@@ -302,7 +302,7 @@ async def send_smart_alert(user: dict, alerts: list):
                     f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage",
                     json={"chat_id": user["telegram_chat_id"], "text": msg, "parse_mode": "Markdown"}
                 )
-        except Exception as e:
+        except (httpx.HTTPError, KeyError, ValueError) as e:
             logger.error(f"Telegram error: {e}")
     
     # Email

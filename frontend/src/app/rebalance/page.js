@@ -17,8 +17,8 @@ export default function RebalancePage() {
   const fetchData = async () => {
     try {
       const [alloc, suggest] = await Promise.all([
-        api('/api/rebalance/allocation'),
-        api('/api/rebalance/suggestions')
+        api('/api/analytics/rebalance/allocation'),
+        api('/api/analytics/rebalance')
       ]);
       setData(alloc);
       setSuggestions(suggest);
@@ -33,7 +33,7 @@ export default function RebalancePage() {
 
   const saveTarget = async () => {
     try {
-      await api('/api/rebalance/target', {
+      await api('/api/analytics/rebalance/target', {
         method: 'POST',
         body: JSON.stringify(target)
       });

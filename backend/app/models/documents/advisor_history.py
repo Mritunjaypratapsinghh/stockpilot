@@ -1,4 +1,3 @@
-# from beanie import Indexed
 from pydantic import Field
 from .base import BaseDocument
 

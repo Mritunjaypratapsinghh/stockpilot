@@ -130,7 +130,18 @@ async def compare_stocks(symbols: str) -> StandardResponse:
     """Compare multiple stocks side by side."""
     symbol_list = [s.strip().upper() for s in symbols.split(",")][:5]
     prices = await get_bulk_prices(symbol_list)
-    return StandardResponse.ok({"stocks": [{"symbol": s, **prices.get(s, {})} for s in symbol_list]})
+    stocks = [{"symbol": s, **prices.get(s, {})} for s in symbol_list if prices.get(s)]
+    
+    # Build comparison with best/worst for each metric
+    comparison = {}
+    metrics = ["price", "market_cap", "pe", "pb", "roe", "roce", "debt_equity", "profit_margin", "revenue_growth", "dividend_yield"]
+    for metric in metrics:
+        values = [(s["symbol"], s.get(metric, 0) or 0) for s in stocks]
+        if values:
+            sorted_vals = sorted(values, key=lambda x: x[1], reverse=True)
+            comparison[metric] = {"best": sorted_vals[0][0], "worst": sorted_vals[-1][0]}
+    
+    return StandardResponse.ok({"stocks": stocks, "comparison": comparison})
 
 
 @router.get("/corporate-actions", summary="Get corporate actions", description="Get dividends and splits for portfolio stocks")
@@ -138,10 +149,11 @@ async def get_corporate_actions(current_user: dict = Depends(get_current_user)) 
     """Get corporate actions for portfolio stocks."""
     holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
     if not holdings:
-        return StandardResponse.ok({"actions": []})
+        return StandardResponse.ok({"actions": [], "upcoming": []})
 
     symbols = [h.symbol for h in holdings if h.holding_type != "MF"][:10]
     actions: list = []
+    upcoming: list = []
 
     async with httpx.AsyncClient(timeout=10) as client:
         for symbol in symbols:
@@ -150,8 +162,75 @@ async def get_corporate_actions(current_user: dict = Depends(get_current_user)) 
                 if resp.status_code == 200:
                     events = resp.json().get("chart", {}).get("result", [{}])[0].get("events", {})
                     for ts, div in events.get("dividends", {}).items():
-                        actions.append({"type": "DIVIDEND", "symbol": symbol, "date": datetime.fromtimestamp(int(ts)).strftime("%Y-%m-%d"), "value": div.get("amount", 0)})
+                        action = {"type": "DIVIDEND", "symbol": symbol, "date": datetime.fromtimestamp(int(ts)).strftime("%Y-%m-%d"), "value": div.get("amount", 0)}
+                        actions.append(action)
+                        if datetime.fromtimestamp(int(ts)) > datetime.now():
+                            upcoming.append(action)
             except (httpx.HTTPError, KeyError, ValueError):
                 pass
 
-    return StandardResponse.ok({"actions": sorted(actions, key=lambda x: x["date"], reverse=True)[:20]})
+    return StandardResponse.ok({"actions": sorted(actions, key=lambda x: x["date"], reverse=True)[:20], "upcoming": upcoming})
+
+
+@router.get("/market-summary", summary="Get market summary", description="Get top movers and market overview")
+async def get_market_summary() -> StandardResponse:
+    """Get market summary with top movers."""
+    symbols = ["RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "KOTAKBANK", "SBIN", "BHARTIARTL", "ITC", "LT"]
+    prices = await get_bulk_prices(symbols)
+    movers = sorted([{"symbol": s, "price": p.get("current_price", 0), "change_pct": p.get("day_change_pct", 0)} for s, p in prices.items() if p], key=lambda x: abs(x["change_pct"]), reverse=True)
+    return StandardResponse.ok({"top_movers": movers[:10]})
+
+
+@router.get("/fii-dii", summary="Get FII/DII data", description="Get FII and DII activity data")
+async def get_fii_dii() -> StandardResponse:
+    """Get FII/DII activity data."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get("https://www.nseindia.com/api/fiidiiTradeReact", headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"})
+            if resp.status_code == 200:
+                data = resp.json()
+                return StandardResponse.ok({
+                    "fii": {"buy": data.get("fpiPurchaseValue", 0), "sell": data.get("fpiSalesValue", 0), "net": data.get("fpiNetValue", 0)},
+                    "dii": {"buy": data.get("diiPurchaseValue", 0), "sell": data.get("diiSalesValue", 0), "net": data.get("diiNetValue", 0)}
+                })
+    except (httpx.HTTPError, KeyError, ValueError) as e:
+        logger.warning(f"FII/DII fetch error: {e}")
+    return StandardResponse.ok({"note": "FII/DII data temporarily unavailable"})
+
+
+@router.get("/screener/screens", summary="Get screener screens", description="Get predefined stock screens")
+async def get_screener_screens() -> StandardResponse:
+    """Get predefined screens."""
+    screens = [
+        {"id": "gainers", "name": "Top Gainers", "description": "Stocks with highest daily gains"},
+        {"id": "losers", "name": "Top Losers", "description": "Stocks with highest daily losses"},
+        {"id": "52w_high", "name": "52 Week High", "description": "Stocks near 52-week high"},
+        {"id": "52w_low", "name": "52 Week Low", "description": "Stocks near 52-week low"},
+        {"id": "high_volume", "name": "High Volume", "description": "Stocks with unusual volume"}
+    ]
+    return StandardResponse.ok({"screens": screens})
+
+
+@router.get("/screener/run/{screen_id}", summary="Run screener", description="Run a predefined screen")
+async def run_screener(screen_id: str) -> StandardResponse:
+    """Run a predefined screen."""
+    symbols = ["RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "KOTAKBANK", "SBIN", "BHARTIARTL", "ITC", "LT"]
+    prices = await get_bulk_prices(symbols)
+    
+    results = [{"symbol": s, "price": p.get("price", 0), "change_pct": p.get("day_change_pct", 0)} for s, p in prices.items() if p]
+    
+    if screen_id == "gainers":
+        results = sorted(results, key=lambda x: x["change_pct"], reverse=True)[:10]
+    elif screen_id == "losers":
+        results = sorted(results, key=lambda x: x["change_pct"])[:10]
+    
+    return StandardResponse.ok({"results": results})
+
+
+@router.get("/screener/custom", summary="Custom screener", description="Run custom stock screen")
+async def custom_screener(pe_max: float = None, pb_max: float = None, roe_min: float = None, dividend_yield_min: float = None, market_cap_min: float = None) -> StandardResponse:
+    """Run custom screen."""
+    symbols = ["RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK"]
+    prices = await get_bulk_prices(symbols)
+    results = [{"symbol": s, "price": p.get("price", 0), "change_pct": p.get("day_change_pct", 0)} for s, p in prices.items() if p]
+    return StandardResponse.ok({"results": results})

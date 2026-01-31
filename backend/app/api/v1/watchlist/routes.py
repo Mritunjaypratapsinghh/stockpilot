@@ -12,7 +12,6 @@ router = APIRouter()
 
 
 @router.get("", summary="Get watchlist", description="List all watchlist items with prices")
-@router.get("/")
 async def get_watchlist(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get watchlist items."""
     items = await WatchlistItem.find(WatchlistItem.user_id == PydanticObjectId(current_user["_id"])).to_list()

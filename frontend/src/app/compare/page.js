@@ -14,7 +14,7 @@ export default function ComparePage() {
     if (!symbols.trim()) return;
     setLoading(true);
     try {
-      const data = await api(`/api/compare/compare?symbols=${symbols}`);
+      const data = await api(`/api/market/compare?symbols=${symbols}`);
       setStocks(data.stocks || []);
       setComparison(data.comparison || {});
     } catch (e) { console.error(e); }

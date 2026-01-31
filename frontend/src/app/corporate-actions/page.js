@@ -18,8 +18,8 @@ export default function CorporateActionsPage() {
     setLoading(true);
     try {
       const [actionsData, divData] = await Promise.all([
-        api('/api/corporate-actions/'),
-        api('/api/corporate-actions/dividends')
+        api('/api/market/corporate-actions'),
+        api('/api/finance/dividends')
       ]);
       setActions(actionsData.actions || []);
       setUpcoming(actionsData.upcoming || []);

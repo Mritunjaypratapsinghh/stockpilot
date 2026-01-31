@@ -29,7 +29,7 @@ async def init_db(max_retries: int = 3, retry_delay: int = 2):
             await init_beanie(database=db, document_models=ALL_DOCUMENTS)
             logger.info(f"Connected to MongoDB: {settings.mongodb_db}")
             return
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError) as e:
             logger.warning(f"MongoDB connection attempt {attempt}/{max_retries} failed: {e}")
             if attempt < max_retries:
                 await asyncio.sleep(retry_delay * attempt)

@@ -25,7 +25,7 @@ export default function GoalsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [goalsData, projData] = await Promise.all([api('/api/goals/'), api('/api/goals/projections')]);
+      const [goalsData, projData] = await Promise.all([api('/api/finance/goals'), api('/api/finance/goals/projections')]);
       setGoals(goalsData.goals || []);
       setPortfolioValue(goalsData.portfolio_value || 0);
       setProjections(projData);
@@ -36,14 +36,14 @@ export default function GoalsPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api('/api/goals/', { method: 'POST', body: JSON.stringify({ ...form, target_amount: parseFloat(form.target_amount), monthly_sip: form.monthly_sip ? parseFloat(form.monthly_sip) : null }) });
+      await api('/api/finance/goals', { method: 'POST', body: JSON.stringify({ ...form, target_amount: parseFloat(form.target_amount), monthly_sip: form.monthly_sip ? parseFloat(form.monthly_sip) : null }) });
       setShowForm(false);
       setForm({ name: '', target_amount: '', target_date: '', category: 'general', monthly_sip: '' });
       loadData();
     } catch (e) { alert(e.message); }
   };
 
-  const deleteGoal = async (id) => { if (confirm('Delete goal?')) { await api(`/api/goals/${id}`, { method: 'DELETE' }); loadData(); } };
+  const deleteGoal = async (id) => { if (confirm('Delete goal?')) { await api(`/api/finance/goals/${id}`, { method: 'DELETE' }); loadData(); } };
   const fmt = (n) => n?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0';
 
   return (

@@ -13,9 +13,10 @@ import asyncio
 # Cache for stock data (symbol -> (data, timestamp))
 _advisor_cache = {}
 _CACHE_TTL = 3600  # 1 hour
+_MAX_CACHE_SIZE = 500  # Prevent unbounded growth
 
 
-async def get_stock_data(symbol: str):
+async def get_stock_data(symbol: str) -> dict | None:
     """Fetch comprehensive stock data with caching"""
     import time
     
@@ -55,6 +56,10 @@ async def get_stock_data(symbol: str):
                 "lows": lows,
                 "volumes": volumes
             }
+            # Prevent unbounded cache growth
+            if len(_advisor_cache) >= _MAX_CACHE_SIZE:
+                oldest_key = min(_advisor_cache.keys(), key=lambda k: _advisor_cache[k][1])
+                del _advisor_cache[oldest_key]
             _advisor_cache[symbol] = (data, time.time())
             return data
     except (httpx.HTTPError, KeyError, ValueError) as e:
@@ -78,7 +83,7 @@ async def fetch_stock_news(symbol: str) -> list:
     return []
 
 
-async def get_bulk_stock_data(symbols: list):
+async def get_bulk_stock_data(symbols: list) -> dict:
     """Fetch stock data for multiple symbols concurrently"""
     results = await asyncio.gather(*[get_stock_data(s) for s in symbols], return_exceptions=True)
     return {s: r for s, r in zip(symbols, results) if r and not isinstance(r, Exception)}
@@ -276,9 +281,10 @@ def generate_recommendation(symbol: str, avg_price: float, quantity: float, indi
     }
 
 
-async def analyze_ipo_opportunities():
+async def analyze_ipo_opportunities() -> list:
     """Analyze IPOs based on GMP and recommend"""
-    ipos = await IPO.find(IPO.status.is_in(["UPCOMING", "OPEN"])).to_list()
+    from beanie.operators import In
+    ipos = await IPO.find(In(IPO.status, ["UPCOMING", "OPEN"])).to_list()
     
     recommendations = []
     for ipo in ipos:
@@ -325,7 +331,7 @@ async def analyze_ipo_opportunities():
     return recommendations
 
 
-async def run_portfolio_advisor():
+async def run_portfolio_advisor() -> None:
     """Main function - analyze all users' portfolios and send recommendations"""
     users = await User.find(User.settings.alerts_enabled != False).to_list()
     
@@ -378,7 +384,7 @@ async def run_portfolio_advisor():
             ).insert()
 
 
-async def send_advisor_alert(user: dict, stock_recs: list, ipo_recs: list):
+async def send_advisor_alert(user: dict, stock_recs: list, ipo_recs: list) -> None:
     """Send portfolio advisor alert"""
     
     # Build Telegram message
@@ -434,7 +440,7 @@ async def send_advisor_alert(user: dict, stock_recs: list, ipo_recs: list):
                     f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage",
                     json={"chat_id": user["telegram_chat_id"], "text": msg, "parse_mode": "Markdown"}
                 )
-        except Exception as e:
+        except (httpx.HTTPError, KeyError, ValueError) as e:
             logger.error(f"Telegram error: {e}")
     
     # Send Email

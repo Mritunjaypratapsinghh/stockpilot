@@ -6,7 +6,7 @@ import httpx
 import re
 
 
-async def parse_date_range(date_text):
+async def parse_date_range(date_text) -> tuple[datetime | None, datetime | None]:
     """Parse date range like '13-16 Jan' into open/close dates"""
     if not date_text:
         return None, None
@@ -26,11 +26,12 @@ async def parse_date_range(date_text):
     return None, None
 
 
-async def scrape_ipo_data():
+async def scrape_ipo_data() -> None:
     """Scrape IPO data from ipowatch.in and insert/update IPOs"""
+    from beanie.operators import In
     # Mark old IPOs as CLOSED
     old_ipos = await IPO.find(
-        IPO.status.is_in(["OPEN", "UPCOMING"])
+        In(IPO.status, ["OPEN", "UPCOMING"])
     ).to_list()
     
     for ipo in old_ipos:
@@ -103,11 +104,11 @@ async def scrape_ipo_data():
                                     dates={"open": open_date, "close": close_date},
                                     status=status, created_at=datetime.utcnow(), updated_at=datetime.utcnow()
                                 ).insert()
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.error(f"IPO scrape error: {e}")
 
 
-async def check_ipo_alerts():
+async def check_ipo_alerts() -> None:
     """Check for IPO-related alerts (allotment, listing)"""
     today = datetime.utcnow().date()
     

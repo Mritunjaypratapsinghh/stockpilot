@@ -17,7 +17,6 @@ router = APIRouter()
 
 
 @router.get("", summary="Get portfolio summary", description="Get total investment, current value, and P&L")
-@router.get("/")
 async def get_portfolio_summary(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get portfolio summary with total investment, current value, and P&L."""
     holdings = await get_user_holdings(current_user["_id"])
@@ -329,12 +328,13 @@ async def mf_health_check(current_user: dict = Depends(get_current_user)) -> Sta
     holdings = await get_user_holdings(current_user["_id"])
     mf_holdings = [h for h in holdings if h.holding_type == "MF"]
     if not mf_holdings:
-        return StandardResponse.ok({"funds": [], "total_mf_value": 0, "health_score": 100})
+        return StandardResponse.ok({"funds": [], "total_mf_value": 0, "health_score": 100, "avg_expense_ratio": 0, "total_annual_expense": 0})
 
     prices = await get_prices_for_holdings(mf_holdings)
     analysis: list = []
     issues: list = []
     total_value = 0.0
+    total_expense = 0.0
 
     for h in mf_holdings:
         p = prices.get(h.symbol, {})
@@ -342,6 +342,7 @@ async def mf_health_check(current_user: dict = Depends(get_current_user)) -> Sta
         value = h.quantity * curr_price
         total_value += value
         expense_ratio = 0.2 if "INDEX" in h.name.upper() else 1.5
+        total_expense += value * expense_ratio / 100
         category, benchmark = categorize_mf(h.name)
         inv = h.quantity * h.avg_price
         returns_pct = ((value - inv) / inv * 100) if inv > 0 else 0
@@ -350,4 +351,46 @@ async def mf_health_check(current_user: dict = Depends(get_current_user)) -> Sta
         analysis.append({"symbol": h.symbol, "name": h.name, "category": category, "value": round(value, 2),
                          "returns_pct": round(returns_pct, 2), "expense_ratio": expense_ratio, "status": status})
 
-    return StandardResponse.ok({"total_mf_value": round(total_value, 2), "funds": analysis, "issues": issues, "health_score": 100 - len(issues) * 10})
+    avg_expense = sum(f["expense_ratio"] for f in analysis) / len(analysis) if analysis else 0
+    return StandardResponse.ok({
+        "total_mf_value": round(total_value, 2),
+        "funds": analysis,
+        "issues": issues,
+        "health_score": 100 - len(issues) * 10,
+        "avg_expense_ratio": round(avg_expense, 2),
+        "total_annual_expense": round(total_expense, 2)
+    })
+
+
+@router.get("/mf/overlap", summary="MF overlap analysis", description="Analyze stock overlap between mutual funds")
+async def mf_overlap(current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Analyze overlap between mutual funds."""
+    holdings = await get_user_holdings(current_user["_id"])
+    mf_holdings = [h for h in holdings if h.holding_type == "MF"]
+    if len(mf_holdings) < 2:
+        return StandardResponse.ok({"overlaps": [], "message": "Need at least 2 MFs for overlap analysis"})
+    
+    return StandardResponse.ok({"overlaps": [], "total_overlap_pct": 0, "message": "Overlap data not available"})
+
+
+@router.get("/mf/expense-impact", summary="MF expense impact", description="Calculate long-term expense ratio impact")
+async def mf_expense_impact(years: int = 20, current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Calculate expense ratio impact over time."""
+    holdings = await get_user_holdings(current_user["_id"])
+    mf_holdings = [h for h in holdings if h.holding_type == "MF"]
+    if not mf_holdings:
+        return StandardResponse.ok({"total_expense_impact": 0, "funds": []})
+    
+    prices = await get_prices_for_holdings(mf_holdings)
+    funds = []
+    total_impact = 0
+    
+    for h in mf_holdings:
+        curr = prices.get(h.symbol, {}).get("current_price") or h.avg_price
+        value = h.quantity * curr
+        expense = 0.2 if "INDEX" in h.name.upper() else 1.5
+        impact = value * (expense / 100) * years
+        total_impact += impact
+        funds.append({"symbol": h.symbol, "name": h.name, "expense_ratio": expense, "impact": round(impact, 2)})
+    
+    return StandardResponse.ok({"total_expense_impact": round(total_impact, 2), "years": years, "funds": funds})

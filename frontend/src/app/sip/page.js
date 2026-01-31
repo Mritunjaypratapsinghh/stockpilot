@@ -19,7 +19,7 @@ export default function SIPPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const data = await api('/api/sip/');
+      const data = await api('/api/finance/sip');
       setSips(data.sips || []);
       setSummary(data.summary || {});
     } catch (e) { console.error(e); }
@@ -29,19 +29,19 @@ export default function SIPPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api('/api/sip/', { method: 'POST', body: JSON.stringify({ ...form, amount: parseFloat(form.amount), sip_date: parseInt(form.sip_date) }) });
+      await api('/api/finance/sip', { method: 'POST', body: JSON.stringify({ ...form, amount: parseFloat(form.amount), sip_date: parseInt(form.sip_date) }) });
       setShowForm(false);
       setForm({ symbol: '', amount: '', frequency: 'monthly', sip_date: '1', start_date: new Date().toISOString().split('T')[0] });
       loadData();
     } catch (e) { alert(e.message); }
   };
 
-  const toggleSIP = async (id) => { await api(`/api/sip/${id}/toggle`, { method: 'PUT' }); loadData(); };
-  const deleteSIP = async (id) => { if (confirm('Delete SIP?')) { await api(`/api/sip/${id}`, { method: 'DELETE' }); loadData(); } };
+  const toggleSIP = async (id) => { await api(`/api/finance/sip/${id}/toggle`, { method: 'PUT' }); loadData(); };
+  const deleteSIP = async (id) => { if (confirm('Delete SIP?')) { await api(`/api/finance/sip/${id}`, { method: 'DELETE' }); loadData(); } };
 
   const runCalculator = async () => {
     try {
-      const data = await api(`/api/sip/calculator?monthly_amount=${calc.amount}&years=${calc.years}&expected_return=${calc.return}`);
+      const data = await api(`/api/finance/sip/calculator?monthly_amount=${calc.amount}&years=${calc.years}&expected_return=${calc.return}`);
       setCalcResult(data);
     } catch (e) { console.error(e); }
   };

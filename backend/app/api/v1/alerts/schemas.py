@@ -3,11 +3,18 @@ from pydantic import BaseModel, Field
 from typing import Literal
 from datetime import datetime
 
+AlertType = Literal[
+    "PRICE_ABOVE", "PRICE_BELOW", 
+    "PERCENT_CHANGE", "PERCENT_UP", "PERCENT_DOWN",
+    "WEEK_52_HIGH", "WEEK_52_LOW", 
+    "VOLUME_SPIKE", "EARNINGS"
+]
+
 
 # Request schemas
 class AlertCreate(BaseModel):
     symbol: str = Field(..., min_length=1, max_length=30)
-    alert_type: Literal["PRICE_ABOVE", "PRICE_BELOW"] = "PRICE_ABOVE"
+    alert_type: AlertType = "PRICE_ABOVE"
     target_value: float = Field(..., gt=0)
 
 

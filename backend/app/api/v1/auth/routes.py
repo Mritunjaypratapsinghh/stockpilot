@@ -1,42 +1,14 @@
 """Authentication routes for user registration, login, and settings."""
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import JWTError, jwt
-from datetime import datetime, timedelta, timezone
 from beanie import PydanticObjectId
 
 from ....models.documents import User
-from ....config import get_settings
 from ....core.response_handler import StandardResponse
-from ....core.security import get_password_hash, verify_password
+from ....core.security import get_password_hash, verify_password, create_access_token, get_current_user
 from ....middleware.rate_limit import rate_limit
 from .schemas import UserCreate, UserLogin, Token, UserResponse, SettingsUpdate
 
 router = APIRouter()
-security = HTTPBearer()
-settings = get_settings()
-
-
-def create_access_token(data: dict, email: str | None = None) -> str:
-    """Create JWT access token with expiration."""
-    to_encode = data.copy()
-    if email:
-        to_encode["email"] = email
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.jwt_algorithm)
-
-
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
-    """Extract and validate current user from JWT token."""
-    try:
-        payload = jwt.decode(credentials.credentials, settings.secret_key, algorithms=[settings.jwt_algorithm])
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        return {"_id": user_id, "email": payload.get("email", "")}
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
 
 
 @router.post("/register", summary="Register new user", description="Create a new user account with email and password", dependencies=[Depends(rate_limit("auth"))])

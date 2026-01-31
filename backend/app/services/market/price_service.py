@@ -11,6 +11,7 @@ from ...core.constants import YAHOO_CHART_URL, YAHOO_SEARCH_URL
 _last_request_time = 0
 _rate_lock = asyncio.Lock()
 _cache: Dict[str, tuple] = {}  # symbol -> (data, timestamp)
+_MAX_CACHE_SIZE = 1000  # Prevent unbounded growth
 
 # Input validation pattern - alphanumeric, dash, ampersand only
 SYMBOL_PATTERN = re.compile(r'^[A-Z0-9&-]{1,20}$')
@@ -69,7 +70,7 @@ async def _fetch_yahoo(symbol: str, exchange: str) -> Optional[Dict]:
                         "day_change_pct": round((current - prev) / prev * 100, 2) if prev else 0,
                         "volume": meta.get("regularMarketVolume"), "source": "yahoo"
                     }
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.debug(f"Yahoo failed for {symbol}: {e}")
     return None
 
@@ -106,7 +107,7 @@ async def _fetch_moneycontrol(symbol: str) -> Optional[Dict]:
                         "day_change_pct": round((current - prev) / prev * 100, 2) if prev else 0,
                         "volume": int(d["VOL"]) if d.get("VOL") else None, "source": "moneycontrol"
                     }
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.debug(f"MoneyControl failed for {symbol}: {e}")
     return None
 
@@ -129,7 +130,7 @@ async def _fetch_google(symbol: str) -> Optional[Dict]:
                         "day_change_pct": round((current - prev) / prev * 100, 2) if prev else 0,
                         "source": "google"
                     }
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.debug(f"Google failed for {symbol}: {e}")
     return None
 
@@ -156,6 +157,10 @@ async def get_stock_price(symbol: str, exchange: str = "NSE") -> Optional[Dict]:
         data = await _fetch_google(symbol)
     
     if data:
+        # Prevent unbounded cache growth
+        if len(_cache) >= _MAX_CACHE_SIZE:
+            oldest_key = min(_cache.keys(), key=lambda k: _cache[k][1])
+            del _cache[oldest_key]
         _cache[cache_key] = (data, time.time())
         return data
     
@@ -219,6 +224,6 @@ async def search_stock(query: str) -> List[Dict]:
                             "exchange": "BSE"
                         })
                 return results
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.error(f"Error searching {query}: {e}")
     return []

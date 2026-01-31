@@ -30,7 +30,7 @@ async def _fetch_yahoo_chart(symbol: str) -> Optional[Dict]:
                         "volume": meta.get("regularMarketVolume"),
                         "source": "yahoo"
                     }
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.debug(f"Yahoo chart failed for {symbol}: {e}")
     return None
 
@@ -54,7 +54,7 @@ async def _fetch_google_finance(symbol: str) -> Optional[Dict]:
                         "prev_close": float(prev_match.group(1)) if prev_match else None,
                         "source": "google"
                     }
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.debug(f"Google finance failed for {symbol}: {e}")
     return None
 
@@ -85,7 +85,7 @@ async def _fetch_nse_direct(symbol: str) -> Optional[Dict]:
                         "volume": data.get("totalTradedVolume"),
                         "source": "nse"
                     }
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.debug(f"NSE direct failed for {symbol}: {e}")
     return None
 
@@ -121,7 +121,7 @@ async def _fetch_moneycontrol(symbol: str) -> Optional[Dict]:
                         "volume": int(data.get("VOL")) if data.get("VOL") else None,
                         "source": "moneycontrol"
                     }
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.debug(f"MoneyControl failed for {symbol}: {e}")
     return None
 

@@ -12,7 +12,7 @@ export default function MarketPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const [idx, sum, fii] = await Promise.all([api('/api/market/indices').catch(() => ({})), api('/api/research/market-summary').catch(() => null), api('/api/research/fii-dii').catch(() => null)]);
+    const [idx, sum, fii] = await Promise.all([api('/api/market/indices').catch(() => ({})), api('/api/market/market-summary').catch(() => null), api('/api/market/fii-dii').catch(() => null)]);
     setIndices(idx); setSummary(sum); setFiiDii(fii); setLoading(false);
   };
 

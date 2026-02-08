@@ -19,7 +19,11 @@ from .tasks.scheduler import start_scheduler
 
 
 # CORS origins - restrict in production
-CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
+CORS_ORIGINS = [
+    "http://localhost:3000", 
+    "http://127.0.0.1:3000",
+    "https://stockpilot-psi.vercel.app"
+]
 if settings.cors_origins:
     CORS_ORIGINS.extend(settings.cors_origins.split(","))
 

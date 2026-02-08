@@ -62,7 +62,7 @@ export const getIndices = () => api('/api/market/indices');
 export const getMarketSummary = () => api('/api/market/summary');
 export const getAnalysis = (symbol, exchange = 'NSE') => api(`/api/market/research/${symbol}?exchange=${exchange}`);
 export const getEnhancedAnalysis = (symbol, exchange = 'NSE') => api(`/api/market/research/${symbol}?exchange=${exchange}`);
-export const getNews = (symbol) => api(`/api/market/news/${symbol}`);
+export const getNews = (symbol) => api(`/api/market/research/${symbol}/news`);
 export const getNotifications = () => api('/api/alerts/notifications');
 export const getDividends = () => api('/api/finance/dividends');
 export const addDividend = (data) => api('/api/finance/dividends', { method: 'POST', body: JSON.stringify(data) });

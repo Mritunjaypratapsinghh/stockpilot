@@ -353,15 +353,15 @@ async def get_networth(current_user: dict = Depends(get_current_user)) -> Standa
     
     total = equity + mf + sum(assets_by_category.values())
     
+    categories = {"Equity": equity, "Mutual Funds": mf, **assets_by_category}
+    allocation = {k: round(v / total * 100, 1) if total > 0 else 0 for k, v in categories.items()}
+    
     return StandardResponse.ok({
         "total": round(total, 2),
         "equity": round(equity, 2),
         "mf": round(mf, 2),
-        "categories": {
-            "Equity": round(equity, 2),
-            "Mutual Funds": round(mf, 2),
-            **{k: round(v, 2) for k, v in assets_by_category.items()}
-        },
+        "categories": {k: round(v, 2) for k, v in categories.items()},
+        "allocation": allocation,
         "assets": [{"name": a.name, "category": a.category, "value": a.value, "id": str(a.id)} for a in assets]
     })
 
@@ -391,7 +391,8 @@ async def get_networth_history(year: int, current_user: dict = Depends(get_curre
     monthly = [None] * 12
     for h in history:
         month_idx = h.date.month - 1
-        if monthly[month_idx] is None:  # Keep first snapshot of month
+        # Keep first snapshot of month
+        if monthly[month_idx] is None:
             monthly[month_idx] = {
                 "month": h.date.month,
                 "month_name": h.date.strftime("%b"),
@@ -478,7 +479,7 @@ async def take_networth_snapshot(current_user: dict = Depends(get_current_user))
     snapshot = NetworthHistory(
         user_id=PydanticObjectId(current_user["_id"]),
         date=datetime.now(),
-        total=total,
+        value=total,
         breakdown=breakdown
     )
     await snapshot.insert()
@@ -505,14 +506,14 @@ async def import_networth_history(
         )
         
         if existing:
-            existing.total = snap.total
+            existing.value = snap.total
             existing.breakdown = snap.breakdown
             await existing.save()
         else:
             history = NetworthHistory(
                 user_id=PydanticObjectId(current_user["_id"]),
                 date=date,
-                total=snap.total,
+                value=snap.total,
                 breakdown=snap.breakdown
             )
             await history.insert()

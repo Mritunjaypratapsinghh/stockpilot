@@ -70,5 +70,3 @@ class NetworthSnapshot(BaseModel):
 
 class ImportHistory(BaseModel):
     snapshots: list[NetworthSnapshot]
-    equity: float
-    mf: float

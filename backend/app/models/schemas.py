@@ -72,3 +72,37 @@ class AlertCreate(BaseModel):
     symbol: str = Field(..., min_length=1, max_length=30)
     alert_type: AlertType
     target_value: float = Field(..., gt=0)
+
+
+# Ledger Schemas
+class LedgerTypeEnum(str, Enum):
+    LENT = "lent"
+    BORROWED = "borrowed"
+
+
+class LedgerStatusEnum(str, Enum):
+    PENDING = "pending"
+    PARTIAL = "partial"
+    SETTLED = "settled"
+
+
+class LedgerCreate(BaseModel):
+    type: LedgerTypeEnum
+    person_name: str = Field(..., min_length=1, max_length=100)
+    amount: float = Field(..., gt=0)
+    description: Optional[str] = None
+    date: Optional[date] = None
+    due_date: Optional[date] = None
+
+
+class LedgerUpdate(BaseModel):
+    person_name: Optional[str] = None
+    amount: Optional[float] = None
+    description: Optional[str] = None
+    due_date: Optional[date] = None
+    status: Optional[LedgerStatusEnum] = None
+
+
+class SettlementCreate(BaseModel):
+    amount: float = Field(..., gt=0)
+    note: Optional[str] = None

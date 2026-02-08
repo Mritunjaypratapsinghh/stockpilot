@@ -13,7 +13,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setLoading(true); setError('');
-    try { const res = await api(isLogin ? '/api/auth/login' : '/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) }); localStorage.setItem('token', res.data.access_token); window.location.href = '/'; }
+    try { const res = await api(isLogin ? '/api/auth/login' : '/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) }); localStorage.setItem('token', res.access_token); window.location.href = '/'; }
     catch (err) { setError(err.message); } finally { setLoading(false); }
   };
 

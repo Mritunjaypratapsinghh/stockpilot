@@ -82,3 +82,15 @@ export const downloadExport = async (type) => {
   a.click();
   window.URL.revokeObjectURL(url);
 };
+
+
+// Ledger
+export const getLedger = (params = {}) => {
+  const query = new URLSearchParams(params).toString();
+  return api(`/api/v1/ledger${query ? `?${query}` : ''}`);
+};
+export const getLedgerSummary = () => api('/api/v1/ledger/summary');
+export const addLedgerEntry = (data) => api('/api/v1/ledger', { method: 'POST', body: JSON.stringify(data) });
+export const updateLedgerEntry = (id, data) => api(`/api/v1/ledger/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const settleLedgerEntry = (id, data) => api(`/api/v1/ledger/${id}/settle`, { method: 'POST', body: JSON.stringify(data) });
+export const deleteLedgerEntry = (id) => api(`/api/v1/ledger/${id}`, { method: 'DELETE' });

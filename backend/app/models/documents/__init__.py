@@ -16,9 +16,10 @@ from .signal_history import SignalHistory
 from .advisor_history import AdvisorHistory
 from .daily_digest import DailyDigest
 from .price_cache import PriceCache
+from .ledger import Ledger, LedgerType, LedgerStatus, Settlement
 
 ALL_DOCUMENTS = [
     User, Holding, Transaction, Alert, Asset, WatchlistItem, Goal, SIP,
     Dividend, NetworthHistory, PortfolioSnapshot, Notification, IPO,
-    SignalHistory, AdvisorHistory, DailyDigest, PriceCache
+    SignalHistory, AdvisorHistory, DailyDigest, PriceCache, Ledger
 ]

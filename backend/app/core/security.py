@@ -3,7 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 from beanie import PydanticObjectId
-import bcrypt
+import hashlib
 
 from .config import settings
 
@@ -11,14 +11,11 @@ security = HTTPBearer()
 
 
 def get_password_hash(password: str) -> str:
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    return hashlib.sha256(password.encode()).hexdigest()
 
 
 def verify_password(password: str, hashed: str) -> bool:
-    try:
-        return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
-    except Exception:
-        return False
+    return hashlib.sha256(password.encode()).hexdigest() == hashed
 
 
 def create_access_token(data: dict, email: str = None) -> str:

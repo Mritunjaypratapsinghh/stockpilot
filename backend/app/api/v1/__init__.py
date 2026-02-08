@@ -9,6 +9,7 @@ from .finance import router as finance_router
 from .analytics import router as analytics_router
 from .ipo import router as ipo_router
 from .watchlist import router as watchlist_router
+from .ledger import router as ledger_router
 
 # Create v1 router
 router = APIRouter(prefix="/v1")
@@ -22,5 +23,6 @@ router.include_router(finance_router, prefix="/finance", tags=["Finance"])
 router.include_router(analytics_router, prefix="/analytics", tags=["Analytics"])
 router.include_router(ipo_router, prefix="/ipo", tags=["IPO"])
 router.include_router(watchlist_router, prefix="/watchlist", tags=["Watchlist"])
+router.include_router(ledger_router, prefix="/ledger", tags=["Ledger"])
 
 __all__ = ["router"]

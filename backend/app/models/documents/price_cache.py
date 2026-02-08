@@ -1,4 +1,3 @@
-# from beanie import Indexed
 from pydantic import Field
 from datetime import datetime
 from typing import Optional

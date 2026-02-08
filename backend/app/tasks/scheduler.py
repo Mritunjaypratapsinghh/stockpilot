@@ -1,5 +1,4 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from pytz import timezone
 from .price_updater import update_all_prices
 from .alert_checker import check_alerts
 from .digest_generator import generate_daily_digest
@@ -9,8 +8,7 @@ from .portfolio_advisor import run_portfolio_advisor
 from .hourly_update import send_hourly_update
 from ..logger import logger
 
-IST = timezone('Asia/Kolkata')
-scheduler = AsyncIOScheduler(timezone=IST)
+scheduler = AsyncIOScheduler(timezone='Asia/Kolkata')
 
 def start_scheduler():
     # Price updates

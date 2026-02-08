@@ -1,6 +1,5 @@
 from pydantic import Field
 from datetime import datetime
-from typing import Dict, Any
 from .base import BaseDocument
 
 class DailyDigest(BaseDocument):

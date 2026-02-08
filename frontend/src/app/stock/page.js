@@ -27,10 +27,10 @@ function StockContent() {
     try {
       const exchange = searchParams.get('exchange') || 'NSE';
       const [chartData, analysisData, enhancedData, newsData] = await Promise.all([
-        api(`/api/research/chart/${symbol}?range=${range}`),
-        api(`/api/research/analysis/${symbol}?exchange=${exchange}`),
-        api(`/api/research/enhanced/${symbol}?exchange=${exchange}`).catch(() => null),
-        api(`/api/research/news/${symbol}`)
+        api(`/api/market/research/${symbol}/chart?range=${range}`),
+        api(`/api/market/research/${symbol}?exchange=${exchange}`),
+        api(`/api/market/research/${symbol}?exchange=${exchange}`).catch(() => null),
+        api(`/api/market/research/${symbol}/news`)
       ]);
       setData(chartData);
       setAnalysis(analysisData);

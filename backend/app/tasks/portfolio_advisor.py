@@ -2,22 +2,21 @@
 Smart Portfolio Advisor - Automated Buy/Sell/Hold recommendations
 Analyzes portfolio holdings and sends actionable alerts
 """
-from ..database import get_db
-from ..services.notification_service import send_email
-from ..config import get_settings
-from ..services.price_service import is_market_open
+from ..models.documents import User, Holding, IPO, AdvisorHistory
+from ..services.notification.service import send_email
+from ..core.config import settings
+from ..utils.logger import logger
 from datetime import datetime
 import httpx
 import asyncio
 
-settings = get_settings()
-
 # Cache for stock data (symbol -> (data, timestamp))
 _advisor_cache = {}
 _CACHE_TTL = 3600  # 1 hour
+_MAX_CACHE_SIZE = 500  # Prevent unbounded growth
 
 
-async def get_stock_data(symbol: str):
+async def get_stock_data(symbol: str) -> dict | None:
     """Fetch comprehensive stock data with caching"""
     import time
     
@@ -57,9 +56,14 @@ async def get_stock_data(symbol: str):
                 "lows": lows,
                 "volumes": volumes
             }
+            # Prevent unbounded cache growth
+            if len(_advisor_cache) >= _MAX_CACHE_SIZE:
+                oldest_key = min(_advisor_cache.keys(), key=lambda k: _advisor_cache[k][1])
+                del _advisor_cache[oldest_key]
             _advisor_cache[symbol] = (data, time.time())
             return data
-    except:
+    except (httpx.HTTPError, KeyError, ValueError) as e:
+        logger.debug(f"Stock data error for {symbol}: {e}")
         return None
 
 
@@ -74,12 +78,12 @@ async def fetch_stock_news(symbol: str) -> list:
             if resp.status_code == 200:
                 news = resp.json().get("news", [])
                 return [{"title": n.get("title", ""), "publisher": n.get("publisher", "")} for n in news[:2]]
-    except:
+    except (httpx.HTTPError, KeyError, ValueError):
         pass
     return []
 
 
-async def get_bulk_stock_data(symbols: list):
+async def get_bulk_stock_data(symbols: list) -> dict:
     """Fetch stock data for multiple symbols concurrently"""
     results = await asyncio.gather(*[get_stock_data(s) for s in symbols], return_exceptions=True)
     return {s: r for s, r in zip(symbols, results) if r and not isinstance(r, Exception)}
@@ -277,15 +281,15 @@ def generate_recommendation(symbol: str, avg_price: float, quantity: float, indi
     }
 
 
-async def analyze_ipo_opportunities():
+async def analyze_ipo_opportunities() -> list:
     """Analyze IPOs based on GMP and recommend"""
-    db = get_db()
-    ipos = await db.ipos.find({"status": {"$in": ["UPCOMING", "OPEN"]}}).to_list(20)
+    from beanie.operators import In
+    ipos = await IPO.find(In(IPO.status, ["UPCOMING", "OPEN"])).to_list()
     
     recommendations = []
     for ipo in ipos:
-        gmp = ipo.get("gmp", 0)
-        price_high = ipo.get("price_band", {}).get("high", 0)
+        gmp = ipo.gmp or 0
+        price_high = (ipo.price_band or {}).get("high", 0)
         
         if not price_high:
             continue
@@ -293,17 +297,16 @@ async def analyze_ipo_opportunities():
         gmp_pct = (gmp / price_high * 100) if price_high else 0
         
         rec = {
-            "name": ipo["name"],
-            "price_band": f"₹{round(ipo.get('price_band', {}).get('low', 0))}-{round(price_high)}",
+            "name": ipo.name,
+            "price_band": f"₹{round((ipo.price_band or {}).get('low', 0))}-{round(price_high)}",
             "gmp": gmp,
             "gmp_pct": gmp_pct,
-            "lot_size": ipo.get("lot_size", 0),
-            "dates": ipo.get("dates", {}),
+            "lot_size": ipo.lot_size or 0,
+            "dates": ipo.dates or {},
             "action": None,
             "reasons": []
         }
         
-        # IPO recommendation logic
         if gmp_pct > 30:
             rec["action"] = "APPLY"
             rec["reasons"].append(f"Strong GMP of ₹{gmp} ({gmp_pct:.0f}%)")
@@ -328,67 +331,60 @@ async def analyze_ipo_opportunities():
     return recommendations
 
 
-async def run_portfolio_advisor():
+async def run_portfolio_advisor() -> None:
     """Main function - analyze all users' portfolios and send recommendations"""
-    db = get_db()
-    users = await db.users.find({"settings.alerts_enabled": {"$ne": False}}).to_list(500)
+    users = await User.find(User.settings.alerts_enabled != False).to_list()
     
-    # Get IPO recommendations (same for all users)
     ipo_recs = await analyze_ipo_opportunities()
     
     for user in users:
-        holdings = await db.holdings.find({"user_id": user["_id"]}).to_list(100)
+        holdings = await Holding.find(Holding.user_id == user.id).to_list()
         if not holdings:
             continue
         
         recommendations = []
         
         for h in holdings:
-            # Skip mutual funds
-            if h.get("holding_type") == "MF":
+            if h.holding_type == "MF":
                 continue
             
-            data = await get_stock_data(h["symbol"])
+            data = await get_stock_data(h.symbol)
             if not data:
                 continue
             
             indicators = calculate_indicators(data)
             rec = generate_recommendation(
-                h["symbol"],
-                h["avg_price"],
-                h["quantity"],
+                h.symbol,
+                h.avg_price,
+                h.quantity,
                 indicators
             )
             
-            # Fetch news for actionable recommendations
             if rec["action"] not in ["HOLD"]:
-                news = await fetch_stock_news(h["symbol"])
+                news = await fetch_stock_news(h.symbol)
                 if news and news[0].get("title"):
                     rec["news"] = news
-                    # Add news to detailed reasons
                     if rec.get("detailed_reasons"):
                         rec["detailed_reasons"].append(f"📰 Recent news: {news[0]['title']} (Source: {news[0].get('publisher', 'News')})")
                 recommendations.append(rec)
         
-        # Check if we already sent today
         today = datetime.utcnow().date().isoformat()
-        existing = await db.advisor_history.find_one({"user_id": user["_id"], "date": today})
+        existing = await AdvisorHistory.find_one(AdvisorHistory.user_id == user.id, AdvisorHistory.date == today)
         
         if existing:
             continue
         
-        # Send if there are recommendations
         if recommendations or ipo_recs:
-            await send_advisor_alert(user, recommendations, ipo_recs)
-            await db.advisor_history.insert_one({
-                "user_id": user["_id"],
-                "date": today,
-                "recommendations": len(recommendations),
-                "created_at": datetime.utcnow()
-            })
+            await send_advisor_alert({"telegram_chat_id": user.telegram_chat_id, "email": user.email}, recommendations, ipo_recs)
+            await AdvisorHistory(
+                user_id=user.id,
+                date=today,
+                recommendations=len(recommendations),
+                created_at=datetime.utcnow()
+            ).insert()
 
 
-async def send_advisor_alert(user: dict, stock_recs: list, ipo_recs: list):
+async def send_advisor_alert(user: dict, stock_recs: list, ipo_recs: list) -> None:
     """Send portfolio advisor alert"""
     
     # Build Telegram message
@@ -444,8 +440,8 @@ async def send_advisor_alert(user: dict, stock_recs: list, ipo_recs: list):
                     f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage",
                     json={"chat_id": user["telegram_chat_id"], "text": msg, "parse_mode": "Markdown"}
                 )
-        except Exception as e:
-            print(f"Telegram error: {e}")
+        except (httpx.HTTPError, KeyError, ValueError) as e:
+            logger.error(f"Telegram error: {e}")
     
     # Send Email
     if user.get("email"):

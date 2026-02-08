@@ -38,3 +38,11 @@ Thumbs.db
 # Build
 dist/
 build/
+
+# Temporary analysis files
+*_LOGIC*.md
+*_REVIEW*.md
+*_COMPARISON*.md
+*_MISSING*.md
+PROJECT_CONTEXT.md
+.kiro/

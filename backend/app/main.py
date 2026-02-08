@@ -2,79 +2,82 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import time
-from .database import connect_db, close_db
-from .api import auth, portfolio, alerts, market
-from .api import research, ipo, transactions, watchlist, notifications
-from .api import import_holdings, dividends, export
-from .api import goals, tax, analytics
-from .api import screener, sip, corporate_actions, compare, rebalance
-from .api import networth, pnl_calendar, mf_health
+
+from .core.database import init_db, close_db
+from .core.config import settings
+from .utils.logger import logger
+from .api.v1 import router as v1_router
+from .api.v1.auth import router as auth_router
+from .api.v1.portfolio import router as portfolio_router
+from .api.v1.market import router as market_router
+from .api.v1.alerts import router as alerts_router
+from .api.v1.finance import router as finance_router
+from .api.v1.analytics import router as analytics_router
+from .api.v1.ipo import router as ipo_router
+from .api.v1.watchlist import router as watchlist_router
 from .tasks.scheduler import start_scheduler
-from .logger import logger
+
+
+# CORS origins - restrict in production
+CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
+if settings.cors_origins:
+    CORS_ORIGINS.extend(settings.cors_origins.split(","))
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting StockPilot API...")
-    await connect_db()
+    await init_db()
     start_scheduler()
     logger.info("StockPilot API ready")
     yield
     logger.info("Shutting down...")
     await close_db()
 
+
 app = FastAPI(
     title="StockPilot API",
     description="Personal Portfolio Intelligence Platform",
-    version="0.1.0",
+    version="1.0.0",
     lifespan=lifespan,
     redirect_slashes=False
 )
 
-# Request logging middleware
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start = time.time()
     response = await call_next(request)
-    duration = round((time.time() - start) * 1000)
-    logger.info(f"{request.method} {request.url.path} - {response.status_code} ({duration}ms)")
+    logger.info(f"{request.method} {request.url.path} - {response.status_code} ({round((time.time() - start) * 1000)}ms)")
     return response
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(portfolio.router, prefix="/api/portfolio", tags=["Portfolio"])
-app.include_router(alerts.router, prefix="/api/alerts", tags=["Alerts"])
-app.include_router(market.router, prefix="/api/market", tags=["Market Data"])
-app.include_router(research.router, prefix="/api/research", tags=["Research"])
-app.include_router(ipo.router, prefix="/api/ipo", tags=["IPO"])
-app.include_router(transactions.router, prefix="/api/transactions", tags=["Transactions"])
-app.include_router(watchlist.router, prefix="/api/watchlist", tags=["Watchlist"])
-app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
-app.include_router(import_holdings.router, prefix="/api/portfolio", tags=["Import"])
-app.include_router(dividends.router, prefix="/api/dividends", tags=["Dividends"])
-app.include_router(export.router, prefix="/api/export", tags=["Export"])
-app.include_router(goals.router, prefix="/api/goals", tags=["Goals"])
-app.include_router(tax.router, prefix="/api/tax", tags=["Tax"])
-app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
-app.include_router(screener.router, prefix="/api/screener", tags=["Screener"])
-app.include_router(sip.router, prefix="/api/sip", tags=["SIP"])
-app.include_router(corporate_actions.router, prefix="/api/corporate-actions", tags=["Corporate Actions"])
-app.include_router(compare.router, prefix="/api/compare", tags=["Compare"])
-app.include_router(rebalance.router, prefix="/api/rebalance", tags=["Rebalance"])
-app.include_router(networth.router, prefix="/api/networth", tags=["Net Worth"])
-app.include_router(pnl_calendar.router, prefix="/api/pnl", tags=["P&L Calendar"])
-app.include_router(mf_health.router, prefix="/api/mf", tags=["MF Health"])
+# V1 API routes (new structure)
+app.include_router(v1_router, prefix="/api")
+
+# Legacy routes (backward compatibility with frontend using /api/* paths)
+app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
+app.include_router(portfolio_router, prefix="/api/portfolio", tags=["Portfolio"])
+app.include_router(market_router, prefix="/api/market", tags=["Market"])
+app.include_router(alerts_router, prefix="/api/alerts", tags=["Alerts"])
+app.include_router(finance_router, prefix="/api/finance", tags=["Finance"])
+app.include_router(analytics_router, prefix="/api/analytics", tags=["Analytics"])
+app.include_router(ipo_router, prefix="/api/ipo", tags=["IPO"])
+app.include_router(watchlist_router, prefix="/api/watchlist", tags=["Watchlist"])
+
 
 @app.get("/")
 async def root():
-    return {"message": "StockPilot API", "version": "0.1.0"}
+    return {"message": "StockPilot API", "version": "1.0.0"}
+
 
 @app.api_route("/health", methods=["GET", "HEAD"])
 async def health():

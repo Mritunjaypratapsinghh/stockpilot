@@ -3,14 +3,22 @@ from collections import defaultdict
 import time
 
 class RateLimiter:
-    def __init__(self):
+    def __init__(self, max_keys: int = 10000):
         self.requests = defaultdict(list)
+        self.max_keys = max_keys
     
     def is_allowed(self, key: str, limit: int, window: int) -> bool:
         """Check if request is allowed. limit requests per window seconds."""
         now = time.time()
         # Clean old requests
         self.requests[key] = [t for t in self.requests[key] if now - t < window]
+        
+        # Prevent unbounded growth - remove oldest keys if limit exceeded
+        if len(self.requests) > self.max_keys:
+            oldest_keys = sorted(self.requests.keys(), 
+                               key=lambda k: self.requests[k][-1] if self.requests[k] else 0)[:len(self.requests) - self.max_keys]
+            for old_key in oldest_keys:
+                del self.requests[old_key]
         
         if len(self.requests[key]) >= limit:
             return False

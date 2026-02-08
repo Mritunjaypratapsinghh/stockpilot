@@ -16,7 +16,7 @@ export default function ScreenerPage() {
 
   const loadScreens = async () => {
     try {
-      const data = await api('/api/screener/screens');
+      const data = await api('/api/market/screener/screens');
       setScreens(data.screens || []);
     } catch (e) { console.error(e); }
   };
@@ -26,7 +26,7 @@ export default function ScreenerPage() {
     setActiveScreen(screenId);
     setShowCustom(false);
     try {
-      const data = await api(`/api/screener/run/${screenId}`);
+      const data = await api(`/api/market/screener/run/${screenId}`);
       setResults(data.results || []);
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -38,7 +38,7 @@ export default function ScreenerPage() {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v); });
     try {
-      const data = await api(`/api/screener/custom?${params}`);
+      const data = await api(`/api/market/screener/custom?${params}`);
       setResults(data.results || []);
     } catch (e) { console.error(e); }
     setLoading(false);

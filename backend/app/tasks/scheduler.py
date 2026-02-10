@@ -1,6 +1,6 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from ..logger import logger
+from ..utils.logger import logger
 from .alert_checker import check_alerts
 from .digest_generator import generate_daily_digest
 from .earnings_checker import check_earnings_alerts
@@ -8,11 +8,15 @@ from .hourly_update import send_hourly_update
 from .ipo_tracker import check_ipo_alerts, scrape_ipo_data
 from .portfolio_advisor import run_portfolio_advisor
 from .price_updater import update_all_prices
+from .ws_broadcaster import broadcast_prices
 
 scheduler = AsyncIOScheduler(timezone="Asia/Kolkata")
 
 
 def start_scheduler():
+    # WebSocket price broadcast (every 5 seconds during market hours)
+    scheduler.add_job(broadcast_prices, "interval", seconds=5, id="ws_broadcast")
+
     # Price updates
     scheduler.add_job(update_all_prices, "interval", minutes=5, id="price_update")
 

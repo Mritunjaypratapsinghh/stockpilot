@@ -41,3 +41,15 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 def get_user_id(current_user: dict) -> PydanticObjectId:
     return PydanticObjectId(current_user["_id"])
+
+
+def verify_token(token: str) -> dict | None:
+    """Verify JWT token and return user dict. Returns None if invalid."""
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+        user_id = payload.get("sub")
+        if not user_id:
+            return None
+        return {"_id": user_id, "email": payload.get("email", "")}
+    except JWTError:
+        return None

@@ -8,15 +8,15 @@ import httpx
 
 from ...core.constants import YAHOO_CHART_URL, YAHOO_SEARCH_URL
 from ...utils.logger import logger
+from ..cache import cache_get, cache_mget, cache_mset, cache_set
 
 # Rate limiter: max 10 requests/sec
 _last_request_time = 0
 _rate_lock = asyncio.Lock()
-_cache: Dict[str, tuple] = {}  # symbol -> (data, timestamp)
-_MAX_CACHE_SIZE = 1000  # Prevent unbounded growth
 
 # Input validation pattern - alphanumeric, dash, ampersand only
 SYMBOL_PATTERN = re.compile(r"^[A-Z0-9&-]{1,20}$")
+CACHE_PREFIX = "price:"
 
 
 def sanitize_symbol(symbol: str) -> Optional[str]:
@@ -54,7 +54,6 @@ async def _rate_limited_get(client: httpx.AsyncClient, url: str) -> httpx.Respon
     return await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
 
 
-# Multi-source fetchers
 async def _fetch_yahoo(symbol: str, exchange: str) -> Optional[Dict]:
     try:
         async with httpx.AsyncClient(timeout=8) as client:
@@ -151,11 +150,10 @@ async def _fetch_moneycontrol(symbol: str) -> Optional[Dict]:
 
 async def _fetch_google(symbol: str) -> Optional[Dict]:
     try:
-        import re
-
         async with httpx.AsyncClient(timeout=8) as client:
             resp = await client.get(
-                f"https://www.google.com/finance/quote/{symbol}:NSE", headers={"User-Agent": "Mozilla/5.0"}
+                f"https://www.google.com/finance/quote/{symbol}:NSE",
+                headers={"User-Agent": "Mozilla/5.0"},
             )
             if resp.status_code == 200:
                 price_match = re.search(r'data-last-price="([\d.]+)"', resp.text)
@@ -179,19 +177,18 @@ async def _fetch_google(symbol: str) -> Optional[Dict]:
 
 
 async def get_stock_price(symbol: str, exchange: str = "NSE") -> Optional[Dict]:
-    """Fetch stock price with multi-source fallback."""
+    """Fetch stock price with Redis caching and multi-source fallback."""
     symbol = sanitize_symbol(symbol)
     if not symbol:
         return None
 
-    cache_key = f"{symbol}:{exchange}"
+    cache_key = f"{CACHE_PREFIX}{symbol}:{exchange}"
     cache_ttl = get_cache_ttl()
 
-    # Check cache
-    if cache_key in _cache:
-        data, ts = _cache[cache_key]
-        if time.time() - ts < cache_ttl:
-            return data
+    # Check Redis cache
+    cached = await cache_get(cache_key)
+    if cached:
+        return cached
 
     # Try sources in order: Yahoo -> MoneyControl -> Google
     data = await _fetch_yahoo(symbol, exchange)
@@ -201,11 +198,7 @@ async def get_stock_price(symbol: str, exchange: str = "NSE") -> Optional[Dict]:
         data = await _fetch_google(symbol)
 
     if data:
-        # Prevent unbounded cache growth
-        if len(_cache) >= _MAX_CACHE_SIZE:
-            oldest_key = min(_cache.keys(), key=lambda k: _cache[k][1])
-            del _cache[oldest_key]
-        _cache[cache_key] = (data, time.time())
+        await cache_set(cache_key, data, cache_ttl)
         return data
 
     logger.warning(f"All sources failed for {symbol}")
@@ -213,23 +206,24 @@ async def get_stock_price(symbol: str, exchange: str = "NSE") -> Optional[Dict]:
 
 
 async def get_bulk_prices(symbols: List[str], exchange: str = "NSE") -> Dict[str, Dict]:
-    """Fetch prices for multiple symbols concurrently."""
+    """Fetch prices for multiple symbols with Redis caching."""
     symbols = [s for s in (sanitize_symbol(s) for s in symbols) if s]
     if not symbols:
         return {}
 
     cache_ttl = get_cache_ttl()
+    cache_keys = [f"{CACHE_PREFIX}{s}:{exchange}" for s in symbols]
+
+    # Batch get from Redis
+    cached = await cache_mget(cache_keys)
     prices = {}
     uncached = []
 
-    for symbol in symbols:
-        cache_key = f"{symbol}:{exchange}"
-        if cache_key in _cache:
-            data, ts = _cache[cache_key]
-            if time.time() - ts < cache_ttl:
-                prices[symbol] = data
-                continue
-        uncached.append(symbol)
+    for symbol, key in zip(symbols, cache_keys):
+        if cached.get(key):
+            prices[symbol] = cached[key]
+        else:
+            uncached.append(symbol)
 
     if not uncached:
         return prices
@@ -237,9 +231,16 @@ async def get_bulk_prices(symbols: List[str], exchange: str = "NSE") -> Dict[str
     # Fetch uncached symbols concurrently
     tasks = [get_stock_price(s, exchange) for s in uncached]
     results = await asyncio.gather(*tasks)
+
+    # Batch set to Redis
+    to_cache = {}
     for symbol, data in zip(uncached, results):
         if data:
             prices[symbol] = data
+            to_cache[f"{CACHE_PREFIX}{symbol}:{exchange}"] = data
+
+    if to_cache:
+        await cache_mset(to_cache, cache_ttl)
 
     return prices
 
@@ -255,14 +256,21 @@ async def search_stock(query: str) -> List[Dict]:
                 results = []
                 for q in data.get("quotes", []):
                     symbol = q.get("symbol", "")
-                    # Support both NSE (.NS) and BSE (.BO)
                     if ".NS" in symbol:
                         results.append(
-                            {"symbol": symbol.replace(".NS", ""), "name": q.get("shortname", symbol), "exchange": "NSE"}
+                            {
+                                "symbol": symbol.replace(".NS", ""),
+                                "name": q.get("shortname", symbol),
+                                "exchange": "NSE",
+                            }
                         )
                     elif ".BO" in symbol:
                         results.append(
-                            {"symbol": symbol.replace(".BO", ""), "name": q.get("shortname", symbol), "exchange": "BSE"}
+                            {
+                                "symbol": symbol.replace(".BO", ""),
+                                "name": q.get("shortname", symbol),
+                                "exchange": "BSE",
+                            }
                         )
                 return results
     except (httpx.HTTPError, KeyError, ValueError) as e:

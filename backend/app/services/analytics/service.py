@@ -125,7 +125,7 @@ async def get_combined_analysis(symbol: str, exchange: str = "NSE") -> Dict:
     Combine data from multiple sources for comprehensive analysis
     Auto-fallback from NSE to BSE if data not available
     """
-    from ..market.price_service import get_stock_price
+    from ..market.price_service import get_stock_price, get_historical_data
     
     result = {
         "symbol": symbol,
@@ -150,7 +150,45 @@ async def get_combined_analysis(symbol: str, exchange: str = "NSE") -> Dict:
     except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.error(f"Yahoo Finance error: {e}")
     
-    # 2. NSE Data (if NSE exchange)
+    # 2. Technical Analysis from historical data
+    try:
+        hist = await get_historical_data(symbol, exchange, period="1y")
+        if hist and len(hist) >= 20:
+            closes = [d["close"] for d in hist if d.get("close")]
+            if len(closes) >= 20:
+                # SMAs
+                result["sma_20"] = round(sum(closes[-20:]) / 20, 2)
+                if len(closes) >= 50:
+                    result["sma_50"] = round(sum(closes[-50:]) / 50, 2)
+                if len(closes) >= 200:
+                    result["sma_200"] = round(sum(closes[-200:]) / 200, 2)
+                
+                # RSI (14-day)
+                if len(closes) >= 15:
+                    changes = [closes[i] - closes[i-1] for i in range(1, len(closes))]
+                    gains = [c if c > 0 else 0 for c in changes[-14:]]
+                    losses = [-c if c < 0 else 0 for c in changes[-14:]]
+                    avg_gain = sum(gains) / 14
+                    avg_loss = sum(losses) / 14
+                    if avg_loss > 0:
+                        rs = avg_gain / avg_loss
+                        result["rsi"] = round(100 - (100 / (1 + rs)), 1)
+                    else:
+                        result["rsi"] = 100
+                    result["rsi_signal"] = "OVERSOLD" if result["rsi"] < 30 else "OVERBOUGHT" if result["rsi"] > 70 else "NEUTRAL"
+                
+                # Support/Resistance (recent 20-day low/high)
+                recent = closes[-20:]
+                result["support"] = round(min(recent), 2)
+                result["resistance"] = round(max(recent), 2)
+                
+                # Trend
+                if result.get("current_price") and result.get("sma_20"):
+                    result["trend"] = "BULLISH" if result["current_price"] > result["sma_20"] else "BEARISH"
+    except Exception as e:
+        logger.error(f"Technical analysis error for {symbol}: {e}")
+    
+    # 3. NSE Data (if NSE exchange)
     if exchange == "NSE":
         nse_data = await get_nse_data(symbol)
         if nse_data:
@@ -163,7 +201,7 @@ async def get_combined_analysis(symbol: str, exchange: str = "NSE") -> Dict:
             if not result.get("current_price"):
                 result["current_price"] = nse_data.get("close")
     
-    # 3. Fundamentals from Screener
+    # 4. Fundamentals from Screener
     fundamentals = await get_screener_fundamentals(symbol)
     if fundamentals:
         result["sources"]["fundamentals"] = fundamentals
@@ -173,7 +211,7 @@ async def get_combined_analysis(symbol: str, exchange: str = "NSE") -> Dict:
         result["roe"] = fundamentals.get("roe")
         result["roce"] = fundamentals.get("roce")
     
-    # 4. News from MoneyControl
+    # 5. News from MoneyControl
     news = await get_moneycontrol_news(symbol)
     if news:
         result["sources"]["news"] = news

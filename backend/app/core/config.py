@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: Optional[str] = None  # Comma-separated list of allowed origins
 
+    # Google OAuth
+    google_client_id: str = ""
+
     class Config:
         env_file = "../.env"  # Relative to backend/ directory where uvicorn is run
 

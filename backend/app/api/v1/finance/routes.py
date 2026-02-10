@@ -80,7 +80,7 @@ async def get_sips(current_user: dict = Depends(get_current_user)) -> StandardRe
     """Get all SIP investments with actual performance from holdings."""
     sips = await SIP.find(SIP.user_id == PydanticObjectId(current_user["_id"])).to_list()
     holdings = await get_user_holdings(current_user["_id"])
-    prices = await get_prices_for_holdings(holdings) if holdings else {}
+    prices = (await get_prices_for_holdings(holdings) if holdings else {}) or {}
     
     # Map holdings by symbol for quick lookup
     holdings_map = {h.symbol: h for h in holdings}
@@ -174,7 +174,7 @@ async def sip_calculator(monthly_amount: float, years: int, expected_return: flo
 async def get_goal_projections(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get portfolio projections with conservative, moderate, and aggressive scenarios."""
     holdings = await get_user_holdings(current_user["_id"])
-    prices = await get_prices_for_holdings(holdings) if holdings else {}
+    prices = (await get_prices_for_holdings(holdings) if holdings else {}) or {}
     current_value = sum(h.quantity * (prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price) for h in holdings) if holdings else 0
     
     # Conservative: 8%, Moderate: 12%, Aggressive: 15% annual returns
@@ -200,7 +200,7 @@ async def get_tax_harvest(current_user: dict = Depends(get_current_user)) -> Sta
     if not holdings:
         return StandardResponse.ok({"suggestions": [], "total_harvestable_loss": 0, "potential_tax_saved": 0, "note": ""})
     
-    prices = await get_prices_for_holdings(holdings)
+    prices = await get_prices_for_holdings(holdings) or {}
     suggestions = []
     total_harvestable_loss = 0
     one_year_ago = datetime.now() - timedelta(days=365)
@@ -272,7 +272,7 @@ async def get_tax_summary(current_user: dict = Depends(get_current_user)) -> Sta
             "tax_liability": {"stcg_tax": 0, "ltcg_tax": 0, "total_tax": 0}
         })
 
-    prices = await get_prices_for_holdings(holdings)
+    prices = await get_prices_for_holdings(holdings) or {}
     unrealized_ltcg = unrealized_stcg = 0
 
     for h in holdings:
@@ -332,7 +332,7 @@ async def get_networth(current_user: dict = Depends(get_current_user)) -> Standa
     from ....models.documents import Asset
     
     holdings = await get_user_holdings(current_user["_id"])
-    prices = await get_prices_for_holdings(holdings) if holdings else {}
+    prices = (await get_prices_for_holdings(holdings) if holdings else {}) or {}
     
     equity = mf = 0
     for h in holdings:
@@ -458,7 +458,7 @@ async def take_networth_snapshot(current_user: dict = Depends(get_current_user))
     from datetime import datetime
     
     holdings = await get_user_holdings(current_user["_id"])
-    prices = await get_prices_for_holdings(holdings) if holdings else {}
+    prices = (await get_prices_for_holdings(holdings) if holdings else {}) or {}
     
     equity = mf = 0
     for h in holdings:

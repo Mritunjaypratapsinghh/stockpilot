@@ -23,7 +23,7 @@ async def get_portfolio_summary(current_user: dict = Depends(get_current_user)) 
     if not holdings:
         return StandardResponse.ok(PortfolioSummary(total_investment=0, current_value=0, total_pnl=0, total_pnl_pct=0, day_pnl=0, day_pnl_pct=0, holdings_count=0))
 
-    prices = await get_prices_for_holdings(holdings)
+    prices = await get_prices_for_holdings(holdings) or {}
     total_investment = current_value = day_pnl = 0.0
 
     for h in holdings:
@@ -48,7 +48,7 @@ async def get_portfolio_summary(current_user: dict = Depends(get_current_user)) 
 async def get_holdings(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get all holdings with current prices and P&L."""
     holdings = await get_user_holdings(current_user["_id"])
-    prices = await get_prices_for_holdings(holdings)
+    prices = await get_prices_for_holdings(holdings) or {}
 
     result: List[HoldingResponse] = []
     for h in holdings:
@@ -116,7 +116,7 @@ async def get_sector_allocation(current_user: dict = Depends(get_current_user)) 
     if not holdings:
         return StandardResponse.ok({"sectors": [], "total_value": 0})
 
-    prices = await get_prices_for_holdings(holdings)
+    prices = await get_prices_for_holdings(holdings) or {}
     sector_values: dict[str, float] = {}
     total_value = 0.0
 
@@ -139,7 +139,7 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)) -> Stand
     if not holdings:
         return StandardResponse.ok({"holdings": [], "sectors": [], "xirr": None, "transactions": [], "summary": {"invested": 0, "current": 0, "pnl": 0, "pnl_pct": 0}})
 
-    prices = await get_prices_for_holdings(holdings)
+    prices = await get_prices_for_holdings(holdings) or {}
     holdings_list: list = []
     txns: list = []
     total_inv = total_val = 0.0
@@ -331,7 +331,7 @@ async def mf_health_check(current_user: dict = Depends(get_current_user)) -> Sta
     if not mf_holdings:
         return StandardResponse.ok({"message": "No mutual funds in portfolio", "funds": [], "total_mf_value": 0, "health_score": 100})
     
-    prices = await get_prices_for_holdings(mf_holdings)
+    prices = await get_prices_for_holdings(mf_holdings) or {}
     analysis = []
     issues = []
     total_expense = 0

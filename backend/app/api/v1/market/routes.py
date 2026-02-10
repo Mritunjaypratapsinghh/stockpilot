@@ -185,17 +185,32 @@ async def get_market_summary() -> StandardResponse:
 async def get_fii_dii() -> StandardResponse:
     """Get FII/DII activity data."""
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get("https://www.nseindia.com/api/fiidiiTradeReact", headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"})
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                "https://www.moneycontrol.com/stocks/marketstats/fii_dii_activity/index.php",
+                headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
+            )
             if resp.status_code == 200:
-                data = resp.json()
-                return StandardResponse.ok({
-                    "fii": {"buy": data.get("fpiPurchaseValue", 0), "sell": data.get("fpiSalesValue", 0), "net": data.get("fpiNetValue", 0)},
-                    "dii": {"buy": data.get("diiPurchaseValue", 0), "sell": data.get("diiSalesValue", 0), "net": data.get("diiNetValue", 0)}
-                })
-    except (httpx.HTTPError, KeyError, ValueError) as e:
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(resp.text, "lxml")
+                table = soup.find("table", class_="mctable1")
+                if table:
+                    rows = table.find_all("tr")
+                    for row in rows[2:4]:  # Today's data row
+                        cells = row.find_all("td")
+                        if len(cells) >= 7:
+                            def parse_val(s):
+                                try:
+                                    return float(s.strip().replace(",", "").replace("(", "-").replace(")", ""))
+                                except:
+                                    return 0
+                            return StandardResponse.ok({
+                                "fii": {"buy": parse_val(cells[1].text), "sell": parse_val(cells[2].text), "net": parse_val(cells[3].text)},
+                                "dii": {"buy": parse_val(cells[4].text), "sell": parse_val(cells[5].text), "net": parse_val(cells[6].text)}
+                            })
+    except Exception as e:
         logger.warning(f"FII/DII fetch error: {e}")
-    return StandardResponse.ok({"note": "FII/DII data temporarily unavailable"})
+    return StandardResponse.ok({"fii": {"buy": 0, "sell": 0, "net": 0}, "dii": {"buy": 0, "sell": 0, "net": 0}, "note": "FII/DII data temporarily unavailable"})
 
 
 @router.get("/screener/screens", summary="Get screener screens", description="Get predefined stock screens")

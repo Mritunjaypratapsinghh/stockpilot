@@ -1,0 +1,5 @@
+# Development dependencies for pre-commit hooks
+pre-commit>=3.6.0
+black>=24.0.0
+isort>=5.13.0
+ruff>=0.2.0

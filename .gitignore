@@ -46,3 +46,4 @@ build/
 *_MISSING*.md
 PROJECT_CONTEXT.md
 .kiro/
+client_secret_*.json

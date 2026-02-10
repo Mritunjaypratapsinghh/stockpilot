@@ -1,12 +1,15 @@
 """Authentication routes for user registration, login, and settings."""
 from fastapi import APIRouter, HTTPException, Depends
 from beanie import PydanticObjectId
+from google.oauth2 import id_token
+from google.auth.transport import requests
 
 from ....models.documents import User
 from ....core.response_handler import StandardResponse
 from ....core.security import get_password_hash, verify_password, create_access_token, get_current_user
+from ....core.config import settings
 from ....middleware.rate_limit import rate_limit
-from .schemas import UserCreate, UserLogin, Token, UserResponse, SettingsUpdate
+from .schemas import UserCreate, UserLogin, Token, UserResponse, SettingsUpdate, GoogleAuth
 
 router = APIRouter()
 
@@ -28,9 +31,35 @@ async def register(user_data: UserCreate) -> StandardResponse:
 async def login(user_data: UserLogin) -> StandardResponse:
     """Authenticate user and return JWT token."""
     user = await User.find_one(User.email == user_data.email)
-    if not user or not verify_password(user_data.password, user.password_hash):
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    if not user.password_hash or not verify_password(user_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = create_access_token({"sub": str(user.id)}, email=user.email)
+    return StandardResponse.ok(Token(access_token=token), "Login successful")
+
+
+@router.post("/google", summary="Google OAuth", description="Authenticate with Google", dependencies=[Depends(rate_limit("auth"))])
+async def google_auth(data: GoogleAuth) -> StandardResponse:
+    """Authenticate or register user via Google OAuth."""
+    try:
+        idinfo = id_token.verify_oauth2_token(data.credential, requests.Request(), settings.google_client_id)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+    
+    email, google_id = idinfo["email"], idinfo["sub"]
+    name = idinfo.get("name")
+    
+    user = await User.find_one(User.email == email)
+    if user:
+        if not user.google_id:
+            user.google_id = google_id
+            await user.save()
+    else:
+        user = User(email=email, google_id=google_id, name=name)
+        await user.insert()
+    
+    token = create_access_token({"sub": str(user.id)}, email=email)
     return StandardResponse.ok(Token(access_token=token), "Login successful")
 
 

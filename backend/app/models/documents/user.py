@@ -7,7 +7,8 @@ from pymongo import IndexModel, ASCENDING
 
 class User(Document):
     email: EmailStr
-    password_hash: str
+    password_hash: Optional[str] = None
+    google_id: Optional[str] = None
     name: Optional[str] = None
     telegram_chat_id: Optional[str] = None
     push_subscription: Optional[Dict[str, Any]] = None

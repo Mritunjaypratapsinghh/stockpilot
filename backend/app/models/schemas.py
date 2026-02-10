@@ -1,8 +1,10 @@
 """API Request/Response Schemas"""
-from pydantic import BaseModel, Field, EmailStr
-from typing import Optional
+
 from datetime import date
 from enum import Enum
+from typing import Optional
+
+from pydantic import BaseModel, EmailStr, Field
 
 
 # Auth Schemas

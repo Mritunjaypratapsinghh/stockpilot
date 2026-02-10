@@ -1,14 +1,21 @@
-from pydantic import Field
-from typing import Optional, Literal
 from datetime import datetime
-from pymongo import IndexModel, ASCENDING
+from typing import Literal, Optional
+
+from pydantic import Field
+from pymongo import ASCENDING, IndexModel
+
 from .base import BaseDocument
 
 AlertType = Literal[
-    "PRICE_ABOVE", "PRICE_BELOW", 
-    "PERCENT_CHANGE", "PERCENT_UP", "PERCENT_DOWN",
-    "WEEK_52_HIGH", "WEEK_52_LOW", 
-    "VOLUME_SPIKE", "EARNINGS"
+    "PRICE_ABOVE",
+    "PRICE_BELOW",
+    "PERCENT_CHANGE",
+    "PERCENT_UP",
+    "PERCENT_DOWN",
+    "WEEK_52_HIGH",
+    "WEEK_52_LOW",
+    "VOLUME_SPIKE",
+    "EARNINGS",
 ]
 
 

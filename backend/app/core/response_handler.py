@@ -1,4 +1,5 @@
-from typing import Optional, Generic, TypeVar, List
+from typing import Generic, List, Optional, TypeVar
+
 from pydantic import BaseModel
 
 T = TypeVar("T")
@@ -22,7 +23,7 @@ class StandardResponse(BaseModel, Generic[T]):
 class PaginationParams(BaseModel):
     page: int = 1
     limit: int = 20
-    
+
     @property
     def skip(self) -> int:
         return (self.page - 1) * self.limit
@@ -42,5 +43,5 @@ class PaginatedResponse(BaseModel, Generic[T]):
             total=total,
             page=params.page,
             limit=params.limit,
-            pages=(total + params.limit - 1) // params.limit
+            pages=(total + params.limit - 1) // params.limit,
         )

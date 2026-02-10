@@ -1,10 +1,11 @@
-from motor.motor_asyncio import AsyncIOMotorClient
-from beanie import init_beanie
 import asyncio
 
-from .config import settings
-from ..utils.logger import logger
+from beanie import init_beanie
+from motor.motor_asyncio import AsyncIOMotorClient
+
 from ..models.documents import ALL_DOCUMENTS
+from ..utils.logger import logger
+from .config import settings
 
 client: AsyncIOMotorClient = None
 db = None
@@ -22,10 +23,10 @@ async def init_db(max_retries: int = 3, retry_delay: int = 2):
                 minPoolSize=5,
                 maxIdleTimeMS=30000,
                 retryWrites=True,
-                retryReads=True
+                retryReads=True,
             )
             db = client[settings.mongodb_db]
-            await client.admin.command('ping')
+            await client.admin.command("ping")
             await init_beanie(database=db, document_models=ALL_DOCUMENTS)
             logger.info(f"Connected to MongoDB: {settings.mongodb_db}")
             return
@@ -47,5 +48,6 @@ async def close_db():
 def get_database():
     if db is None:
         from .exceptions import AppException
+
         raise AppException("Database unavailable", status_code=503)
     return db

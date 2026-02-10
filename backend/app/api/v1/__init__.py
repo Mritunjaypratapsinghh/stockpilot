@@ -1,15 +1,16 @@
 """API v1 module"""
+
 from fastapi import APIRouter
 
-from .auth import router as auth_router
-from .portfolio import router as portfolio_router
-from .market import router as market_router
 from .alerts import router as alerts_router
-from .finance import router as finance_router
 from .analytics import router as analytics_router
+from .auth import router as auth_router
+from .finance import router as finance_router
 from .ipo import router as ipo_router
-from .watchlist import router as watchlist_router
 from .ledger import router as ledger_router
+from .market import router as market_router
+from .portfolio import router as portfolio_router
+from .watchlist import router as watchlist_router
 
 # Create v1 router
 router = APIRouter(prefix="/v1")

@@ -1,7 +1,9 @@
 """Portfolio schemas"""
-from pydantic import BaseModel, Field, field_validator
-from typing import Optional, Literal
+
 from datetime import date
+from typing import Literal, Optional
+
+from pydantic import BaseModel, Field, field_validator
 
 
 # Request schemas
@@ -13,7 +15,7 @@ class HoldingCreate(BaseModel):
     quantity: float = Field(..., gt=0)
     avg_price: float = Field(..., gt=0)
 
-    @field_validator('symbol')
+    @field_validator("symbol")
     @classmethod
     def clean_symbol(cls, v: str) -> str:
         return v.strip().upper()
@@ -34,7 +36,7 @@ class TransactionCreate(BaseModel):
     holding_type: Literal["EQUITY", "MF", "ETF"] = "EQUITY"
     notes: Optional[str] = Field(None, max_length=500)
 
-    @field_validator('symbol')
+    @field_validator("symbol")
     @classmethod
     def clean_symbol(cls, v: str) -> str:
         return v.strip().upper()

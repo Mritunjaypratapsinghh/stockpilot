@@ -1,8 +1,9 @@
-from beanie import Document
-from pydantic import Field, EmailStr
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
-from pymongo import IndexModel, ASCENDING
+from typing import Any, Dict, Optional
+
+from beanie import Document
+from pydantic import EmailStr, Field
+from pymongo import ASCENDING, IndexModel
 
 
 class User(Document):

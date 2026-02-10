@@ -1,13 +1,20 @@
 """Alerts schemas"""
-from pydantic import BaseModel, Field
-from typing import Literal
+
 from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, Field
 
 AlertType = Literal[
-    "PRICE_ABOVE", "PRICE_BELOW", 
-    "PERCENT_CHANGE", "PERCENT_UP", "PERCENT_DOWN",
-    "WEEK_52_HIGH", "WEEK_52_LOW", 
-    "VOLUME_SPIKE", "EARNINGS"
+    "PRICE_ABOVE",
+    "PRICE_BELOW",
+    "PERCENT_CHANGE",
+    "PERCENT_UP",
+    "PERCENT_DOWN",
+    "WEEK_52_HIGH",
+    "WEEK_52_LOW",
+    "VOLUME_SPIKE",
+    "EARNINGS",
 ]
 
 

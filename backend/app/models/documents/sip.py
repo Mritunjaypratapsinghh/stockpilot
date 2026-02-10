@@ -1,5 +1,7 @@
-from pydantic import Field, BaseModel
-from typing import Optional, Literal, List
+from typing import List, Literal, Optional
+
+from pydantic import BaseModel, Field
+
 from .base import BaseDocument
 
 

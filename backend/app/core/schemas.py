@@ -1,6 +1,9 @@
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel
+
+from .response_handler import StandardResponse
 
 
 class TimestampMixin(BaseModel):
@@ -12,8 +15,5 @@ class UserContext(BaseModel):
     user_id: str
     email: str
 
-
-# Re-export from response_handler for convenience
-from .response_handler import StandardResponse
 
 __all__ = ["TimestampMixin", "UserContext", "StandardResponse"]

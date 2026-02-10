@@ -1,14 +1,14 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
-from beanie import PydanticObjectId
 from datetime import datetime, timezone
 from typing import Optional
-from dateutil.relativedelta import relativedelta
 
-from ....models.documents import Ledger, LedgerType, LedgerStatus
-from ....core.security import get_current_user
+from beanie import PydanticObjectId
+from fastapi import APIRouter, Depends, HTTPException, Query
+
 from ....core.response_handler import StandardResponse
-from ....services.ledger import get_user_ledger, get_ledger_summary, add_settlement
-from .schemas import LedgerCreate, LedgerResponse, SettlementCreate, SettlementResponse, LedgerSummary
+from ....core.security import get_current_user
+from ....models.documents import Ledger, LedgerType
+from ....services.ledger import add_settlement, get_ledger_summary, get_user_ledger
+from .schemas import LedgerCreate, LedgerResponse, LedgerSummary, SettlementCreate, SettlementResponse
 
 router = APIRouter()
 
@@ -28,7 +28,7 @@ def to_response(entry: Ledger) -> LedgerResponse:
     settled = sum(s.amount for s in entry.settlements)
     emis_remaining = calc_emis_remaining(entry)
     total_paid = settled
-    
+
     return LedgerResponse(
         id=str(entry.id),
         type=entry.type,
@@ -46,7 +46,7 @@ def to_response(entry: Ledger) -> LedgerResponse:
         recurring_day=entry.recurring_day,
         end_date=entry.end_date,
         total_paid=total_paid,
-        emis_remaining=emis_remaining
+        emis_remaining=emis_remaining,
     )
 
 
@@ -56,7 +56,7 @@ async def get_ledger(
     status: Optional[str] = Query(None, description="Filter by status"),
     person: Optional[str] = Query(None, description="Search by person name"),
     recurring: Optional[bool] = Query(None, description="Filter recurring only"),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ) -> StandardResponse:
     entries = await get_user_ledger(PydanticObjectId(current_user["_id"]), type, status, person, recurring)
     return StandardResponse.ok([to_response(e) for e in entries])
@@ -76,46 +76,64 @@ async def create_entry(data: LedgerCreate, current_user: dict = Depends(get_curr
         person_name=data.person_name,
         amount=data.amount,
         description=data.description,
-        date=datetime.combine(data.date, datetime.min.time()).replace(tzinfo=timezone.utc) if data.date else datetime.now(timezone.utc),
-        due_date=datetime.combine(data.due_date, datetime.min.time()).replace(tzinfo=timezone.utc) if data.due_date else None,
+        date=(
+            datetime.combine(data.date, datetime.min.time()).replace(tzinfo=timezone.utc)
+            if data.date
+            else datetime.now(timezone.utc)
+        ),
+        due_date=(
+            datetime.combine(data.due_date, datetime.min.time()).replace(tzinfo=timezone.utc) if data.due_date else None
+        ),
         is_recurring=data.is_recurring,
         recurring_amount=data.recurring_amount,
         recurring_day=data.recurring_day,
-        end_date=datetime.combine(data.end_date, datetime.min.time()).replace(tzinfo=timezone.utc) if data.end_date else None
+        end_date=(
+            datetime.combine(data.end_date, datetime.min.time()).replace(tzinfo=timezone.utc) if data.end_date else None
+        ),
     )
     await entry.insert()
     return StandardResponse.ok(to_response(entry), "Entry added")
 
 
 @router.post("/{entry_id}/settle", summary="Add settlement")
-async def settle_entry(entry_id: str, data: SettlementCreate, current_user: dict = Depends(get_current_user)) -> StandardResponse:
+async def settle_entry(
+    entry_id: str, data: SettlementCreate, current_user: dict = Depends(get_current_user)
+) -> StandardResponse:
     if not PydanticObjectId.is_valid(entry_id):
         raise HTTPException(status_code=400, detail="Invalid ID")
-    
-    entry = await add_settlement(PydanticObjectId(entry_id), PydanticObjectId(current_user["_id"]), data.amount, data.note)
+
+    entry = await add_settlement(
+        PydanticObjectId(entry_id), PydanticObjectId(current_user["_id"]), data.amount, data.note
+    )
     if not entry:
         raise HTTPException(status_code=404, detail="Entry not found")
     return StandardResponse.ok(to_response(entry), "Settlement recorded")
 
 
 @router.put("/{entry_id}", summary="Update entry")
-async def update_entry(entry_id: str, data: LedgerCreate, current_user: dict = Depends(get_current_user)) -> StandardResponse:
+async def update_entry(
+    entry_id: str, data: LedgerCreate, current_user: dict = Depends(get_current_user)
+) -> StandardResponse:
     if not PydanticObjectId.is_valid(entry_id):
         raise HTTPException(status_code=400, detail="Invalid ID")
-    
+
     entry = await Ledger.find_one({"_id": PydanticObjectId(entry_id), "user_id": PydanticObjectId(current_user["_id"])})
     if not entry:
         raise HTTPException(status_code=404, detail="Entry not found")
-    
+
     entry.type = LedgerType(data.type)
     entry.person_name = data.person_name
     entry.amount = data.amount
     entry.description = data.description
-    entry.due_date = datetime.combine(data.due_date, datetime.min.time()).replace(tzinfo=timezone.utc) if data.due_date else None
+    entry.due_date = (
+        datetime.combine(data.due_date, datetime.min.time()).replace(tzinfo=timezone.utc) if data.due_date else None
+    )
     entry.is_recurring = data.is_recurring
     entry.recurring_amount = data.recurring_amount
     entry.recurring_day = data.recurring_day
-    entry.end_date = datetime.combine(data.end_date, datetime.min.time()).replace(tzinfo=timezone.utc) if data.end_date else None
+    entry.end_date = (
+        datetime.combine(data.end_date, datetime.min.time()).replace(tzinfo=timezone.utc) if data.end_date else None
+    )
     await entry.save()
     return StandardResponse.ok(to_response(entry), "Entry updated")
 
@@ -124,7 +142,7 @@ async def update_entry(entry_id: str, data: LedgerCreate, current_user: dict = D
 async def delete_entry(entry_id: str, current_user: dict = Depends(get_current_user)) -> StandardResponse:
     if not PydanticObjectId.is_valid(entry_id):
         raise HTTPException(status_code=400, detail="Invalid ID")
-    
+
     entry = await Ledger.find_one({"_id": PydanticObjectId(entry_id), "user_id": PydanticObjectId(current_user["_id"])})
     if not entry:
         raise HTTPException(status_code=404, detail="Entry not found")

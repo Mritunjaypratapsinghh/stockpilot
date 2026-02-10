@@ -1,29 +1,25 @@
+import time
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import time
 
-from .core.database import init_db, close_db
-from .core.config import settings
-from .utils.logger import logger
 from .api.v1 import router as v1_router
-from .api.v1.auth import router as auth_router
-from .api.v1.portfolio import router as portfolio_router
-from .api.v1.market import router as market_router
 from .api.v1.alerts import router as alerts_router
-from .api.v1.finance import router as finance_router
 from .api.v1.analytics import router as analytics_router
+from .api.v1.auth import router as auth_router
+from .api.v1.finance import router as finance_router
 from .api.v1.ipo import router as ipo_router
+from .api.v1.market import router as market_router
+from .api.v1.portfolio import router as portfolio_router
 from .api.v1.watchlist import router as watchlist_router
+from .core.config import settings
+from .core.database import close_db, init_db
 from .tasks.scheduler import start_scheduler
-
+from .utils.logger import logger
 
 # CORS origins - restrict in production
-CORS_ORIGINS = [
-    "http://localhost:3000", 
-    "http://127.0.0.1:3000",
-    "https://stockpilot-psi.vercel.app"
-]
+CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000", "https://stockpilot-psi.vercel.app"]
 if settings.cors_origins:
     CORS_ORIGINS.extend(settings.cors_origins.split(","))
 
@@ -44,7 +40,7 @@ app = FastAPI(
     description="Personal Portfolio Intelligence Platform",
     version="1.0.0",
     lifespan=lifespan,
-    redirect_slashes=False
+    redirect_slashes=False,
 )
 
 
@@ -52,7 +48,9 @@ app = FastAPI(
 async def log_requests(request: Request, call_next):
     start = time.time()
     response = await call_next(request)
-    logger.info(f"{request.method} {request.url.path} - {response.status_code} ({round((time.time() - start) * 1000)}ms)")
+    logger.info(
+        f"{request.method} {request.url.path} - {response.status_code} ({round((time.time() - start) * 1000)}ms)"
+    )
     return response
 
 

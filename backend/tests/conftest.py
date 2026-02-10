@@ -1,13 +1,14 @@
 """Test configuration and fixtures"""
-import pytest
+
 import asyncio
 from typing import AsyncGenerator
-from httpx import AsyncClient, ASGITransport
-from beanie import init_beanie
-from motor.motor_asyncio import AsyncIOMotorClient
 
+import pytest
 from app.main import app
-from app.models.documents import User, Holding, Alert
+from app.models.documents import Alert, Holding, User
+from beanie import init_beanie
+from httpx import ASGITransport, AsyncClient
+from motor.motor_asyncio import AsyncIOMotorClient
 
 
 @pytest.fixture(scope="session")
@@ -21,10 +22,7 @@ def event_loop():
 async def test_db():
     """Initialize test database"""
     client = AsyncIOMotorClient("mongodb://localhost:27017")
-    await init_beanie(
-        database=client.stockpilot_test,
-        document_models=[User, Holding, Alert]
-    )
+    await init_beanie(database=client.stockpilot_test, document_models=[User, Holding, Alert])
     yield client.stockpilot_test
     await client.drop_database("stockpilot_test")
 

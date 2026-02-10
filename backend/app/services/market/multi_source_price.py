@@ -1,13 +1,17 @@
 """Multi-source price service with fallback chain"""
-import httpx
+
 import asyncio
 import time
-from typing import Dict, Optional, List
+from typing import Dict, List, Optional
+
+import httpx
+
 from ...utils.logger import logger
 
 # Cache: symbol -> (data, timestamp)
 _cache: Dict[str, tuple] = {}
 CACHE_TTL = 60  # 1 minute for live data
+
 
 async def _fetch_yahoo_chart(symbol: str) -> Optional[Dict]:
     """Source 1: Yahoo Finance Chart API"""
@@ -28,11 +32,12 @@ async def _fetch_yahoo_chart(symbol: str) -> Optional[Dict]:
                         "high": meta.get("regularMarketDayHigh"),
                         "low": meta.get("regularMarketDayLow"),
                         "volume": meta.get("regularMarketVolume"),
-                        "source": "yahoo"
+                        "source": "yahoo",
                     }
     except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.debug(f"Yahoo chart failed for {symbol}: {e}")
     return None
+
 
 async def _fetch_google_finance(symbol: str) -> Optional[Dict]:
     """Source 2: Google Finance (scrape)"""
@@ -44,6 +49,7 @@ async def _fetch_google_finance(symbol: str) -> Optional[Dict]:
                 text = resp.text
                 # Extract price from data-last-price attribute
                 import re
+
                 price_match = re.search(r'data-last-price="([\d.]+)"', text)
                 prev_match = re.search(r'data-previous-close="([\d.]+)"', text)
                 if price_match:
@@ -52,25 +58,30 @@ async def _fetch_google_finance(symbol: str) -> Optional[Dict]:
                         "name": symbol,
                         "price": float(price_match.group(1)),
                         "prev_close": float(prev_match.group(1)) if prev_match else None,
-                        "source": "google"
+                        "source": "google",
                     }
     except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.debug(f"Google finance failed for {symbol}: {e}")
     return None
+
 
 async def _fetch_nse_direct(symbol: str) -> Optional[Dict]:
     """Source 3: NSE India direct"""
     try:
         async with httpx.AsyncClient(timeout=8) as client:
             # First get cookies
-            await client.get("https://www.nseindia.com", headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            })
+            await client.get(
+                "https://www.nseindia.com",
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+            )
             url = f"https://www.nseindia.com/api/quote-equity?symbol={symbol}"
-            resp = await client.get(url, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "Accept": "application/json"
-            })
+            resp = await client.get(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "Accept": "application/json",
+                },
+            )
             if resp.status_code == 200:
                 data = resp.json().get("priceInfo", {})
                 if data.get("lastPrice"):
@@ -83,22 +94,41 @@ async def _fetch_nse_direct(symbol: str) -> Optional[Dict]:
                         "high": data.get("intraDayHighLow", {}).get("max"),
                         "low": data.get("intraDayHighLow", {}).get("min"),
                         "volume": data.get("totalTradedVolume"),
-                        "source": "nse"
+                        "source": "nse",
                     }
     except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.debug(f"NSE direct failed for {symbol}: {e}")
     return None
 
+
 async def _fetch_moneycontrol(symbol: str) -> Optional[Dict]:
     """Source 4: MoneyControl"""
     # Map common symbols to moneycontrol codes
     MC_CODES = {
-        "RELIANCE": "RI", "TCS": "TCS", "HDFCBANK": "HDF01", "INFY": "IT",
-        "ICICIBANK": "ICI02", "SBIN": "SBI", "BHARTIARTL": "BA08", "ITC": "ITC",
-        "KOTAKBANK": "KMB", "LT": "LT", "AXISBANK": "AB16", "HINDUNILVR": "HU",
-        "BAJFINANCE": "BAF", "MARUTI": "MS24", "TITAN": "TI01", "SUNPHARMA": "SU12",
-        "WIPRO": "W", "HCLTECH": "HCL02", "NTPC": "NTP", "POWERGRID": "PGC",
-        "ONGC": "ONG", "TATASTEEL": "TIS", "TATAMOTORS": "TM03", "COALINDIA": "CI11"
+        "RELIANCE": "RI",
+        "TCS": "TCS",
+        "HDFCBANK": "HDF01",
+        "INFY": "IT",
+        "ICICIBANK": "ICI02",
+        "SBIN": "SBI",
+        "BHARTIARTL": "BA08",
+        "ITC": "ITC",
+        "KOTAKBANK": "KMB",
+        "LT": "LT",
+        "AXISBANK": "AB16",
+        "HINDUNILVR": "HU",
+        "BAJFINANCE": "BAF",
+        "MARUTI": "MS24",
+        "TITAN": "TI01",
+        "SUNPHARMA": "SU12",
+        "WIPRO": "W",
+        "HCLTECH": "HCL02",
+        "NTPC": "NTP",
+        "POWERGRID": "PGC",
+        "ONGC": "ONG",
+        "TATASTEEL": "TIS",
+        "TATAMOTORS": "TM03",
+        "COALINDIA": "CI11",
     }
     mc_code = MC_CODES.get(symbol)
     if not mc_code:
@@ -119,22 +149,23 @@ async def _fetch_moneycontrol(symbol: str) -> Optional[Dict]:
                         "high": float(data.get("pricehigh")) if data.get("pricehigh") else None,
                         "low": float(data.get("pricelow")) if data.get("pricelow") else None,
                         "volume": int(data.get("VOL")) if data.get("VOL") else None,
-                        "source": "moneycontrol"
+                        "source": "moneycontrol",
                     }
     except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.debug(f"MoneyControl failed for {symbol}: {e}")
     return None
 
+
 async def get_price(symbol: str, use_cache: bool = True) -> Optional[Dict]:
     """Get stock price with multi-source fallback"""
     symbol = symbol.upper()
-    
+
     # Check cache
     if use_cache and symbol in _cache:
         data, ts = _cache[symbol]
         if time.time() - ts < CACHE_TTL:
             return data
-    
+
     # Try sources in order
     sources = [
         _fetch_yahoo_chart,
@@ -142,7 +173,7 @@ async def get_price(symbol: str, use_cache: bool = True) -> Optional[Dict]:
         _fetch_google_finance,
         _fetch_nse_direct,
     ]
-    
+
     for fetch_fn in sources:
         data = await fetch_fn(symbol)
         if data:
@@ -153,9 +184,10 @@ async def get_price(symbol: str, use_cache: bool = True) -> Optional[Dict]:
             _cache[symbol] = (data, time.time())
             logger.info(f"Price for {symbol} from {data['source']}")
             return data
-    
+
     logger.warning(f"All sources failed for {symbol}")
     return None
+
 
 async def get_bulk_prices(symbols: List[str]) -> Dict[str, Dict]:
     """Get prices for multiple symbols concurrently"""

@@ -1,6 +1,9 @@
 """Portfolio service - shared functions for portfolio operations"""
-from typing import List, Dict, Any
+
+from typing import Any, Dict, List
+
 from beanie import PydanticObjectId
+
 from ...models.documents import Holding
 from ..market.price_service import get_bulk_prices
 

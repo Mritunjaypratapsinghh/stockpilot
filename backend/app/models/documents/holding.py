@@ -1,11 +1,14 @@
-from pydantic import Field, BaseModel
-from typing import Optional, Literal, List
-from pymongo import IndexModel, ASCENDING
+from typing import List, Literal, Optional
+
+from pydantic import BaseModel, Field
+from pymongo import ASCENDING, IndexModel
+
 from .base import BaseDocument
 
 
 class EmbeddedTransaction(BaseModel):
     """Embedded transaction within a holding"""
+
     type: Literal["BUY", "SELL"]
     quantity: float
     price: float

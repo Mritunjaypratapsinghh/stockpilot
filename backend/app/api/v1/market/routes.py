@@ -1,15 +1,17 @@
 """Market routes - quotes, search, indices, research, screener, compare, corporate actions."""
-from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime
-from beanie import PydanticObjectId
-import httpx
 
-from ....services.market.price_service import get_stock_price, get_bulk_prices, search_stock
-from ....services.analytics.service import get_combined_analysis
-from ....models.documents import Holding
-from ....core.security import get_current_user
+from datetime import datetime
+
+import httpx
+from beanie import PydanticObjectId
+from fastapi import APIRouter, Depends, HTTPException
+
 from ....core.response_handler import StandardResponse
+from ....core.security import get_current_user
 from ....middleware.rate_limit import rate_limit
+from ....models.documents import Holding
+from ....services.analytics.service import get_combined_analysis
+from ....services.market.price_service import get_bulk_prices, get_stock_price, search_stock
 from ....utils.logger import logger
 
 router = APIRouter()
@@ -24,7 +26,12 @@ async def get_quote(symbol: str, exchange: str = "NSE") -> StandardResponse:
     return StandardResponse.ok(price_data)
 
 
-@router.get("/search", summary="Search stocks", description="Search for stocks by name or symbol", dependencies=[Depends(rate_limit("search"))])
+@router.get(
+    "/search",
+    summary="Search stocks",
+    description="Search for stocks by name or symbol",
+    dependencies=[Depends(rate_limit("search"))],
+)
 async def search(q: str) -> StandardResponse:
     """Search for stocks by name or symbol."""
     return StandardResponse.ok(await search_stock(q))
@@ -38,12 +45,18 @@ async def get_indices() -> StandardResponse:
     async with httpx.AsyncClient(timeout=10) as client:
         for name, symbol in indices.items():
             try:
-                resp = await client.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}", headers={"User-Agent": "Mozilla/5.0"})
+                resp = await client.get(
+                    f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}", headers={"User-Agent": "Mozilla/5.0"}
+                )
                 if resp.status_code == 200:
                     meta = resp.json()["chart"]["result"][0]["meta"]
                     price = meta.get("regularMarketPrice", 0)
                     prev = meta.get("previousClose", price)
-                    result[name] = {"price": round(price, 2), "change": round(price - prev, 2), "change_pct": round((price - prev) / prev * 100, 2) if prev else 0}
+                    result[name] = {
+                        "price": round(price, 2),
+                        "change": round(price - prev, 2),
+                        "change_pct": round((price - prev) / prev * 100, 2) if prev else 0,
+                    }
             except (httpx.HTTPError, KeyError, ValueError):
                 pass
     return StandardResponse.ok(result)
@@ -67,7 +80,9 @@ async def get_stock_news(symbol: str) -> StandardResponse:
     """Get latest news for a stock."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(f"https://query1.finance.yahoo.com/v1/finance/search?q={symbol}", headers={"User-Agent": "Mozilla/5.0"})
+            resp = await client.get(
+                f"https://query1.finance.yahoo.com/v1/finance/search?q={symbol}", headers={"User-Agent": "Mozilla/5.0"}
+            )
             if resp.status_code == 200:
                 return StandardResponse.ok({"symbol": symbol, "news": resp.json().get("news", [])[:5]})
     except (httpx.HTTPError, KeyError, ValueError) as e:
@@ -80,13 +95,26 @@ async def get_chart_data(symbol: str, range: str = "6mo", interval: str = "1d") 
     """Get OHLCV chart data for a stock."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.NS?interval={interval}&range={range}", headers={"User-Agent": "Mozilla/5.0"})
+            resp = await client.get(
+                f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.NS?interval={interval}&range={range}",
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
             if resp.status_code == 200:
                 result = resp.json()["chart"]["result"][0]
                 timestamps = result.get("timestamp", [])
                 quote = result["indicators"]["quote"][0]
-                candles = [{"time": ts, "open": round(quote["open"][i], 2), "high": round(quote["high"][i], 2), "low": round(quote["low"][i], 2), "close": round(quote["close"][i], 2), "volume": quote["volume"][i] or 0}
-                           for i, ts in enumerate(timestamps) if quote["open"][i] and quote["close"][i]]
+                candles = [
+                    {
+                        "time": ts,
+                        "open": round(quote["open"][i], 2),
+                        "high": round(quote["high"][i], 2),
+                        "low": round(quote["low"][i], 2),
+                        "close": round(quote["close"][i], 2),
+                        "volume": quote["volume"][i] or 0,
+                    }
+                    for i, ts in enumerate(timestamps)
+                    if quote["open"][i] and quote["close"][i]
+                ]
                 return StandardResponse.ok({"symbol": symbol, "candles": candles})
     except (httpx.HTTPError, KeyError, ValueError) as e:
         logger.warning(f"Chart error for {symbol}: {e}")
@@ -98,7 +126,11 @@ async def get_top_gainers() -> StandardResponse:
     """Get top gaining and losing stocks."""
     symbols = ["RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "KOTAKBANK", "SBIN", "BHARTIARTL", "ITC", "LT"]
     prices = await get_bulk_prices(symbols)
-    sorted_stocks = sorted([{"symbol": s, **prices.get(s, {})} for s in symbols if prices.get(s)], key=lambda x: x.get("day_change_pct", 0), reverse=True)
+    sorted_stocks = sorted(
+        [{"symbol": s, **prices.get(s, {})} for s in symbols if prices.get(s)],
+        key=lambda x: x.get("day_change_pct", 0),
+        reverse=True,
+    )
     return StandardResponse.ok({"gainers": sorted_stocks[:5], "losers": sorted_stocks[-5:][::-1]})
 
 
@@ -110,7 +142,10 @@ async def get_52week_highs_lows() -> StandardResponse:
     async with httpx.AsyncClient(timeout=10) as client:
         for symbol in symbols:
             try:
-                resp = await client.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.NS?interval=1d&range=1y", headers={"User-Agent": "Mozilla/5.0"})
+                resp = await client.get(
+                    f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.NS?interval=1d&range=1y",
+                    headers={"User-Agent": "Mozilla/5.0"},
+                )
                 if resp.status_code == 200:
                     data = resp.json()["chart"]["result"][0]
                     highs = [h for h in data["indicators"]["quote"][0]["high"] if h]
@@ -131,20 +166,33 @@ async def compare_stocks(symbols: str) -> StandardResponse:
     symbol_list = [s.strip().upper() for s in symbols.split(",")][:5]
     prices = await get_bulk_prices(symbol_list)
     stocks = [{"symbol": s, **prices.get(s, {})} for s in symbol_list if prices.get(s)]
-    
+
     # Build comparison with best/worst for each metric
     comparison = {}
-    metrics = ["price", "market_cap", "pe", "pb", "roe", "roce", "debt_equity", "profit_margin", "revenue_growth", "dividend_yield"]
+    metrics = [
+        "price",
+        "market_cap",
+        "pe",
+        "pb",
+        "roe",
+        "roce",
+        "debt_equity",
+        "profit_margin",
+        "revenue_growth",
+        "dividend_yield",
+    ]
     for metric in metrics:
         values = [(s["symbol"], s.get(metric, 0) or 0) for s in stocks]
         if values:
             sorted_vals = sorted(values, key=lambda x: x[1], reverse=True)
             comparison[metric] = {"best": sorted_vals[0][0], "worst": sorted_vals[-1][0]}
-    
+
     return StandardResponse.ok({"stocks": stocks, "comparison": comparison})
 
 
-@router.get("/corporate-actions", summary="Get corporate actions", description="Get dividends and splits for portfolio stocks")
+@router.get(
+    "/corporate-actions", summary="Get corporate actions", description="Get dividends and splits for portfolio stocks"
+)
 async def get_corporate_actions(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get corporate actions for portfolio stocks."""
     holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
@@ -158,18 +206,28 @@ async def get_corporate_actions(current_user: dict = Depends(get_current_user)) 
     async with httpx.AsyncClient(timeout=10) as client:
         for symbol in symbols:
             try:
-                resp = await client.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.NS?interval=1d&range=1y&events=div", headers={"User-Agent": "Mozilla/5.0"})
+                resp = await client.get(
+                    f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.NS?interval=1d&range=1y&events=div",
+                    headers={"User-Agent": "Mozilla/5.0"},
+                )
                 if resp.status_code == 200:
                     events = resp.json().get("chart", {}).get("result", [{}])[0].get("events", {})
                     for ts, div in events.get("dividends", {}).items():
-                        action = {"type": "DIVIDEND", "symbol": symbol, "date": datetime.fromtimestamp(int(ts)).strftime("%Y-%m-%d"), "value": div.get("amount", 0)}
+                        action = {
+                            "type": "DIVIDEND",
+                            "symbol": symbol,
+                            "date": datetime.fromtimestamp(int(ts)).strftime("%Y-%m-%d"),
+                            "value": div.get("amount", 0),
+                        }
                         actions.append(action)
                         if datetime.fromtimestamp(int(ts)) > datetime.now():
                             upcoming.append(action)
             except (httpx.HTTPError, KeyError, ValueError):
                 pass
 
-    return StandardResponse.ok({"actions": sorted(actions, key=lambda x: x["date"], reverse=True)[:20], "upcoming": upcoming})
+    return StandardResponse.ok(
+        {"actions": sorted(actions, key=lambda x: x["date"], reverse=True)[:20], "upcoming": upcoming}
+    )
 
 
 @router.get("/market-summary", summary="Get market summary", description="Get top movers and market overview")
@@ -177,7 +235,15 @@ async def get_market_summary() -> StandardResponse:
     """Get market summary with top movers."""
     symbols = ["RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "KOTAKBANK", "SBIN", "BHARTIARTL", "ITC", "LT"]
     prices = await get_bulk_prices(symbols)
-    movers = sorted([{"symbol": s, "price": p.get("current_price", 0), "change_pct": p.get("day_change_pct", 0)} for s, p in prices.items() if p], key=lambda x: abs(x["change_pct"]), reverse=True)
+    movers = sorted(
+        [
+            {"symbol": s, "price": p.get("current_price", 0), "change_pct": p.get("day_change_pct", 0)}
+            for s, p in prices.items()
+            if p
+        ],
+        key=lambda x: abs(x["change_pct"]),
+        reverse=True,
+    )
     return StandardResponse.ok({"top_movers": movers[:10]})
 
 
@@ -188,10 +254,11 @@ async def get_fii_dii() -> StandardResponse:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(
                 "https://www.moneycontrol.com/stocks/marketstats/fii_dii_activity/index.php",
-                headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
+                headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"},
             )
             if resp.status_code == 200:
                 from bs4 import BeautifulSoup
+
                 soup = BeautifulSoup(resp.text, "lxml")
                 table = soup.find("table", class_="mctable1")
                 if table:
@@ -199,18 +266,36 @@ async def get_fii_dii() -> StandardResponse:
                     for row in rows[2:4]:  # Today's data row
                         cells = row.find_all("td")
                         if len(cells) >= 7:
+
                             def parse_val(s):
                                 try:
                                     return float(s.strip().replace(",", "").replace("(", "-").replace(")", ""))
-                                except:
+                                except (ValueError, AttributeError):
                                     return 0
-                            return StandardResponse.ok({
-                                "fii": {"buy": parse_val(cells[1].text), "sell": parse_val(cells[2].text), "net": parse_val(cells[3].text)},
-                                "dii": {"buy": parse_val(cells[4].text), "sell": parse_val(cells[5].text), "net": parse_val(cells[6].text)}
-                            })
+
+                            return StandardResponse.ok(
+                                {
+                                    "fii": {
+                                        "buy": parse_val(cells[1].text),
+                                        "sell": parse_val(cells[2].text),
+                                        "net": parse_val(cells[3].text),
+                                    },
+                                    "dii": {
+                                        "buy": parse_val(cells[4].text),
+                                        "sell": parse_val(cells[5].text),
+                                        "net": parse_val(cells[6].text),
+                                    },
+                                }
+                            )
     except Exception as e:
         logger.warning(f"FII/DII fetch error: {e}")
-    return StandardResponse.ok({"fii": {"buy": 0, "sell": 0, "net": 0}, "dii": {"buy": 0, "sell": 0, "net": 0}, "note": "FII/DII data temporarily unavailable"})
+    return StandardResponse.ok(
+        {
+            "fii": {"buy": 0, "sell": 0, "net": 0},
+            "dii": {"buy": 0, "sell": 0, "net": 0},
+            "note": "FII/DII data temporarily unavailable",
+        }
+    )
 
 
 @router.get("/screener/screens", summary="Get screener screens", description="Get predefined stock screens")
@@ -221,7 +306,7 @@ async def get_screener_screens() -> StandardResponse:
         {"id": "losers", "name": "Top Losers", "description": "Stocks with highest daily losses"},
         {"id": "52w_high", "name": "52 Week High", "description": "Stocks near 52-week high"},
         {"id": "52w_low", "name": "52 Week Low", "description": "Stocks near 52-week low"},
-        {"id": "high_volume", "name": "High Volume", "description": "Stocks with unusual volume"}
+        {"id": "high_volume", "name": "High Volume", "description": "Stocks with unusual volume"},
     ]
     return StandardResponse.ok({"screens": screens})
 
@@ -231,21 +316,35 @@ async def run_screener(screen_id: str) -> StandardResponse:
     """Run a predefined screen."""
     symbols = ["RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "KOTAKBANK", "SBIN", "BHARTIARTL", "ITC", "LT"]
     prices = await get_bulk_prices(symbols)
-    
-    results = [{"symbol": s, "price": p.get("price", 0), "change_pct": p.get("day_change_pct", 0)} for s, p in prices.items() if p]
-    
+
+    results = [
+        {"symbol": s, "price": p.get("price", 0), "change_pct": p.get("day_change_pct", 0)}
+        for s, p in prices.items()
+        if p
+    ]
+
     if screen_id == "gainers":
         results = sorted(results, key=lambda x: x["change_pct"], reverse=True)[:10]
     elif screen_id == "losers":
         results = sorted(results, key=lambda x: x["change_pct"])[:10]
-    
+
     return StandardResponse.ok({"results": results})
 
 
 @router.get("/screener/custom", summary="Custom screener", description="Run custom stock screen")
-async def custom_screener(pe_max: float = None, pb_max: float = None, roe_min: float = None, dividend_yield_min: float = None, market_cap_min: float = None) -> StandardResponse:
+async def custom_screener(
+    pe_max: float = None,
+    pb_max: float = None,
+    roe_min: float = None,
+    dividend_yield_min: float = None,
+    market_cap_min: float = None,
+) -> StandardResponse:
     """Run custom screen."""
     symbols = ["RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK"]
     prices = await get_bulk_prices(symbols)
-    results = [{"symbol": s, "price": p.get("price", 0), "change_pct": p.get("day_change_pct", 0)} for s, p in prices.items() if p]
+    results = [
+        {"symbol": s, "price": p.get("price", 0), "change_pct": p.get("day_change_pct", 0)}
+        for s, p in prices.items()
+        if p
+    ]
     return StandardResponse.ok({"results": results})

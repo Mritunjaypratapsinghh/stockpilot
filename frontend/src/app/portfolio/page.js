@@ -292,7 +292,7 @@ export default function PortfolioPage() {
                             <div className="text-sm text-[var(--text-muted)]">{h.name}</div>
                           </a>
                         </td>
-                        <td className="px-6 py-4 text-right tabular">{h.quantity}</td>
+                        <td className="px-6 py-4 text-right tabular">{parseFloat(h.quantity?.toFixed(4))}</td>
                         <td className="px-6 py-4 text-right tabular">₹{fmt(h.avg_price)}</td>
                         <td className="px-6 py-4 text-right tabular">₹{fmt(h.current_price)}</td>
                         <td className="px-6 py-4 text-right">
@@ -345,7 +345,7 @@ export default function PortfolioPage() {
                             {t.type}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right tabular">{t.quantity}</td>
+                        <td className="px-6 py-4 text-right tabular">{parseFloat(t.quantity?.toFixed(4))}</td>
                         <td className="px-6 py-4 text-right tabular">₹{fmt(t.price)}</td>
                         <td className="px-6 py-4 text-right tabular font-medium">₹{fmt(t.quantity * t.price)}</td>
                         <td className="px-6 py-4 text-right">

@@ -22,7 +22,7 @@ export default function CorporateActionsPage() {
         api('/api/finance/dividends')
       ]);
       setActions(actionsData.actions || []);
-      setUpcoming(actionsData.upcoming || []);
+      setUpcoming([...(actionsData.upcoming || []), ...(divData.upcoming || [])]);
       setDividends(divData.dividends || []);
       setExpectedIncome(divData.expected_income || 0);
     } catch (e) { console.error(e); }

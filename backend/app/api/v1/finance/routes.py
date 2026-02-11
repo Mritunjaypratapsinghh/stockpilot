@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ....core.response_handler import StandardResponse
 from ....core.security import get_current_user
-from ....models.documents import SIP, Dividend, Goal
+from ....models.documents import SIP, Dividend, Goal, Holding
 from ....services.portfolio import get_prices_for_holdings, get_user_holdings
 from .schemas import (
     AssetCreate,
@@ -95,12 +95,31 @@ async def delete_goal(goal_id: str, current_user: dict = Depends(get_current_use
 @router.get("/sip", summary="Get SIPs", description="List all SIP investments")
 async def get_sips(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get all SIP investments with actual performance from holdings."""
+    from ....services.market.price_service import get_bulk_mf_nav, get_bulk_prices
+
     sips = await SIP.find(SIP.user_id == PydanticObjectId(current_user["_id"])).to_list()
-    holdings = await get_user_holdings(current_user["_id"])
-    prices = (await get_prices_for_holdings(holdings) if holdings else {}) or {}
+    if not sips:
+        return StandardResponse.ok({"sips": [], "summary": {"total_invested": 0, "current_value": 0, "total_returns": 0, "returns_pct": 0}})
+
+    # Only fetch holdings for SIP symbols
+    sip_symbols = list({s.symbol for s in sips})
+    holdings = await Holding.find(
+        Holding.user_id == PydanticObjectId(current_user["_id"]),
+        {"symbol": {"$in": sip_symbols}}
+    ).to_list()
 
     # Map holdings by symbol for quick lookup
     holdings_map = {h.symbol: h for h in holdings}
+
+    # Separate MF and stock symbols
+    mf_symbols = [sym for sym in sip_symbols if holdings_map.get(sym) and holdings_map[sym].holding_type == "MF"]
+    stock_symbols = [sym for sym in sip_symbols if holdings_map.get(sym) and holdings_map[sym].holding_type != "MF"]
+
+    # Fetch prices in parallel
+    import asyncio
+    mf_nav_task = get_bulk_mf_nav(mf_symbols) if mf_symbols else asyncio.coroutine(lambda: {})()
+    stock_prices_task = get_bulk_prices(stock_symbols) if stock_symbols else asyncio.coroutine(lambda: {})()
+    mf_navs, stock_prices = await asyncio.gather(mf_nav_task, stock_prices_task)
 
     sip_list = []
     total_invested = total_current = 0
@@ -108,7 +127,11 @@ async def get_sips(current_user: dict = Depends(get_current_user)) -> StandardRe
     for s in sips:
         holding = holdings_map.get(s.symbol)
         if holding:
-            curr_price = prices.get(s.symbol, {}).get("current_price") or holding.avg_price
+            # For MFs use NAV, for stocks use live price
+            if holding.holding_type == "MF":
+                curr_price = mf_navs.get(s.symbol, {}).get("nav") or holding.current_price or holding.avg_price
+            else:
+                curr_price = stock_prices.get(s.symbol, {}).get("current_price") or holding.current_price or holding.avg_price
             invested = holding.quantity * holding.avg_price
             current_val = holding.quantity * curr_price
             returns = current_val - invested
@@ -151,12 +174,15 @@ async def get_sips(current_user: dict = Depends(get_current_user)) -> StandardRe
 @router.post("/sip", summary="Create SIP", description="Create a new SIP")
 async def create_sip(sip: SIPCreate, current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Create a new SIP."""
+    from datetime import date
+
     doc = SIP(
         user_id=PydanticObjectId(current_user["_id"]),
         symbol=sip.symbol.upper(),
         amount=sip.amount,
         frequency=sip.frequency,
         sip_date=sip.sip_date,
+        start_date=sip.start_date or date.today().isoformat(),
     )
     await doc.insert()
     return StandardResponse.ok({"id": str(doc.id), "symbol": doc.symbol}, "SIP created")
@@ -369,25 +395,62 @@ async def get_tax_summary(current_user: dict = Depends(get_current_user)) -> Sta
     )
 
 
-@router.get("/dividends", summary="Get dividends", description="List dividend income")
+@router.get("/dividends", summary="Get dividends", description="List dividend income from holdings")
 async def get_dividends(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Get dividend income history."""
-    dividends = (
-        await Dividend.find(Dividend.user_id == PydanticObjectId(current_user["_id"]))
-        .sort(-Dividend.ex_date)
-        .limit(50)
-        .to_list()
-    )
-    total = sum(d.amount for d in dividends)
-    return StandardResponse.ok(
-        {
-            "dividends": [
-                {"id": str(d.id), "symbol": d.symbol, "amount": d.amount, "date": d.ex_date} for d in dividends
-            ],
-            "total": round(total, 2),
-            "expected_income": 0,
-        }
-    )
+    """Get dividend income based on holdings and Yahoo dividend data."""
+    import httpx
+    from datetime import datetime
+
+    holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
+    if not holdings:
+        return StandardResponse.ok({"dividends": [], "upcoming": [], "total": 0, "expected_income": 0})
+
+    holdings_map = {h.symbol: h for h in holdings if h.holding_type != "MF"}
+    past_dividends = []
+    upcoming_dividends = []
+    past_income = 0
+    upcoming_income = 0
+    now = datetime.now()
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        for symbol, holding in list(holdings_map.items())[:10]:
+            try:
+                resp = await client.get(
+                    f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.NS?interval=1d&range=1y&events=div",
+                    headers={"User-Agent": "Mozilla/5.0"},
+                )
+                if resp.status_code == 200:
+                    events = resp.json().get("chart", {}).get("result", [{}])[0].get("events", {})
+                    for ts, div in events.get("dividends", {}).items():
+                        div_date = datetime.fromtimestamp(int(ts))
+                        amount = div.get("amount", 0)
+                        income = amount * holding.quantity
+                        dividend = {
+                            "symbol": symbol,
+                            "date": div_date.strftime("%Y-%m-%d"),
+                            "value": amount,
+                            "quantity": holding.quantity,
+                            "expected_income": round(income, 2),
+                        }
+                        if div_date > now:
+                            upcoming_dividends.append(dividend)
+                            upcoming_income += income
+                        else:
+                            past_dividends.append(dividend)
+                            past_income += income
+            except:
+                pass
+
+    past_dividends.sort(key=lambda x: x["date"], reverse=True)
+    upcoming_dividends.sort(key=lambda x: x["date"])
+
+    return StandardResponse.ok({
+        "dividends": past_dividends[:20],
+        "upcoming": upcoming_dividends,
+        "total": len(past_dividends),
+        "expected_income": round(upcoming_income, 2),
+        "past_income": round(past_income, 2),
+    })
 
 
 @router.get("/networth", summary="Get networth", description="Get total networth breakdown")

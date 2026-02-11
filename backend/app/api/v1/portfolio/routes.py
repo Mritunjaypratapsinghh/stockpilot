@@ -302,12 +302,12 @@ async def add_transaction(txn: TransactionCreate, current_user: dict = Depends(g
 
     old_qty, old_avg = holding.quantity, holding.avg_price
     if txn.type == "BUY":
-        new_qty = old_qty + quantity
+        new_qty = round(old_qty + quantity, 4)
         new_avg = ((old_qty * old_avg) + (quantity * txn.price)) / new_qty
     else:
         if quantity > old_qty:
             raise HTTPException(status_code=400, detail="Cannot sell more than held")
-        new_qty = old_qty - quantity
+        new_qty = round(old_qty - quantity, 4)
         new_avg = old_avg
 
     if new_qty == 0:
@@ -315,7 +315,7 @@ async def add_transaction(txn: TransactionCreate, current_user: dict = Depends(g
         return StandardResponse.ok(message="Holding sold completely")
 
     holding.quantity = new_qty
-    holding.avg_price = round(new_avg, 2)
+    holding.avg_price = round(new_avg, 4)
     holding.transactions.append(txn_doc)
     await holding.save()
     return StandardResponse.ok({"new_quantity": new_qty, "new_avg_price": round(new_avg, 2)}, "Transaction added")
@@ -344,8 +344,8 @@ async def delete_transaction(
                 qty += t.quantity
             else:
                 qty -= t.quantity
-        holding.avg_price = round(cost / qty, 2) if qty > 0 else holding.avg_price
-        holding.quantity = qty if qty > 0 else holding.quantity
+        holding.avg_price = round(cost / qty, 4) if qty > 0 else holding.avg_price
+        holding.quantity = round(qty, 4) if qty > 0 else holding.quantity
     await holding.save()
     return StandardResponse.ok(message="Transaction deleted")
 

@@ -15,46 +15,16 @@ from ...utils.logger import logger
 
 
 async def get_nse_data(symbol: str) -> Optional[Dict]:
-    """Get data from NSE using nsepy"""
-    try:
-        from nsepy import get_history
-
-        end_date = date.today()
-        start_date = end_date - timedelta(days=180)
-
-        # Fetch NSE data
-        df = get_history(symbol=symbol.upper(), start=start_date, end=end_date, index=False)
-
-        if df is None or df.empty:
-            return None
-
-        # Convert to dict
-        latest = df.iloc[-1]
-
-        return {
-            "symbol": symbol,
-            "close": float(latest["Close"]),
-            "open": float(latest["Open"]),
-            "high": float(latest["High"]),
-            "low": float(latest["Low"]),
-            "volume": int(latest["Volume"]),
-            "vwap": float(latest.get("VWAP", 0)) if "VWAP" in df.columns else None,
-            "delivery_pct": (
-                float(latest.get("Deliverable Volume", 0) / latest["Volume"] * 100)
-                if "Deliverable Volume" in df.columns
-                else None
-            ),
-            "historical_data": df.to_dict("records")[-60:],  # Last 60 days
-        }
-    except Exception as e:
-        logger.error(f"NSEpy error for {symbol}: {e}")
-        return None
+    """Get data from NSE - disabled due to SSL issues with nsepy"""
+    # nsepy library has SSL compatibility issues with NSE website
+    # Returning None to skip this data source
+    return None
 
 
 async def get_screener_fundamentals(symbol: str) -> Optional[Dict]:
     """Scrape fundamental data from Screener.in"""
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=5) as client:
             url = f"https://www.screener.in/company/{symbol}/consolidated/"
             resp = await client.get(
                 url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
@@ -92,7 +62,7 @@ async def get_screener_fundamentals(symbol: str) -> Optional[Dict]:
 async def get_moneycontrol_news(symbol: str) -> list:
     """Scrape news from MoneyControl"""
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=5) as client:
             # Search for company
             search_url = f"https://www.moneycontrol.com/stocks/cptmarket/compsearchnew.php?search_data=&cid=&mbsearch_str={symbol}&topsearch_type=1"
             resp = await client.get(search_url, headers={"User-Agent": "Mozilla/5.0"})
@@ -127,86 +97,70 @@ async def get_moneycontrol_news(symbol: str) -> list:
 
 async def get_combined_analysis(symbol: str, exchange: str = "NSE") -> Dict:
     """
-    Combine data from multiple sources for comprehensive analysis
-    Auto-fallback from NSE to BSE if data not available
+    Combine data from multiple sources for comprehensive analysis.
+    All external calls run in parallel for speed. Results cached in Redis.
     """
+    import asyncio
+
+    from ..cache import cache_get, cache_set
     from ..market.price_service import get_historical_data, get_stock_price
+
+    # Check cache first (5 min TTL)
+    cache_key = f"analysis:{symbol}:{exchange}"
+    cached = await cache_get(cache_key)
+    if cached:
+        return cached
 
     result = {"symbol": symbol, "exchange": exchange, "sources": {}}
 
-    # 1. Yahoo Finance (primary - already implemented)
-    try:
-        yahoo_data = await get_stock_price(symbol, exchange)
+    # Run all fetches in parallel
+    yahoo_task = get_stock_price(symbol, exchange)
+    hist_task = get_historical_data(symbol, exchange, period="1y")
+    fundamentals_task = get_screener_fundamentals(symbol)
 
-        # If NSE fails, try BSE
-        if not yahoo_data and exchange == "NSE":
-            yahoo_data = await get_stock_price(symbol, "BSE")
-            if yahoo_data:
-                exchange = "BSE"
-                result["exchange"] = "BSE"
+    yahoo_data, hist, fundamentals = await asyncio.gather(
+        yahoo_task, hist_task, fundamentals_task, return_exceptions=True
+    )
 
+    # Process Yahoo data
+    if isinstance(yahoo_data, dict) and yahoo_data:
+        result["sources"]["yahoo"] = yahoo_data
+        result["current_price"] = yahoo_data.get("current_price")
+    elif exchange == "NSE":
+        # Fallback to BSE
+        yahoo_data = await get_stock_price(symbol, "BSE")
         if yahoo_data:
             result["sources"]["yahoo"] = yahoo_data
             result["current_price"] = yahoo_data.get("current_price")
-    except (httpx.HTTPError, KeyError, ValueError) as e:
-        logger.error(f"Yahoo Finance error: {e}")
+            result["exchange"] = "BSE"
 
-    # 2. Technical Analysis from historical data
-    try:
-        hist = await get_historical_data(symbol, exchange, period="1y")
-        if hist and len(hist) >= 20:
-            closes = [d["close"] for d in hist if d.get("close")]
-            if len(closes) >= 20:
-                # SMAs
-                result["sma_20"] = round(sum(closes[-20:]) / 20, 2)
-                if len(closes) >= 50:
-                    result["sma_50"] = round(sum(closes[-50:]) / 50, 2)
-                if len(closes) >= 200:
-                    result["sma_200"] = round(sum(closes[-200:]) / 200, 2)
+    # Process historical data for technicals
+    if isinstance(hist, list) and len(hist) >= 20:
+        closes = [d["close"] for d in hist if d.get("close")]
+        if len(closes) >= 20:
+            result["sma_20"] = round(sum(closes[-20:]) / 20, 2)
+            if len(closes) >= 50:
+                result["sma_50"] = round(sum(closes[-50:]) / 50, 2)
+            if len(closes) >= 200:
+                result["sma_200"] = round(sum(closes[-200:]) / 200, 2)
 
-                # RSI (14-day)
-                if len(closes) >= 15:
-                    changes = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
-                    gains = [c if c > 0 else 0 for c in changes[-14:]]
-                    losses = [-c if c < 0 else 0 for c in changes[-14:]]
-                    avg_gain = sum(gains) / 14
-                    avg_loss = sum(losses) / 14
-                    if avg_loss > 0:
-                        rs = avg_gain / avg_loss
-                        result["rsi"] = round(100 - (100 / (1 + rs)), 1)
-                    else:
-                        result["rsi"] = 100
-                    result["rsi_signal"] = (
-                        "OVERSOLD" if result["rsi"] < 30 else "OVERBOUGHT" if result["rsi"] > 70 else "NEUTRAL"
-                    )
+            if len(closes) >= 15:
+                changes = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
+                gains = [c if c > 0 else 0 for c in changes[-14:]]
+                losses = [-c if c < 0 else 0 for c in changes[-14:]]
+                avg_gain, avg_loss = sum(gains) / 14, sum(losses) / 14
+                result["rsi"] = round(100 - (100 / (1 + avg_gain / avg_loss)), 1) if avg_loss > 0 else 100
+                result["rsi_signal"] = "OVERSOLD" if result["rsi"] < 30 else "OVERBOUGHT" if result["rsi"] > 70 else "NEUTRAL"
 
-                # Support/Resistance (recent 20-day low/high)
-                recent = closes[-20:]
-                result["support"] = round(min(recent), 2)
-                result["resistance"] = round(max(recent), 2)
+            recent = closes[-20:]
+            result["support"] = round(min(recent), 2)
+            result["resistance"] = round(max(recent), 2)
 
-                # Trend
-                if result.get("current_price") and result.get("sma_20"):
-                    result["trend"] = "BULLISH" if result["current_price"] > result["sma_20"] else "BEARISH"
-    except Exception as e:
-        logger.error(f"Technical analysis error for {symbol}: {e}")
+            if result.get("current_price") and result.get("sma_20"):
+                result["trend"] = "BULLISH" if result["current_price"] > result["sma_20"] else "BEARISH"
 
-    # 3. NSE Data (if NSE exchange)
-    if exchange == "NSE":
-        nse_data = await get_nse_data(symbol)
-        if nse_data:
-            result["sources"]["nse"] = {
-                "vwap": nse_data.get("vwap"),
-                "delivery_pct": nse_data.get("delivery_pct"),
-                "volume": nse_data.get("volume"),
-            }
-            # Use NSE price if Yahoo failed
-            if not result.get("current_price"):
-                result["current_price"] = nse_data.get("close")
-
-    # 4. Fundamentals from Screener
-    fundamentals = await get_screener_fundamentals(symbol)
-    if fundamentals:
+    # Process fundamentals
+    if isinstance(fundamentals, dict) and fundamentals:
         result["sources"]["fundamentals"] = fundamentals
         result["market_cap"] = fundamentals.get("market_cap")
         result["pe_ratio"] = fundamentals.get("stock_p/e")
@@ -214,16 +168,12 @@ async def get_combined_analysis(symbol: str, exchange: str = "NSE") -> Dict:
         result["roe"] = fundamentals.get("roe")
         result["roce"] = fundamentals.get("roce")
 
-    # 5. News from MoneyControl
-    news = await get_moneycontrol_news(symbol)
-    if news:
-        result["sources"]["news"] = news
-        result["news_count"] = len(news)
-
-    # Calculate data quality score
-    sources_available = len([k for k, v in result["sources"].items() if v])
-    result["data_quality"] = f"{sources_available}/4 sources"
+    sources_available = len([v for v in result["sources"].values() if v])
+    result["data_quality"] = f"{sources_available}/3 sources"
     result["recommendation"] = generate_recommendation(result)
+
+    # Cache for 5 minutes
+    await cache_set(cache_key, result, 300)
 
     return result
 

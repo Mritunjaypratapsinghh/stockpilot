@@ -69,8 +69,8 @@ export default function ResearchPage() {
             />
             {showDropdown && searchResults.length > 0 && (
               <div className="absolute z-10 w-full mt-1 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                {searchResults.map(s => (
-                  <button key={s.symbol} type="button" onClick={() => selectSymbol(s.symbol)} className="w-full px-4 py-3 text-left hover:bg-[var(--bg-tertiary)] flex justify-between items-center">
+                {searchResults.map((s, i) => (
+                  <button key={`${s.symbol}-${i}`} type="button" onClick={() => selectSymbol(s.symbol)} className="w-full px-4 py-3 text-left hover:bg-[var(--bg-tertiary)] flex justify-between items-center">
                     <span className="font-medium text-[var(--text-primary)]">{s.symbol}</span>
                     <span className="text-sm text-[var(--text-muted)] truncate ml-2">{s.name}</span>
                   </button>

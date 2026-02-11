@@ -69,6 +69,17 @@ async def get_bulk_quotes(symbols: str) -> StandardResponse:
     return StandardResponse.ok(await get_bulk_prices(symbol_list))
 
 
+@router.get("/my-symbols", summary="Search user holdings", description="Search symbols from user's portfolio")
+async def search_my_symbols(q: str = "", current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Search symbols from user's portfolio holdings."""
+    holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
+    results = [{"symbol": h.symbol, "name": h.name, "type": h.holding_type} for h in holdings]
+    if q:
+        q = q.upper()
+        results = [r for r in results if q in r["symbol"] or q in r["name"].upper()]
+    return StandardResponse.ok(results[:10])
+
+
 @router.get("/research/{symbol}", summary="Get stock research", description="Get detailed analysis for a stock")
 async def get_enhanced_analysis(symbol: str, exchange: str = "NSE") -> StandardResponse:
     """Get detailed stock analysis and research."""
@@ -162,29 +173,75 @@ async def get_52week_highs_lows() -> StandardResponse:
 
 @router.get("/compare", summary="Compare stocks", description="Compare multiple stocks side by side")
 async def compare_stocks(symbols: str) -> StandardResponse:
-    """Compare multiple stocks side by side."""
-    symbol_list = [s.strip().upper() for s in symbols.split(",")][:5]
-    prices = await get_bulk_prices(symbol_list)
-    stocks = [{"symbol": s, **prices.get(s, {})} for s in symbol_list if prices.get(s)]
+    """Compare multiple stocks side by side with fundamentals."""
+    import asyncio
 
-    # Build comparison with best/worst for each metric
+    from ....services.analytics.service import get_screener_fundamentals
+
+    symbol_list = [s.strip().upper() for s in symbols.split(",")][:5]
+
+    # Fetch prices in parallel, fundamentals sequentially (Screener rate limits)
+    prices = await get_bulk_prices(symbol_list)
+
+    fundamentals_list = []
+    for s in symbol_list:
+        try:
+            fund = await get_screener_fundamentals(s)
+            fundamentals_list.append(fund or {})
+        except Exception:
+            fundamentals_list.append({})
+        if len(symbol_list) > 1:
+            await asyncio.sleep(0.3)  # Small delay to avoid rate limiting
+
+    def parse_num(val):
+        if not val:
+            return None
+        try:
+            return float(str(val).replace(",", "").replace("%", ""))
+        except (ValueError, AttributeError):
+            return None
+
+    stocks = []
+    for i, s in enumerate(symbol_list):
+        price_data = prices.get(s, {})
+        fund_data = fundamentals_list[i]
+
+        stocks.append(
+            {
+                "symbol": s,
+                "name": price_data.get("name") or fund_data.get("company_name") or s,
+                "price": price_data.get("current_price"),
+                "market_cap": fund_data.get("market_cap"),
+                "pe": parse_num(fund_data.get("stock_p/e")),
+                "pb": parse_num(fund_data.get("price_to_book_value")),
+                "roe": parse_num(fund_data.get("roe")),
+                "roce": parse_num(fund_data.get("roce")),
+                "dividend_yield": parse_num(fund_data.get("dividend_yield")),
+                "high_52w": (
+                    fund_data.get("high_/_low", "").split(" / ")[0].strip()
+                    if " / " in fund_data.get("high_/_low", "")
+                    else fund_data.get("high_/_low")
+                ),
+                "low_52w": (
+                    fund_data.get("high_/_low", "").split(" / ")[-1].strip()
+                    if " / " in fund_data.get("high_/_low", "")
+                    else None
+                ),
+            }
+        )
+
+    # Build comparison - lower PE is better, higher ROE/ROCE/yield is better
     comparison = {}
-    metrics = [
-        "price",
-        "market_cap",
-        "pe",
-        "pb",
-        "roe",
-        "roce",
-        "debt_equity",
-        "profit_margin",
-        "revenue_growth",
-        "dividend_yield",
-    ]
-    for metric in metrics:
-        values = [(s["symbol"], s.get(metric, 0) or 0) for s in stocks]
-        if values:
-            sorted_vals = sorted(values, key=lambda x: x[1], reverse=True)
+    for metric, higher_better in [
+        ("price", False),
+        ("pe", False),
+        ("roe", True),
+        ("roce", True),
+        ("dividend_yield", True),
+    ]:
+        values = [(s["symbol"], s.get(metric)) for s in stocks if s.get(metric)]
+        if len(values) >= 2:
+            sorted_vals = sorted(values, key=lambda x: x[1], reverse=higher_better)
             comparison[metric] = {"best": sorted_vals[0][0], "worst": sorted_vals[-1][0]}
 
     return StandardResponse.ok({"stocks": stocks, "comparison": comparison})
@@ -213,11 +270,13 @@ async def get_corporate_actions(current_user: dict = Depends(get_current_user)) 
                 if resp.status_code == 200:
                     events = resp.json().get("chart", {}).get("result", [{}])[0].get("events", {})
                     for ts, div in events.get("dividends", {}).items():
+                        amount = div.get("amount", 0)
                         action = {
                             "type": "DIVIDEND",
                             "symbol": symbol,
                             "date": datetime.fromtimestamp(int(ts)).strftime("%Y-%m-%d"),
-                            "value": div.get("amount", 0),
+                            "value": amount,
+                            "description": f"₹{amount} per share dividend",
                         }
                         actions.append(action)
                         if datetime.fromtimestamp(int(ts)) > datetime.now():

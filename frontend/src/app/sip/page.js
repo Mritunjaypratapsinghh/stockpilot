@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Plus, Pause, Play, Trash2, X, Calculator } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
@@ -13,6 +13,9 @@ export default function SIPPage() {
   const [form, setForm] = useState({ symbol: '', amount: '', frequency: 'monthly', sip_date: '1', start_date: new Date().toISOString().split('T')[0] });
   const [calc, setCalc] = useState({ amount: '10000', years: '10', return: '12' });
   const [calcResult, setCalcResult] = useState(null);
+  const [searchResults, setSearchResults] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchTimeout = useRef(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -24,6 +27,28 @@ export default function SIPPage() {
       setSummary(data.summary || {});
     } catch (e) { console.error(e); }
     setLoading(false);
+  };
+
+  const searchSymbol = async (query) => {
+    if (query.length < 1) { setSearchResults([]); return; }
+    try {
+      // Search from user's portfolio holdings
+      const results = await api(`/api/market/my-symbols?q=${query}`);
+      setSearchResults(results.slice(0, 5));
+      setShowDropdown(true);
+    } catch { setSearchResults([]); }
+  };
+
+  const handleSymbolInput = (value) => {
+    setForm({...form, symbol: value.toUpperCase()});
+    clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => searchSymbol(value), 300);
+  };
+
+  const selectSymbol = (sym) => {
+    setForm({...form, symbol: sym});
+    setShowDropdown(false);
+    setSearchResults([]);
   };
 
   const handleSubmit = async (e) => {
@@ -151,9 +176,28 @@ export default function SIPPage() {
                 <button onClick={() => setShowForm(false)} className="p-2 text-[var(--text-muted)] hover:text-white"><X className="w-5 h-5" /></button>
               </div>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
+                <div className="relative">
                   <label className="block text-sm text-[var(--text-secondary)] mb-2">Symbol</label>
-                  <input value={form.symbol} onChange={e => setForm({...form, symbol: e.target.value.toUpperCase()})} placeholder="e.g. PPFAS" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg" required />
+                  <input 
+                    value={form.symbol} 
+                    onChange={e => handleSymbolInput(e.target.value)} 
+                    onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                    placeholder="e.g. PPFAS" 
+                    className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg" 
+                    autoComplete="off"
+                    required 
+                  />
+                  {showDropdown && searchResults.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {searchResults.map((s, i) => (
+                        <button key={`${s.symbol}-${i}`} type="button" onClick={() => selectSymbol(s.symbol)} className="w-full px-4 py-3 text-left hover:bg-[var(--bg-tertiary)] flex justify-between items-center">
+                          <span className="font-medium">{s.symbol}</span>
+                          <span className="text-sm text-[var(--text-muted)] truncate ml-2">{s.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>

@@ -1,7 +1,7 @@
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api.v1 import router as v1_router
@@ -15,6 +15,10 @@ from .api.v1.portfolio import router as portfolio_router
 from .api.v1.watchlist import router as watchlist_router
 from .core.config import settings
 from .core.database import close_db, init_db
+from .core.security import verify_token
+from .services.cache import close_redis
+from .services.market.price_service import get_bulk_prices
+from .services.websocket import ws_manager
 from .tasks.scheduler import start_scheduler
 from .utils.logger import logger
 
@@ -32,6 +36,7 @@ async def lifespan(app: FastAPI):
     logger.info("StockPilot API ready")
     yield
     logger.info("Shutting down...")
+    await close_redis()
     await close_db()
 
 
@@ -84,3 +89,44 @@ async def root():
 @app.api_route("/health", methods=["GET", "HEAD"])
 async def health():
     return {"status": "healthy"}
+
+
+@app.websocket("/ws/prices")
+async def websocket_prices(websocket: WebSocket, token: str = None):
+    """WebSocket endpoint for real-time price updates.
+
+    Connect: ws://host/ws/prices?token=JWT_TOKEN
+
+    Messages:
+    - {"action": "subscribe", "symbols": ["RELIANCE", "TCS"]}
+    - {"action": "unsubscribe", "symbols": ["RELIANCE"]}
+    """
+    # Authenticate user
+    user = verify_token(token) if token else None
+    user_id = user["_id"] if user else str(id(websocket))
+
+    await ws_manager.connect(websocket, user_id)
+
+    try:
+        while True:
+            data = await websocket.receive_json()
+            action = data.get("action")
+            symbols = data.get("symbols", [])
+
+            if action == "subscribe" and symbols:
+                await ws_manager.subscribe(user_id, symbols)
+                # Send initial prices
+                prices = await get_bulk_prices(symbols)
+                for symbol, price_data in prices.items():
+                    await websocket.send_json({"type": "price", "symbol": symbol, "data": price_data})
+            elif action == "unsubscribe" and symbols:
+                await ws_manager.unsubscribe(user_id, symbols)
+
+    except WebSocketDisconnect:
+        await ws_manager.disconnect(websocket, user_id)
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        await ws_manager.disconnect(websocket, user_id)
+
+
+# test

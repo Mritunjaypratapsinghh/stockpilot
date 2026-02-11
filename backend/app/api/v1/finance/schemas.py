@@ -1,6 +1,6 @@
 """Finance schemas"""
 
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -18,6 +18,7 @@ class SIPCreate(BaseModel):
     amount: float = Field(..., gt=0)
     frequency: Literal["monthly", "weekly", "quarterly"] = "monthly"
     sip_date: int = Field(1, ge=1, le=28)
+    start_date: Optional[str] = None  # Defaults to today if not provided
 
 
 # Response schemas

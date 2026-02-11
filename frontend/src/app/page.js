@@ -126,7 +126,7 @@ export default function Dashboard() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right tabular">{h.quantity}</td>
+                      <td className="px-6 py-4 text-right tabular">{parseFloat(h.quantity?.toFixed(4))}</td>
                       <td className="px-6 py-4 text-right tabular">₹{h.avg_price?.toFixed(2)}</td>
                       <td className="px-6 py-4 text-right tabular">₹{h.current_price?.toFixed(2)}</td>
                       <td className="px-6 py-4 text-right tabular font-medium">₹{fmt(h.current_value)}</td>

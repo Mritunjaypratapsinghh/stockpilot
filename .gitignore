@@ -47,3 +47,12 @@ build/
 PROJECT_CONTEXT.md
 .kiro/
 client_secret_*.json
+
+# Images
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.ico
+*.svg

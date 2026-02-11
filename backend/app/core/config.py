@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     mongodb_uri: str
     mongodb_db: str = "stockpilot"
 
+    # Redis
+    redis_url: str = "redis://localhost:6379"
+    upstash_redis_rest_url: str = ""
+    upstash_redis_rest_token: str = ""
+
     # JWT
     secret_key: str
     jwt_algorithm: str = "HS256"

@@ -5,7 +5,6 @@ Enhanced stock analysis combining multiple data sources:
 - Screener.in (fundamentals)
 """
 
-from datetime import date, timedelta
 from typing import Dict, Optional
 
 import httpx
@@ -150,7 +149,9 @@ async def get_combined_analysis(symbol: str, exchange: str = "NSE") -> Dict:
                 losses = [-c if c < 0 else 0 for c in changes[-14:]]
                 avg_gain, avg_loss = sum(gains) / 14, sum(losses) / 14
                 result["rsi"] = round(100 - (100 / (1 + avg_gain / avg_loss)), 1) if avg_loss > 0 else 100
-                result["rsi_signal"] = "OVERSOLD" if result["rsi"] < 30 else "OVERBOUGHT" if result["rsi"] > 70 else "NEUTRAL"
+                result["rsi_signal"] = (
+                    "OVERSOLD" if result["rsi"] < 30 else "OVERBOUGHT" if result["rsi"] > 70 else "NEUTRAL"
+                )
 
             recent = closes[-20:]
             result["support"] = round(min(recent), 2)

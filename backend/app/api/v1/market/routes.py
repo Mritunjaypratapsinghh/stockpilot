@@ -188,7 +188,7 @@ async def compare_stocks(symbols: str) -> StandardResponse:
         try:
             fund = await get_screener_fundamentals(s)
             fundamentals_list.append(fund or {})
-        except:
+        except Exception:
             fundamentals_list.append({})
         if len(symbol_list) > 1:
             await asyncio.sleep(0.3)  # Small delay to avoid rate limiting
@@ -198,7 +198,7 @@ async def compare_stocks(symbols: str) -> StandardResponse:
             return None
         try:
             return float(str(val).replace(",", "").replace("%", ""))
-        except:
+        except (ValueError, AttributeError):
             return None
 
     stocks = []
@@ -206,23 +206,39 @@ async def compare_stocks(symbols: str) -> StandardResponse:
         price_data = prices.get(s, {})
         fund_data = fundamentals_list[i]
 
-        stocks.append({
-            "symbol": s,
-            "name": price_data.get("name") or fund_data.get("company_name") or s,
-            "price": price_data.get("current_price"),
-            "market_cap": fund_data.get("market_cap"),
-            "pe": parse_num(fund_data.get("stock_p/e")),
-            "pb": parse_num(fund_data.get("price_to_book_value")),
-            "roe": parse_num(fund_data.get("roe")),
-            "roce": parse_num(fund_data.get("roce")),
-            "dividend_yield": parse_num(fund_data.get("dividend_yield")),
-            "high_52w": fund_data.get("high_/_low", "").split(" / ")[0].strip() if " / " in fund_data.get("high_/_low", "") else fund_data.get("high_/_low"),
-            "low_52w": fund_data.get("high_/_low", "").split(" / ")[-1].strip() if " / " in fund_data.get("high_/_low", "") else None,
-        })
+        stocks.append(
+            {
+                "symbol": s,
+                "name": price_data.get("name") or fund_data.get("company_name") or s,
+                "price": price_data.get("current_price"),
+                "market_cap": fund_data.get("market_cap"),
+                "pe": parse_num(fund_data.get("stock_p/e")),
+                "pb": parse_num(fund_data.get("price_to_book_value")),
+                "roe": parse_num(fund_data.get("roe")),
+                "roce": parse_num(fund_data.get("roce")),
+                "dividend_yield": parse_num(fund_data.get("dividend_yield")),
+                "high_52w": (
+                    fund_data.get("high_/_low", "").split(" / ")[0].strip()
+                    if " / " in fund_data.get("high_/_low", "")
+                    else fund_data.get("high_/_low")
+                ),
+                "low_52w": (
+                    fund_data.get("high_/_low", "").split(" / ")[-1].strip()
+                    if " / " in fund_data.get("high_/_low", "")
+                    else None
+                ),
+            }
+        )
 
     # Build comparison - lower PE is better, higher ROE/ROCE/yield is better
     comparison = {}
-    for metric, higher_better in [("price", False), ("pe", False), ("roe", True), ("roce", True), ("dividend_yield", True)]:
+    for metric, higher_better in [
+        ("price", False),
+        ("pe", False),
+        ("roe", True),
+        ("roce", True),
+        ("dividend_yield", True),
+    ]:
         values = [(s["symbol"], s.get(metric)) for s in stocks if s.get(metric)]
         if len(values) >= 2:
             sorted_vals = sorted(values, key=lambda x: x[1], reverse=higher_better)

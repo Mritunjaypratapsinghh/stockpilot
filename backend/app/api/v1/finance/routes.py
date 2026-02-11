@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ....core.response_handler import StandardResponse
 from ....core.security import get_current_user
-from ....models.documents import SIP, Dividend, Goal, Holding
+from ....models.documents import SIP, Goal, Holding
 from ....services.portfolio import get_prices_for_holdings, get_user_holdings
 from .schemas import (
     AssetCreate,
@@ -99,13 +99,14 @@ async def get_sips(current_user: dict = Depends(get_current_user)) -> StandardRe
 
     sips = await SIP.find(SIP.user_id == PydanticObjectId(current_user["_id"])).to_list()
     if not sips:
-        return StandardResponse.ok({"sips": [], "summary": {"total_invested": 0, "current_value": 0, "total_returns": 0, "returns_pct": 0}})
+        return StandardResponse.ok(
+            {"sips": [], "summary": {"total_invested": 0, "current_value": 0, "total_returns": 0, "returns_pct": 0}}
+        )
 
     # Only fetch holdings for SIP symbols
     sip_symbols = list({s.symbol for s in sips})
     holdings = await Holding.find(
-        Holding.user_id == PydanticObjectId(current_user["_id"]),
-        {"symbol": {"$in": sip_symbols}}
+        Holding.user_id == PydanticObjectId(current_user["_id"]), {"symbol": {"$in": sip_symbols}}
     ).to_list()
 
     # Map holdings by symbol for quick lookup
@@ -117,6 +118,7 @@ async def get_sips(current_user: dict = Depends(get_current_user)) -> StandardRe
 
     # Fetch prices in parallel
     import asyncio
+
     mf_nav_task = get_bulk_mf_nav(mf_symbols) if mf_symbols else asyncio.coroutine(lambda: {})()
     stock_prices_task = get_bulk_prices(stock_symbols) if stock_symbols else asyncio.coroutine(lambda: {})()
     mf_navs, stock_prices = await asyncio.gather(mf_nav_task, stock_prices_task)
@@ -131,7 +133,9 @@ async def get_sips(current_user: dict = Depends(get_current_user)) -> StandardRe
             if holding.holding_type == "MF":
                 curr_price = mf_navs.get(s.symbol, {}).get("nav") or holding.current_price or holding.avg_price
             else:
-                curr_price = stock_prices.get(s.symbol, {}).get("current_price") or holding.current_price or holding.avg_price
+                curr_price = (
+                    stock_prices.get(s.symbol, {}).get("current_price") or holding.current_price or holding.avg_price
+                )
             invested = holding.quantity * holding.avg_price
             current_val = holding.quantity * curr_price
             returns = current_val - invested
@@ -398,8 +402,9 @@ async def get_tax_summary(current_user: dict = Depends(get_current_user)) -> Sta
 @router.get("/dividends", summary="Get dividends", description="List dividend income from holdings")
 async def get_dividends(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get dividend income based on holdings and Yahoo dividend data."""
-    import httpx
     from datetime import datetime
+
+    import httpx
 
     holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
     if not holdings:
@@ -438,19 +443,21 @@ async def get_dividends(current_user: dict = Depends(get_current_user)) -> Stand
                         else:
                             past_dividends.append(dividend)
                             past_income += income
-            except:
+            except Exception:
                 pass
 
     past_dividends.sort(key=lambda x: x["date"], reverse=True)
     upcoming_dividends.sort(key=lambda x: x["date"])
 
-    return StandardResponse.ok({
-        "dividends": past_dividends[:20],
-        "upcoming": upcoming_dividends,
-        "total": len(past_dividends),
-        "expected_income": round(upcoming_income, 2),
-        "past_income": round(past_income, 2),
-    })
+    return StandardResponse.ok(
+        {
+            "dividends": past_dividends[:20],
+            "upcoming": upcoming_dividends,
+            "total": len(past_dividends),
+            "expected_income": round(upcoming_income, 2),
+            "past_income": round(past_income, 2),
+        }
+    )
 
 
 @router.get("/networth", summary="Get networth", description="Get total networth breakdown")

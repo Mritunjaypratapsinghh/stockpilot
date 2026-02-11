@@ -127,3 +127,6 @@ async def websocket_prices(websocket: WebSocket, token: str = None):
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         await ws_manager.disconnect(websocket, user_id)
+
+
+# test

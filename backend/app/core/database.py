@@ -11,14 +11,16 @@ client: AsyncIOMotorClient = None
 db = None
 
 
-async def init_db(max_retries: int = 3, retry_delay: int = 2):
+async def init_db(max_retries: int = 5, retry_delay: int = 3):
     global client, db
 
     for attempt in range(1, max_retries + 1):
         try:
             client = AsyncIOMotorClient(
                 settings.mongodb_uri,
-                serverSelectionTimeoutMS=10000,
+                serverSelectionTimeoutMS=30000,
+                connectTimeoutMS=20000,
+                socketTimeoutMS=20000,
                 maxPoolSize=50,
                 minPoolSize=5,
                 maxIdleTimeMS=30000,
@@ -30,12 +32,12 @@ async def init_db(max_retries: int = 3, retry_delay: int = 2):
             await init_beanie(database=db, document_models=ALL_DOCUMENTS)
             logger.info(f"Connected to MongoDB: {settings.mongodb_db}")
             return
-        except (ConnectionError, TimeoutError, OSError) as e:
+        except Exception as e:
             logger.warning(f"MongoDB connection attempt {attempt}/{max_retries} failed: {e}")
             if attempt < max_retries:
                 await asyncio.sleep(retry_delay * attempt)
             else:
-                raise RuntimeError(f"Database connection failed: {e}")
+                raise RuntimeError(f"Database connection failed after {max_retries} attempts: {e}")
 
 
 async def close_db():

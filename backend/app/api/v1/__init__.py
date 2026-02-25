@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from .alerts import router as alerts_router
 from .analytics import router as analytics_router
 from .auth import router as auth_router
+from .calculators import router as calculators_router
 from .export import router as export_router
 from .finance import router as finance_router
 from .ipo import router as ipo_router
@@ -27,5 +28,6 @@ router.include_router(ipo_router, prefix="/ipo", tags=["IPO"])
 router.include_router(watchlist_router, prefix="/watchlist", tags=["Watchlist"])
 router.include_router(ledger_router, prefix="/ledger", tags=["Ledger"])
 router.include_router(export_router, prefix="/export", tags=["Export"])
+router.include_router(calculators_router, prefix="/calculators", tags=["Calculators"])
 
 __all__ = ["router"]

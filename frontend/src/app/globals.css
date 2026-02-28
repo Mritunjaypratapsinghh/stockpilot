@@ -140,6 +140,8 @@ input:focus, select:focus { outline: none; }
   .pub-section-alt { padding: 60px 20px; }
   .pub-grid-2 { grid-template-columns: 1fr; }
   .pub-grid-3 { grid-template-columns: 1fr; }
+  .pub-mock-stats { grid-template-columns: repeat(2, 1fr) !important; }
+  .pub-mock-charts { grid-template-columns: 1fr !important; }
   .pub-footer-grid { grid-template-columns: 1fr 1fr; gap: 32px; }
   .pub-footer-bottom { flex-direction: column; }
   .pub-btn-row { flex-direction: column; }

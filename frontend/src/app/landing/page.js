@@ -59,11 +59,45 @@ export default function LandingPage() {
       {/* Product Preview */}
       <div className="pub-section-alt">
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, textAlign: 'center' }}>
-            <div style={{ background: 'var(--bg-tertiary)', borderRadius: 12, padding: '80px 40px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 16 }}>
-              <div>
-                <BarChart3 style={{ width: 48, height: 48, color: 'var(--accent)', marginBottom: 16, opacity: 0.5 }} />
-                <p style={{ margin: 0 }}>Dashboard Preview — Portfolio analytics at a glance</p>
+          <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, overflow: 'hidden' }}>
+            {/* Mock dashboard */}
+            <div style={{ background: 'var(--bg-tertiary)', borderRadius: 12, padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Top bar */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 8 }}><div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ef4444' }} /><div style={{ width: 12, height: 12, borderRadius: '50%', background: '#f59e0b' }} /><div style={{ width: 12, height: 12, borderRadius: '50%', background: '#10b981' }} /></div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>StockPilot Dashboard</div>
+                <div style={{ width: 60 }} />
+              </div>
+              {/* Mock content */}
+              <div className="pub-mock-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                {[{ l: 'Portfolio Value', v: '₹12,45,800', c: 'var(--text-primary)' }, { l: 'Today\'s P&L', v: '+₹8,420', c: 'var(--green)' }, { l: 'Total Returns', v: '+18.4%', c: 'var(--green)' }, { l: 'XIRR', v: '22.1%', c: 'var(--accent)' }].map((s, i) => (
+                  <div key={i} style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: 16, border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{s.l}</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: s.c }}>{s.v}</div>
+                  </div>
+                ))}
+              </div>
+              {/* Mock chart area */}
+              <div className="pub-mock-charts" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: 20, border: '1px solid var(--border)', height: 180 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 16 }}>Portfolio Growth</div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120 }}>
+                    {[35, 42, 38, 55, 48, 62, 58, 72, 68, 78, 85, 92].map((h, i) => (
+                      <div key={i} style={{ flex: 1, background: `var(--accent)`, borderRadius: 3, height: `${h}%`, opacity: 0.3 + (i / 15) }} />
+                    ))}
+                  </div>
+                </div>
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: 20, border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 16 }}>Allocation</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {[{ n: 'Large Cap', p: 45, c: 'var(--accent)' }, { n: 'Mid Cap', p: 25, c: '#8b5cf6' }, { n: 'Small Cap', p: 15, c: '#ec4899' }, { n: 'Debt', p: 15, c: '#f59e0b' }].map((s, i) => (
+                      <div key={i}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}><span>{s.n}</span><span>{s.p}%</span></div>
+                        <div style={{ height: 4, background: 'var(--bg-tertiary)', borderRadius: 2 }}><div style={{ height: '100%', width: `${s.p}%`, background: s.c, borderRadius: 2 }} /></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

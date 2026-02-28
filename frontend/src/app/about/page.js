@@ -9,8 +9,6 @@ const values = [
   { title: 'Accuracy', desc: 'Every calculation verified against official standards — RBI guidelines, Income Tax Act, CAGR formulas.' },
 ];
 
-const stack = ['Next.js 14', 'FastAPI', 'MongoDB', 'Recharts', 'Tailwind CSS', 'Telegram Bot API'];
-
 export default function AboutPage() {
   return (
     <PublicLayout>
@@ -66,17 +64,6 @@ export default function AboutPage() {
           </div>
         </div>
       </div>
-
-      {/* Tech Stack */}
-      <section className="pub-section">
-        <h2 className="pub-h2">Built with</h2>
-        <p style={{ fontSize: 16, color: 'var(--text-secondary)', margin: '0 0 32px 0' }}>Modern, reliable, open-source technologies.</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-          {stack.map((s, i) => (
-            <span key={i} style={{ padding: '12px 24px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 15, fontWeight: 500 }}>{s}</span>
-          ))}
-        </div>
-      </section>
 
       {/* CTA */}
       <div className="pub-section-alt" style={{ textAlign: 'center', padding: '100px 24px' }}>

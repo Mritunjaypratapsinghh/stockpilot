@@ -24,25 +24,12 @@ export default function Dashboard() {
         })
         .finally(() => setLoading(false));
     } else {
-      setLoading(false);
+      window.location.href = '/landing';
     }
   }, []);
 
   if (!token) {
-    return (
-      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-[var(--accent)] flex items-center justify-center">
-            <TrendingUp className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold mb-3">StockPilot</h1>
-          <p className="text-[var(--text-secondary)] mb-8">Track your portfolio with real-time analytics</p>
-          <a href="/login" className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:opacity-90">
-            Get Started <ArrowRight className="w-5 h-5" />
-          </a>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   const fmt = (n) => n?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0';

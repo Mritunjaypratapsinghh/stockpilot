@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Bell, Search, TrendingUp, LogOut, Briefcase, Eye, Calendar, Zap, Sun, Moon, Settings, Target, Receipt, BarChart3, Filter, RefreshCw, Scissors, ArrowRightLeft, ChevronDown, Wallet, CalendarDays, Activity, HandCoins } from 'lucide-react';
+import { LayoutDashboard, Bell, Search, TrendingUp, LogOut, Briefcase, Eye, Calendar, Zap, Sun, Moon, Settings, Target, Receipt, BarChart3, Filter, RefreshCw, Scissors, ArrowRightLeft, ChevronDown, Wallet, CalendarDays, Activity, HandCoins, Calculator } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 
 const mainNav = [
@@ -9,6 +9,7 @@ const mainNav = [
   { href: '/portfolio', label: 'Portfolio', icon: Briefcase },
   { href: '/networth', label: 'Net Worth', icon: Wallet },
   { href: '/market', label: 'Market', icon: TrendingUp },
+  { href: '/calculators', label: 'Calculators', icon: Calculator },
 ];
 
 const toolsMenu = [

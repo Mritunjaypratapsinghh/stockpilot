@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { TrendingUp, Menu, X } from 'lucide-react';
+import { TrendingUp, Menu, X, Sun, Moon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const navLinks = [
@@ -45,7 +45,7 @@ export default function PublicLayout({ children }) {
             {navLinks.map(l => (
               <Link key={l.href} href={l.href} className={`pub-nav-link ${pathname === l.href ? 'active' : ''}`}>{l.label}</Link>
             ))}
-            <button onClick={toggleTheme} className="pub-nav-link" style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit' }}>{theme === 'dark' ? '☀️' : '🌙'}</button>
+            <button onClick={toggleTheme} className="pub-nav-link" style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', display: 'flex', alignItems: 'center' }}>{theme === 'dark' ? <Sun style={{ width: 18, height: 18 }} /> : <Moon style={{ width: 18, height: 18 }} />}</button>
             {loggedIn ? (
               <Link href="/" className="pub-btn-primary">Dashboard</Link>
             ) : (

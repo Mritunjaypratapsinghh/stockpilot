@@ -70,7 +70,7 @@ export default function LoginPage() {
       <div className="min-h-screen bg-[var(--bg-primary)] flex">
         {/* Left */}
         <div className="hidden lg:flex lg:w-1/2 bg-[var(--bg-secondary)] flex-col justify-between p-12">
-          <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-[var(--accent)] flex items-center justify-center"><TrendingUp className="w-5 h-5 text-white" /></div><span className="text-xl font-semibold">StockPilot</span></div>
+          <div className="flex items-center gap-3"><a href="/landing" className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-[var(--accent)] flex items-center justify-center"><TrendingUp className="w-5 h-5 text-white" /></div><span className="text-xl font-semibold">StockPilot</span></a></div>
           <div className="max-w-md">
             <h1 className="text-4xl font-bold leading-tight mb-4">Smart portfolio tracking for serious investors</h1>
             <p className="text-[var(--text-secondary)] text-lg mb-10">Real-time analytics, intelligent alerts, and AI-powered insights.</p>
@@ -86,7 +86,7 @@ export default function LoginPage() {
         {/* Right */}
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-sm">
-            <div className="lg:hidden flex items-center gap-3 mb-8"><div className="w-10 h-10 rounded-lg bg-[var(--accent)] flex items-center justify-center"><TrendingUp className="w-5 h-5 text-white" /></div><span className="text-xl font-semibold">StockPilot</span></div>
+            <div className="lg:hidden flex items-center gap-3 mb-8"><a href="/landing" className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-[var(--accent)] flex items-center justify-center"><TrendingUp className="w-5 h-5 text-white" /></div><span className="text-xl font-semibold">StockPilot</span></a></div>
             <h2 className="text-2xl font-bold mb-1">{isLogin ? 'Welcome back' : 'Create account'}</h2>
             <p className="text-[var(--text-muted)] mb-6">{isLogin ? 'Enter your credentials' : 'Start your journey'}</p>
 

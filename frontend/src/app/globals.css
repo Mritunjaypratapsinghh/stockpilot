@@ -81,3 +81,12 @@ h1, h2, h3 { font-weight: 600; }
 input:focus, select:focus { outline: none; }
 
 .line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+
+/* Responsive calculator layout */
+@media (max-width: 1100px) {
+  .calc-sidebar { width: 56px !important; padding: 16px 6px !important; }
+  .calc-sidebar .calc-sidebar-label { display: none; }
+  .calc-sidebar .calc-sidebar-title { display: none; }
+  .calc-sidebar .calc-sidebar-arrow { display: none; }
+  .calc-main { padding: 20px !important; }
+}

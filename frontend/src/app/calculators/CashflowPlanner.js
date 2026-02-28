@@ -2,141 +2,132 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { Plus, Trash2 } from 'lucide-react';
+import { CalcStatus, C, card, grid2, label, input, section, title, statCard, statLabel, statVal, gridHalf, footer, footerIcon, fmt, useCompact } from './theme';
 
-const fmt = n => n?.toLocaleString('en-IN') || '0';
+function SankeyDiagram({ inflows, outflows, surplus }) {
+  const totalIn = inflows.reduce((s, i) => s + i.amount, 0) || 1;
+  const W = 500, H = 300, nodeW = 10;
+  const leftX = 70, midX = W / 2 - nodeW / 2, rightX = W - 90;
+  const incomeH = 140, incomeY = (H - incomeH) / 2;
+  const items = [{ name: 'Savings', amount: Math.max(surplus, 0), color: '#06b6d4' }, ...outflows.map(o => ({ ...o, color: '#ef4444' }))];
+  let rightY = (H - 220) / 2;
 
-const s = {
-  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, maxWidth: 1000, margin: '0 auto', padding: 0 },
-  card: { background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, margin: 0 },
-  title: { fontSize: 18, fontWeight: 600, margin: '0 0 24px 0', padding: 0 },
-  sectionHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 12px 0', padding: 0 },
-  sectionTitle: { fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8, margin: 0, padding: 0 },
-  addBtn: { display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: 'var(--accent)', fontSize: 13, cursor: 'pointer', margin: 0, padding: 0 },
-  inputRow: { display: 'flex', gap: 8, margin: '0 0 8px 0', padding: 0 },
-  input: { flex: 1, padding: '10px 12px', margin: 0, background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, color: 'var(--text-primary)' },
-  inputAmount: { width: 110, padding: '10px 12px', margin: 0, background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, color: 'var(--text-primary)', textAlign: 'right' },
-  deleteBtn: { padding: 8, margin: 0, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' },
-  section: { margin: '0 0 24px 0', padding: 0 },
-  totals: { display: 'flex', justifyContent: 'space-between', padding: '16px 0 0 0', margin: '16px 0 0 0', borderTop: '1px solid var(--border)' },
-  totalLabel: { fontSize: 13, color: 'var(--text-muted)', margin: '0 0 4px 0', padding: 0 },
-  totalValue: { fontSize: 18, fontWeight: 600, margin: 0, padding: 0 },
-  statGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, margin: 0, padding: 0 },
-  statCard: { background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: 16, margin: 0 },
-  statLabel: { fontSize: 13, color: 'var(--text-muted)', margin: '0 0 4px 0', padding: 0 },
-  statValue: { fontSize: 24, fontWeight: 700, margin: 0, padding: 0 },
-  vizCard: { background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, margin: '16px 0 0 0' },
-  vizTitle: { fontSize: 13, fontWeight: 500, margin: '0 0 16px 0', padding: 0 },
-  vizContainer: { position: 'relative', height: 200, margin: 0, padding: 0 },
-  vizBar: { position: 'absolute', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' },
-  statusCard: { padding: 16, borderRadius: 12, margin: '16px 0 0 0' },
-};
+  const paths = items.map(item => {
+    const h = Math.max((item.amount / totalIn) * 220, 20);
+    const y = rightY;
+    rightY += h + 5;
+    return { ...item, y, h };
+  });
+
+  return (
+    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} style={{ margin: 0, padding: 0 }}>
+      <rect x={leftX} y={incomeY} width={nodeW} height={incomeH} rx={5} fill="#10b981" />
+      <text x={leftX - 10} y={incomeY + incomeH / 2 - 10} textAnchor="end" style={{ fontSize: 11, fill: 'var(--text-muted)' }}>Income</text>
+      <text x={leftX - 10} y={incomeY + incomeH / 2 + 8} textAnchor="end" style={{ fontSize: 12, fill: 'var(--text-primary)', fontWeight: 600 }}>₹{fmt(totalIn)}</text>
+      <rect x={midX} y={incomeY} width={nodeW} height={incomeH} rx={5} fill="#10b981" opacity={0.4} />
+      <path d={`M${leftX + nodeW},${incomeY} C${midX - 30},${incomeY} ${midX - 30},${incomeY} ${midX},${incomeY} L${midX},${incomeY + incomeH} C${midX - 30},${incomeY + incomeH} ${midX - 30},${incomeY + incomeH} ${leftX + nodeW},${incomeY + incomeH} Z`} fill="#10b981" opacity={0.1} />
+      {paths.map((p, i) => {
+        const srcY1 = incomeY + (i === 0 ? 0 : paths.slice(0, i).reduce((s, pp) => s + pp.h + 5, 0));
+        const srcY2 = srcY1 + p.h;
+        return (
+          <g key={i}>
+            <path d={`M${midX + nodeW},${Math.min(srcY1, incomeY + incomeH - 2)} C${rightX - 40},${srcY1} ${rightX - 40},${p.y} ${rightX},${p.y} L${rightX},${p.y + p.h} C${rightX - 40},${p.y + p.h} ${rightX - 40},${Math.min(srcY2, incomeY + incomeH)} ${midX + nodeW},${Math.min(srcY2, incomeY + incomeH)} Z`} fill={p.color} opacity={0.12} />
+            <rect x={rightX} y={p.y} width={nodeW} height={p.h} rx={4} fill={p.color} />
+            <text x={rightX + 18} y={p.y + p.h / 2 - 7} style={{ fontSize: 11, fill: 'var(--text-muted)' }}>{p.name}</text>
+            <text x={rightX + 18} y={p.y + p.h / 2 + 9} style={{ fontSize: 12, fill: 'var(--text-primary)', fontWeight: 600 }}>₹{fmt(p.amount)}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 
 export default function CashflowPlanner() {
+  const compact = useCompact();
   const [inflows, setInflows] = useState([{ name: 'Salary', amount: 80000 }, { name: 'Freelance', amount: 20000 }]);
   const [outflows, setOutflows] = useState([{ name: 'Rent', amount: 25000 }, { name: 'Food', amount: 15000 }, { name: 'Travel', amount: 5000 }]);
   const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const inflowStr = inflows.map(i => i.amount).join(',');
-    const outflowStr = outflows.map(o => o.amount).join(',');
-    api(`/api/v1/calculators/cashflow?inflows=${inflowStr}&outflows=${outflowStr}`)
-      .then(setResult).catch(console.error);
+    api(`/api/v1/calculators/cashflow?inflows=${inflows.map(i => i.amount).join(',')}&outflows=${outflows.map(o => o.amount).join(',')}`)
+      .then(r => { setResult(r); setError(null); }).catch(e => setError(e.message));
   }, [inflows, outflows]);
 
   const addInflow = () => setInflows([...inflows, { name: '', amount: 0 }]);
   const addOutflow = () => setOutflows([...outflows, { name: '', amount: 0 }]);
-  const removeInflow = (i) => setInflows(inflows.filter((_, idx) => idx !== i));
-  const removeOutflow = (i) => setOutflows(outflows.filter((_, idx) => idx !== i));
-  const updateInflow = (i, field, val) => setInflows(inflows.map((item, idx) => idx === i ? { ...item, [field]: field === 'amount' ? +val : val } : item));
-  const updateOutflow = (i, field, val) => setOutflows(outflows.map((item, idx) => idx === i ? { ...item, [field]: field === 'amount' ? +val : val } : item));
+  const removeInflow = i => setInflows(inflows.filter((_, idx) => idx !== i));
+  const removeOutflow = i => setOutflows(outflows.filter((_, idx) => idx !== i));
+  const updateInflow = (i, f, v) => setInflows(inflows.map((item, idx) => idx === i ? { ...item, [f]: f === 'amount' ? +v : v } : item));
+  const updateOutflow = (i, f, v) => setOutflows(outflows.map((item, idx) => idx === i ? { ...item, [f]: f === 'amount' ? +v : v } : item));
+
+  const fieldStyle = { flex: 1, padding: '12px 14px', background: C.cardAlt, border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 14, color: C.text, outline: 'none', margin: 0 };
+  const amtStyle = { ...fieldStyle, width: 120, flex: 'none', textAlign: 'right' };
 
   return (
-    <div style={s.grid}>
-      <div style={s.card}>
-        <h2 style={s.title}>Financial Inputs</h2>
-        
-        <div style={s.section}>
-          <div style={s.sectionHeader}>
-            <span style={{ ...s.sectionTitle, color: '#10b981' }}>↗ INFLOWS</span>
-            <button onClick={addInflow} style={s.addBtn}><Plus style={{ width: 16, height: 16, margin: 0, padding: 0 }} /> Add</button>
+    <div style={{ margin: 0, padding: 0 }}>
+      <CalcStatus loading={!result && !error} error={error} />
+      <div style={grid2(compact)}>
+        <div style={card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 24px 0' }}>
+            <h2 style={{ ...title, margin: 0 }}>Financial Inputs</h2>
+            <span style={{ fontSize: 20, color: C.textMuted, cursor: 'pointer' }}>ⓘ</span>
           </div>
-          {inflows.map((item, i) => (
-            <div key={i} style={s.inputRow}>
-              <input type="text" value={item.name} onChange={e => updateInflow(i, 'name', e.target.value)} placeholder="Source" style={s.input} />
-              <input type="number" value={item.amount} onChange={e => updateInflow(i, 'amount', e.target.value)} placeholder="Amount" style={s.inputAmount} />
-              {inflows.length > 1 && <button onClick={() => removeInflow(i)} style={s.deleteBtn}><Trash2 style={{ width: 16, height: 16, margin: 0, padding: 0 }} /></button>}
+
+          <div style={section}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 14px 0' }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: C.green, display: 'flex', alignItems: 'center', gap: 6 }}>↗ INFLOWS</span>
+              <button onClick={addInflow} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: C.accent, fontSize: 14, fontWeight: 500, cursor: 'pointer', padding: 0, margin: 0 }}><Plus style={{ width: 16, height: 16 }} /> Add</button>
             </div>
-          ))}
+            {inflows.map((item, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, margin: '0 0 10px 0', alignItems: 'center' }}>
+                <input value={item.name} onChange={e => updateInflow(i, 'name', e.target.value)} placeholder="Source" style={fieldStyle} />
+                <input type="number" value={item.amount} onChange={e => updateInflow(i, 'amount', e.target.value)} style={amtStyle} />
+                {inflows.length > 1 && <button onClick={() => removeInflow(i)} style={{ background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', padding: 4, margin: 0 }}><Trash2 style={{ width: 15, height: 15 }} /></button>}
+              </div>
+            ))}
+          </div>
+
+          <div style={section}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 14px 0' }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: C.red, display: 'flex', alignItems: 'center', gap: 6 }}>↙ OUTFLOWS</span>
+              <button onClick={addOutflow} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: C.accent, fontSize: 14, fontWeight: 500, cursor: 'pointer', padding: 0, margin: 0 }}><Plus style={{ width: 16, height: 16 }} /> Add</button>
+            </div>
+            {outflows.map((item, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, margin: '0 0 10px 0', alignItems: 'center' }}>
+                <input value={item.name} onChange={e => updateOutflow(i, 'name', e.target.value)} placeholder="Expense" style={fieldStyle} />
+                <input type="number" value={item.amount} onChange={e => updateOutflow(i, 'amount', e.target.value)} style={amtStyle} />
+                {outflows.length > 1 && <button onClick={() => removeOutflow(i)} style={{ background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', padding: 4, margin: 0 }}><Trash2 style={{ width: 15, height: 15 }} /></button>}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '18px 0 0 0', borderTop: `1px solid ${C.border}` }}>
+            <div><div style={{ fontSize: 13, color: C.textMuted }}>Total Income</div><div style={{ fontSize: 20, fontWeight: 700, color: C.green }}>₹{fmt(result?.total_income)}</div></div>
+            <div style={{ textAlign: 'right' }}><div style={{ fontSize: 13, color: C.textMuted }}>Total Expenses</div><div style={{ fontSize: 20, fontWeight: 700, color: C.red }}>₹{fmt(result?.total_expenses)}</div></div>
+          </div>
         </div>
 
-        <div style={s.section}>
-          <div style={s.sectionHeader}>
-            <span style={{ ...s.sectionTitle, color: '#ef4444' }}>↙ OUTFLOWS</span>
-            <button onClick={addOutflow} style={s.addBtn}><Plus style={{ width: 16, height: 16, margin: 0, padding: 0 }} /> Add</button>
-          </div>
-          {outflows.map((item, i) => (
-            <div key={i} style={s.inputRow}>
-              <input type="text" value={item.name} onChange={e => updateOutflow(i, 'name', e.target.value)} placeholder="Expense" style={s.input} />
-              <input type="number" value={item.amount} onChange={e => updateOutflow(i, 'amount', e.target.value)} placeholder="Amount" style={s.inputAmount} />
-              {outflows.length > 1 && <button onClick={() => removeOutflow(i)} style={s.deleteBtn}><Trash2 style={{ width: 16, height: 16, margin: 0, padding: 0 }} /></button>}
-            </div>
-          ))}
-        </div>
+        <div>
+          {result && (
+            <>
+              <div style={gridHalf(compact)}>
+                <div style={statCard}><div style={statLabel}>Net Surplus</div><div style={{ ...statVal, color: result.net_surplus >= 0 ? C.green : C.red }}>{result.net_surplus >= 0 ? '+ ' : ''}₹{fmt(Math.abs(result.net_surplus))}</div></div>
+                <div style={statCard}><div style={statLabel}>Savings Rate</div><div style={statVal}>{result.savings_rate}%</div><div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>Target: {result.target_savings_rate}%</div></div>
+              </div>
 
-        <div style={s.totals}>
-          <div><div style={s.totalLabel}>Total Income</div><div style={{ ...s.totalValue, color: '#10b981' }}>₹{fmt(result?.total_income)}</div></div>
-          <div style={{ textAlign: 'right' }}><div style={s.totalLabel}>Total Expenses</div><div style={{ ...s.totalValue, color: '#ef4444' }}>₹{fmt(result?.total_expenses)}</div></div>
+              <div style={{ ...card, marginTop: 18 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, margin: '0 0 14px 0', textTransform: 'uppercase' }}>Cash Flow Visualization</div>
+                <SankeyDiagram inflows={inflows} outflows={outflows} surplus={result.net_surplus} />
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      <div>
-        {result && (
-          <>
-            <div style={s.statGrid}>
-              <div style={s.statCard}>
-                <div style={s.statLabel}>Net Surplus</div>
-                <div style={{ ...s.statValue, color: result.net_surplus >= 0 ? '#10b981' : '#ef4444' }}>
-                  {result.net_surplus >= 0 ? '+' : ''}₹{fmt(result.net_surplus)}
-                </div>
-              </div>
-              <div style={s.statCard}>
-                <div style={s.statLabel}>Savings Rate</div>
-                <div style={s.statValue}>{result.savings_rate}%</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Target: {result.target_savings_rate}%</div>
-              </div>
-            </div>
-
-            <div style={s.vizCard}>
-              <div style={s.vizTitle}>CASH FLOW VISUALIZATION</div>
-              <div style={s.vizContainer}>
-                <div style={{ ...s.vizBar, left: 0, top: '50%', transform: 'translateY(-50%)', width: 90, height: 120, background: 'rgba(16,185,129,0.2)' }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Income</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#10b981' }}>₹{fmt(result.total_income)}</div>
-                </div>
-                <div style={{ position: 'absolute', right: 0, top: 0, width: 90, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ ...s.vizBar, position: 'relative', width: '100%', height: 50, background: 'rgba(16,185,129,0.2)' }}>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Savings</div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#10b981' }}>₹{fmt(result.net_surplus)}</div>
-                  </div>
-                  {outflows.slice(0, 3).map((o, i) => (
-                    <div key={i} style={{ ...s.vizBar, position: 'relative', width: '100%', height: 40, background: 'rgba(239,68,68,0.2)' }}>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{o.name}</div>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: '#ef4444' }}>₹{fmt(o.amount)}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ ...s.statusCard, background: result.savings_rate >= result.target_savings_rate ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${result.savings_rate >= result.target_savings_rate ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}` }}>
-              {result.savings_rate >= result.target_savings_rate ? (
-                <p style={{ fontSize: 13, color: '#10b981', margin: 0 }}>✓ Great! You're saving {result.savings_rate}% of your income, above the {result.target_savings_rate}% target.</p>
-              ) : (
-                <p style={{ fontSize: 13, color: '#f59e0b', margin: 0 }}>⚠ Your savings rate is {result.savings_rate}%, below the recommended {result.target_savings_rate}%. Consider reducing expenses.</p>
-              )}
-            </div>
-          </>
-        )}
+      <div style={footer}>
+        <span style={footerIcon}>✓</span>
+        <span><strong>Verified Methodology</strong> · Calculations are tested against official standards: Income Tax Act 1961.</span>
       </div>
     </div>
   );

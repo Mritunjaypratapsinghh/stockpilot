@@ -62,6 +62,8 @@ export default function LandingPage() {
           <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px' }}>StockPilot</span>
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
+          <Link href="/services" style={{ fontSize: 15, color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)', textDecoration: 'none', fontWeight: 500 }}>Services</Link>
+          <Link href="/about" style={{ fontSize: 15, color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)', textDecoration: 'none', fontWeight: 500 }}>About</Link>
           <Link href="/calculators" style={{ fontSize: 15, color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)', textDecoration: 'none', fontWeight: 500 }}>Calculators</Link>
           <button onClick={toggleTheme} style={{ fontSize: 15, color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>{isDark ? '☀️ Light' : '🌙 Dark'}</button>
           <Link href="/login" style={{ fontSize: 15, color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)', textDecoration: 'none', fontWeight: 500 }}>Login</Link>
@@ -179,6 +181,8 @@ export default function LandingPage() {
         </div>
         <div style={{ display: 'flex', gap: 40 }}>
           <Link href="/calculators" style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)', textDecoration: 'none' }}>Calculators</Link>
+          <Link href="/services" style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)', textDecoration: 'none' }}>Services</Link>
+          <Link href="/about" style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)', textDecoration: 'none' }}>About</Link>
           <Link href="/login" style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)', textDecoration: 'none' }}>Login</Link>
         </div>
         <span style={{ fontSize: 13, color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)' }}>© 2026</span>

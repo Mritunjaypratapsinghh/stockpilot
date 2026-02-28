@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Navbar from '../../components/Navbar';
+import PublicNavbar from '../../components/PublicNavbar';
 import { PieChart, TrendingUp, Target, Wallet, CreditCard, Receipt, DollarSign, Calculator } from 'lucide-react';
 import AssetAllocation from './AssetAllocation';
 import SIPStepup from './SIPStepup';
@@ -28,7 +28,7 @@ export default function CalculatorsPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', margin: 0, padding: 0 }}>
-      <Navbar />
+      <PublicNavbar />
       <div style={{ display: 'flex', margin: 0, padding: 0 }}>
         <aside className="calc-sidebar" style={{ width: 230, minHeight: 'calc(100vh - 60px)', background: 'var(--bg-secondary)', borderRight: '1px solid var(--border)', padding: '24px 14px', margin: 0, transition: 'width 0.2s' }}>
           <div className="calc-sidebar-title" style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 18px 10px', padding: 0 }}>Calculators</div>

@@ -13,7 +13,7 @@ export async function api(endpoint, options = {}) {
   });
 
   if (!res.ok) {
-    if (res.status === 401 && typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+    if (res.status === 401 && typeof window !== 'undefined' && !window.location.pathname.includes('/login') && !window.location.pathname.includes('/calculators')) {
       localStorage.removeItem('token');
       window.location.href = '/login';
       return;

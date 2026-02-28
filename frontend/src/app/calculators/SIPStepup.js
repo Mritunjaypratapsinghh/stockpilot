@@ -235,7 +235,6 @@ export default function SIPStepup() {
             </div>
           </div>
           <div style={{ paddingTop: 16, borderTop: '1px solid rgba(59,130,246,0.1)' }}>
-            <p style={{ fontSize: 10, color: 'var(--text-muted)', margin: 0 }}>Financial research led by <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Soumya Ranjan Dash</span>, Certified Financial Researcher.</p>
           </div>
         </div>
       </div>

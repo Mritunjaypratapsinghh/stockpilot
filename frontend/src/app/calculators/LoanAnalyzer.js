@@ -229,10 +229,7 @@ export default function LoanAnalyzer() {
         </div>
         <span style={{ fontSize: 11, fontWeight: 600, color: '#10b981', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 6, padding: '4px 10px', margin: 0, whiteSpace: 'nowrap' }}>📋 UPDATED: FY 2026-27 (INTERIM BUDGET)</span>
       </div>
-      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '10px 0 0 0' }}>Financial research led by <strong>Soumya Ranjan Dash</strong>, Certified Financial Researcher.</p>
     </div>
-  );
-}
 
 function StrategyCard({ title: t, Icon, iconColor, valColor, tenure, interest, combo }) {
 

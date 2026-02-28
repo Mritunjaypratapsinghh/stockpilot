@@ -42,9 +42,9 @@ export default function AboutPage() {
       {/* Hero */}
       <section style={{ padding: '120px 40px 80px', maxWidth: 800, margin: '0 auto' }}>
         <p style={{ fontSize: 14, fontWeight: 600, color: '#8b5cf6', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 16 }}>About</p>
-        <h1 style={{ fontSize: 56, fontWeight: 700, letterSpacing: '-2px', margin: '0 0 32px 0', lineHeight: 1.1 }}>Built by investors, for investors</h1>
+        <h1 style={{ fontSize: 56, fontWeight: 700, letterSpacing: '-2px', margin: '0 0 32px 0', lineHeight: 1.1 }}>Built for the modern Indian investor</h1>
         <p style={{ fontSize: 20, color: muted, lineHeight: 1.8, margin: 0 }}>
-          StockPilot started as a personal project to solve a simple problem — tracking investments across multiple platforms without the noise. What began as a spreadsheet replacement grew into a full-fledged portfolio intelligence platform.
+          StockPilot was founded with a clear vision — to give every investor access to institutional-grade portfolio analytics. We combine real-time market data, intelligent automation, and clean design to help you make better investment decisions.
         </p>
       </section>
 
@@ -53,7 +53,7 @@ export default function AboutPage() {
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
           <h2 style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-1.5px', margin: '0 0 24px 0' }}>Our mission</h2>
           <p style={{ fontSize: 20, color: muted, lineHeight: 1.8, margin: 0 }}>
-            To democratize portfolio analytics. Every investor — whether managing ₹10,000 or ₹10 crore — deserves access to professional-grade tools. We believe financial literacy starts with clarity, and clarity starts with the right tools.
+            To democratize portfolio analytics. Whether you manage ₹10,000 or ₹10 crore, you deserve professional-grade tools to track and grow your wealth. We believe financial clarity is the foundation of smart investing.
           </p>
         </div>
       </section>

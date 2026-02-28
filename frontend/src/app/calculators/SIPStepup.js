@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { api } from '../../lib/api';
-import { Info, ChevronDown, ChevronUp, ChartPie, TrendingUp, ArrowRight, ShieldCheck, BookOpen } from 'lucide-react';
+import { Info, ChevronDown, ChevronUp, ChartPie, TrendingUp, ShieldCheck, BookOpen } from 'lucide-react';
 import { C, slider, sCard, CalcStatus, fmt, useCompact } from './theme';
 
 export default function SIPStepup() {
@@ -100,30 +100,6 @@ export default function SIPStepup() {
             </button>
           </div>
 
-          {/* Promo Card */}
-          <div style={{ background: 'linear-gradient(to bottom right, #1e1b4b, #312e81)', borderRadius: 12, padding: 16, position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 25px rgba(0,0,0,0.15)' }}>
-            <div style={{ position: 'absolute', top: 0, right: 0, width: 192, height: 192, background: 'rgba(99,102,241,0.2)', borderRadius: '50%', filter: 'blur(48px)', marginRight: -64, marginTop: -64, pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', bottom: 0, left: 0, width: 96, height: 96, background: 'rgba(16,185,129,0.2)', borderRadius: '50%', filter: 'blur(32px)', marginLeft: -24, marginBottom: -24, pointerEvents: 'none' }} />
-            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: compact ? 'column' : 'row', alignItems: compact ? 'flex-start' : 'center', justifyContent: 'space-between', gap: 16 }}>
-              <div style={{ flex: 1 }}>
-                <span style={{ background: 'rgba(250,204,21,0.2)', color: '#fde047', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '0.05em', border: '1px solid rgba(250,204,21,0.2)' }}>Recommended</span>
-                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: '8px 0 4px 0', lineHeight: 1.3 }}>Get Your DIY Investment Toolkit</h3>
-                <p style={{ fontSize: 12, color: '#cbd5e1', margin: 0 }}>Expert-curated strategy for your goals.</p>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, alignSelf: compact ? 'flex-end' : 'auto' }}>
-                <div style={{ background: 'rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: 8, backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center', minWidth: 70 }}>
-                  <span style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', textDecoration: 'line-through', display: 'block' }}>₹999</span>
-                  <span style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>₹399</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 140 }}>
-                  <a href="/service/diy-toolkit" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', color: '#1e1b4b', fontWeight: 700, padding: '6px 16px', borderRadius: 8, fontSize: 12, textDecoration: 'none', boxShadow: '0 10px 15px rgba(0,0,0,0.1)', margin: 0 }}>Buy DIY Plan Now</a>
-                  <a href="/?section=pricing" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', fontWeight: 500, padding: '6px 16px', borderRadius: 8, fontSize: 10, textDecoration: 'none', margin: 0 }}>
-                    Explore Other Services <ArrowRight style={{ width: 10, height: 10 }} />
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Right — Chart + Stats */}

@@ -122,7 +122,12 @@ input:focus, select:focus { outline: none; }
 
 /* Hero entrance animations */
 @keyframes pub-fade-up { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+
+.pub-hero-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.pub-hero-bg::before { content: ''; position: absolute; top: -30%; left: 50%; transform: translateX(-50%); width: 800px; height: 600px; background: radial-gradient(ellipse, var(--accent) 0%, transparent 70%); opacity: 0.06; }
+.pub-hero > *:not(.pub-hero-bg) { position: relative; z-index: 1; }
 .pub-hero > * { opacity: 0; animation: pub-fade-up 0.6s ease-out forwards; }
+.pub-fade-in { opacity: 0; animation: pub-fade-up 0.5s ease-out forwards; }
 .pub-hero > *:nth-child(1) { animation-delay: 0.1s; }
 .pub-hero > *:nth-child(2) { animation-delay: 0.25s; }
 .pub-hero > *:nth-child(3) { animation-delay: 0.4s; }

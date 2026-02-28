@@ -16,7 +16,8 @@ export default function ServicesPage() {
   return (
     <PublicLayout>
       {/* Hero */}
-      <section className="pub-hero">
+      <section className="pub-hero" style={{ position: 'relative' }}>
+        <div className="pub-hero-bg" aria-hidden="true" />
         <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 16 }}>Our Services</p>
         <h1 className="pub-h1" style={{ fontSize: 'clamp(36px, 5vw, 56px)' }}>Tools built for serious investors</h1>
         <p className="pub-subtitle" style={{ margin: '0 auto' }}>From portfolio tracking to AI-powered signals — everything you need to make informed investment decisions.</p>
@@ -57,7 +58,7 @@ export default function ServicesPage() {
         <h2 className="pub-h2">What's included</h2>
         <div className="pub-grid-2" style={{ marginTop: 48 }}>
           {services.map((s, i) => (
-            <div key={i} className="pub-card" style={{ position: 'relative' }}>
+            <div key={i} className="pub-card pub-fade-in" style={{ position: 'relative', animationDelay: `${i * 0.1}s` }}>
               {s.free && <div style={{ position: 'absolute', top: 20, right: 20, padding: '4px 10px', background: 'var(--green-bg)', borderRadius: 6 }}><span style={{ fontSize: 12, fontWeight: 700, color: 'var(--green)' }}>FREE</span></div>}
               <s.icon style={{ width: 28, height: 28, color: 'var(--accent)', marginBottom: 16 }} />
               <h3 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 10px 0' }}>{s.title}</h3>

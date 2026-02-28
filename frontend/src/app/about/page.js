@@ -13,7 +13,8 @@ export default function AboutPage() {
   return (
     <PublicLayout>
       {/* Hero */}
-      <section className="pub-hero" style={{ textAlign: 'left', maxWidth: 800, margin: '0 auto', padding: '120px 24px 80px' }}>
+      <section className="pub-hero" style={{ textAlign: 'left', maxWidth: 800, margin: '0 auto', padding: '120px 24px 80px', position: 'relative' }}>
+        <div className="pub-hero-bg" aria-hidden="true" />
         <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 16 }}>About</p>
         <h1 className="pub-h1" style={{ fontSize: 'clamp(36px, 5vw, 56px)' }}>Built for the modern Indian investor</h1>
         <p style={{ fontSize: 20, color: 'var(--text-secondary)', lineHeight: 1.8, margin: '24px 0 0 0', maxWidth: 700 }}>
@@ -36,7 +37,7 @@ export default function AboutPage() {
         <h2 className="pub-h2">What we stand for</h2>
         <div className="pub-grid-3" style={{ marginTop: 48 }}>
           {values.map((v, i) => (
-            <div key={i} style={{ borderTop: '2px solid var(--accent)', paddingTop: 20 }}>
+            <div key={i} className="pub-fade-in" style={{ borderTop: '2px solid var(--accent)', paddingTop: 20, animationDelay: `${i * 0.15}s` }}>
               <h3 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 10px 0' }}>{v.title}</h3>
               <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.7, margin: 0 }}>{v.desc}</p>
             </div>

@@ -25,7 +25,8 @@ export default function LandingPage() {
   return (
     <PublicLayout>
       {/* Hero */}
-      <section className="pub-hero" style={{ position: 'relative', overflow: 'hidden' }}>
+      <section className="pub-hero" style={{ position: 'relative' }}>
+        <div className="pub-hero-bg" aria-hidden="true" />
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', border: '1px solid var(--border)', borderRadius: 100, marginBottom: 40, background: 'var(--bg-secondary)' }}>
           <Sparkles style={{ width: 16, height: 16, color: 'var(--accent)' }} />
           <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-secondary)' }}>Free calculators — no signup required</span>

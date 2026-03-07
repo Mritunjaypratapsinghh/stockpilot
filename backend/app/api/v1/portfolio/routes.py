@@ -190,6 +190,13 @@ async def get_sector_allocation(current_user: dict = Depends(get_current_user)) 
 )
 async def get_dashboard(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get complete dashboard with holdings, sectors, and recent transactions."""
+    from ...services.cache import cache_get, cache_set
+
+    cache_key = f"dashboard:{current_user['_id']}"
+    cached = await cache_get(cache_key)
+    if cached:
+        return StandardResponse.ok(cached)
+
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
         return StandardResponse.ok(
@@ -244,28 +251,28 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)) -> Stand
         for s, v in sorted(sector_values.items(), key=lambda x: x[1], reverse=True)
     ]
 
-    return StandardResponse.ok(
-        {
-            "holdings": holdings_list,
-            "sectors": sectors,
-            "xirr": _calc_xirr(holdings, total_val),
-            "xirr_stocks": _calc_xirr(
-                [h for h in holdings if h.holding_type != "MF"],
-                sum(hl["current_value"] for hl in holdings_list if hl["holding_type"] != "MF"),
-            ),
-            "xirr_mf": _calc_xirr(
-                [h for h in holdings if h.holding_type == "MF"],
-                sum(hl["current_value"] for hl in holdings_list if hl["holding_type"] == "MF"),
-            ),
-            "transactions": txns[:50],
-            "summary": {
-                "invested": round(total_inv, 2),
-                "current": round(total_val, 2),
-                "pnl": round(total_val - total_inv, 2),
-                "pnl_pct": round(((total_val - total_inv) / total_inv * 100) if total_inv > 0 else 0, 2),
-            },
-        }
-    )
+    result = {
+        "holdings": holdings_list,
+        "sectors": sectors,
+        "xirr": _calc_xirr(holdings, total_val),
+        "xirr_stocks": _calc_xirr(
+            [h for h in holdings if h.holding_type != "MF"],
+            sum(hl["current_value"] for hl in holdings_list if hl["holding_type"] != "MF"),
+        ),
+        "xirr_mf": _calc_xirr(
+            [h for h in holdings if h.holding_type == "MF"],
+            sum(hl["current_value"] for hl in holdings_list if hl["holding_type"] == "MF"),
+        ),
+        "transactions": txns[:50],
+        "summary": {
+            "invested": round(total_inv, 2),
+            "current": round(total_val, 2),
+            "pnl": round(total_val - total_inv, 2),
+            "pnl_pct": round(((total_val - total_inv) / total_inv * 100) if total_inv > 0 else 0, 2),
+        },
+    }
+    await cache_set(cache_key, result, ttl=120)
+    return StandardResponse.ok(result)
 
 
 def _calc_xirr(holdings, current_value):

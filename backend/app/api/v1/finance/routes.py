@@ -264,6 +264,13 @@ async def get_tax_harvest(current_user: dict = Depends(get_current_user)) -> Sta
     """Get tax loss harvesting opportunities."""
     from datetime import datetime, timedelta
 
+    from ....services.cache import cache_get, cache_set
+
+    cache_key = f"tax_harvest:{current_user['_id']}"
+    cached = await cache_get(cache_key)
+    if cached:
+        return StandardResponse.ok(cached)
+
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
         return StandardResponse.ok({"losses": [], "gains": [], "stcg": {}, "ltcg": {}, "note": ""})
@@ -324,38 +331,45 @@ async def get_tax_harvest(current_user: dict = Depends(get_current_user)) -> Sta
     stcg_net = stcg_total - stcl_total
     ltcg_net = ltcg_total - ltcl_total
 
-    return StandardResponse.ok(
-        {
-            "losses": losses[:10],
-            "gains": gains[:10],
-            "stcg": {
-                "gains": round(stcg_total, 2),
-                "losses": round(stcl_total, 2),
-                "net": round(stcg_net, 2),
-                "tax": round(max(0, stcg_net) * STCG_RATE, 2),
-            },
-            "ltcg": {
-                "gains": round(ltcg_total, 2),
-                "losses": round(ltcl_total, 2),
-                "net": round(ltcg_net, 2),
-                "tax": round(max(0, ltcg_net - 125000) * LTCG_RATE, 2),
-                "exemption": 125000,
-            },
-            "total_harvestable_loss": round(stcl_total + ltcl_total, 2),
-            "potential_tax_saved": round(stcl_total * STCG_RATE + ltcl_total * LTCG_RATE, 2),
-            "note": (
-                "Sell loss-making stocks before March 31 to offset gains. "
-                "STCL offsets STCG (20%), LTCL offsets LTCG (12.5%). "
-                "Avoid wash sale - wait 30 days before rebuying."
-            ),
-        }
-    )
+    result = {
+        "losses": losses[:10],
+        "gains": gains[:10],
+        "stcg": {
+            "gains": round(stcg_total, 2),
+            "losses": round(stcl_total, 2),
+            "net": round(stcg_net, 2),
+            "tax": round(max(0, stcg_net) * STCG_RATE, 2),
+        },
+        "ltcg": {
+            "gains": round(ltcg_total, 2),
+            "losses": round(ltcl_total, 2),
+            "net": round(ltcg_net, 2),
+            "tax": round(max(0, ltcg_net - 125000) * LTCG_RATE, 2),
+            "exemption": 125000,
+        },
+        "total_harvestable_loss": round(stcl_total + ltcl_total, 2),
+        "potential_tax_saved": round(stcl_total * STCG_RATE + ltcl_total * LTCG_RATE, 2),
+        "note": (
+            "Sell loss-making stocks before March 31 to offset gains. "
+            "STCL offsets STCG (20%), LTCL offsets LTCG (12.5%). "
+            "Avoid wash sale - wait 30 days before rebuying."
+        ),
+    }
+    await cache_set(cache_key, result, ttl=300)
+    return StandardResponse.ok(result)
 
 
 @router.get("/tax", summary="Get tax summary", description="Calculate LTCG and STCG tax liability")
 async def get_tax_summary(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Calculate tax liability based on holding period."""
     from datetime import datetime, timedelta
+
+    from ....services.cache import cache_get, cache_set
+
+    cache_key = f"tax_summary:{current_user['_id']}"
+    cached = await cache_get(cache_key)
+    if cached:
+        return StandardResponse.ok(cached)
 
     holdings = await get_user_holdings(current_user["_id"])
     now = datetime.now()
@@ -400,25 +414,25 @@ async def get_tax_summary(current_user: dict = Depends(get_current_user)) -> Sta
     ltcg_tax = ltcg_taxable * 0.125
     stcg_tax = max(0, unrealized_stcg) * 0.20  # Only tax on gains, not losses
 
-    return StandardResponse.ok(
-        {
-            "financial_year": fy,
-            "realized": {"stcg": 0, "ltcg": 0, "total": 0},
-            "unrealized": {
-                "stcg": round(unrealized_stcg, 2),
-                "ltcg": round(unrealized_ltcg, 2),
-                "total": round(unrealized_ltcg + unrealized_stcg, 2),
-            },
-            "tax_liability": {
-                "ltcg_exemption": ltcg_exemption,
-                "taxable_ltcg": round(ltcg_taxable, 2),
-                "ltcg_tax": round(ltcg_tax, 2),
-                "stcg_tax": round(stcg_tax, 2),
-                "total_tax": round(ltcg_tax + stcg_tax, 2),
-            },
-            "transactions": [],
-        }
-    )
+    result = {
+        "financial_year": fy,
+        "realized": {"stcg": 0, "ltcg": 0, "total": 0},
+        "unrealized": {
+            "stcg": round(unrealized_stcg, 2),
+            "ltcg": round(unrealized_ltcg, 2),
+            "total": round(unrealized_ltcg + unrealized_stcg, 2),
+        },
+        "tax_liability": {
+            "ltcg_exemption": ltcg_exemption,
+            "taxable_ltcg": round(ltcg_taxable, 2),
+            "ltcg_tax": round(ltcg_tax, 2),
+            "stcg_tax": round(stcg_tax, 2),
+            "total_tax": round(ltcg_tax + stcg_tax, 2),
+        },
+        "transactions": [],
+    }
+    await cache_set(cache_key, result, ttl=300)
+    return StandardResponse.ok(result)
 
 
 @router.get("/dividends", summary="Get dividends", description="List dividend income from holdings")

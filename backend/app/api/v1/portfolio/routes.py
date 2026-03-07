@@ -249,6 +249,14 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)) -> Stand
             "holdings": holdings_list,
             "sectors": sectors,
             "xirr": _calc_xirr(holdings, total_val),
+            "xirr_stocks": _calc_xirr(
+                [h for h in holdings if h.holding_type != "MF"],
+                sum(hl["current_value"] for hl in holdings_list if hl["holding_type"] != "MF"),
+            ),
+            "xirr_mf": _calc_xirr(
+                [h for h in holdings if h.holding_type == "MF"],
+                sum(hl["current_value"] for hl in holdings_list if hl["holding_type"] == "MF"),
+            ),
             "transactions": txns[:50],
             "summary": {
                 "invested": round(total_inv, 2),

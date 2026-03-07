@@ -9,6 +9,8 @@ export default function PortfolioPage() {
   const [transactions, setTransactions] = useState([]);
   const [sectors, setSectors] = useState([]);
   const [xirr, setXirr] = useState(null);
+  const [xirrStocks, setXirrStocks] = useState(null);
+  const [xirrMf, setXirrMf] = useState(null);
   const [summary, setSummary] = useState({ invested: 0, current: 0, pnl: 0, pnl_pct: 0 });
   const [dividends, setDividends] = useState([]);
   const [divSummary, setDivSummary] = useState({ total_dividend: 0, dividend_yield: 0, by_year: [], by_symbol: [] });
@@ -40,6 +42,8 @@ export default function PortfolioPage() {
       setHoldings(data.holdings || []);
       setSectors(data.sectors || []);
       setXirr(data.xirr);
+      setXirrStocks(data.xirr_stocks);
+      setXirrMf(data.xirr_mf);
       setTransactions(data.transactions || []);
       setSummary(data.summary || { invested: 0, current: 0, pnl: 0, pnl_pct: 0 });
       const dividendsList = divsData.dividends || [];
@@ -223,8 +227,8 @@ export default function PortfolioPage() {
           </div>
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
             <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">XIRR</div>
-            <div className={`text-base md:text-xl font-semibold tabular ${(xirr || 0) >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
-              {xirr != null ? `${xirr >= 0 ? '+' : ''}${xirr.toFixed(2)}%` : '—'}
+            <div className={`text-base md:text-xl font-semibold tabular ${((holdingFilter === 'stocks' ? xirrStocks : holdingFilter === 'mf' ? xirrMf : xirr) || 0) >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
+              {(() => { const v = holdingFilter === 'stocks' ? xirrStocks : holdingFilter === 'mf' ? xirrMf : xirr; return v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : '—'; })()}
             </div>
           </div>
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">

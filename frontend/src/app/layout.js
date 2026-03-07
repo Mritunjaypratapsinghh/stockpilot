@@ -1,4 +1,5 @@
 import './globals.css';
+import ChatWidgetWrapper from '../components/ChatWidgetWrapper';
 
 export const metadata = {
   title: 'StockPilot',
@@ -21,7 +22,7 @@ export default function RootLayout({ children }) {
           })();
         `}} />
       </head>
-      <body>{children}</body>
+      <body>{children}<ChatWidgetWrapper /></body>
     </html>
   );
 }

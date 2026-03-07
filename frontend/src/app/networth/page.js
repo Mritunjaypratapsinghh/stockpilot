@@ -111,15 +111,15 @@ export default function NetWorthPage() {
     color: COLORS[i % COLORS.length] 
   })).filter(item => item.value > 0) : [];
 
-  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-6">Loading...</div></div>;
+  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-4 md:p-6">Loading...</div></div>;
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
       <main className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Net Worth</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">Net Worth</h1>
             <p className="text-[var(--text-secondary)]">Track all your assets in one place</p>
           </div>
           <div className="flex items-center gap-3">
@@ -199,7 +199,7 @@ export default function NetWorthPage() {
             <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Other Assets</h2>
             <div className="space-y-2">
               {assets.map((a) => (
-                <div key={a.id || a._id} className="flex items-center justify-between p-3 bg-[var(--bg-tertiary)] rounded-lg">
+                <div key={a.id || a._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-[var(--bg-tertiary)] rounded-lg">
                   <div>
                     <div className="font-medium text-[var(--text-primary)]">{a.name}</div>
                     <div className="text-sm text-[var(--text-secondary)]">{a.category}</div>
@@ -222,7 +222,7 @@ export default function NetWorthPage() {
         ) : (
           <>
             {/* Monthly View */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <button onClick={() => setYear(year - 1)} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg">
                 <ChevronLeft className="w-5 h-5 text-[var(--text-secondary)]" />
               </button>
@@ -244,25 +244,25 @@ export default function NetWorthPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-[var(--bg-secondary)] rounded-xl p-4 border border-[var(--border)]">
                 <div className="text-sm text-[var(--text-secondary)]">YTD Growth</div>
-                <div className={`text-2xl font-bold ${(monthly?.ytd_growth || 0) >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                <div className={`text-xl md:text-2xl font-bold ${(monthly?.ytd_growth || 0) >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
                   {(monthly?.ytd_growth || 0) >= 0 ? '+' : ''}{monthly?.ytd_growth || 0}%
                 </div>
               </div>
               <div className="bg-[var(--bg-secondary)] rounded-xl p-4 border border-[var(--border)]">
                 <div className="text-sm text-[var(--text-secondary)]">Annualized</div>
-                <div className={`text-2xl font-bold ${(monthly?.annualized_growth || 0) >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                <div className={`text-xl md:text-2xl font-bold ${(monthly?.annualized_growth || 0) >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
                   {(monthly?.annualized_growth || 0) >= 0 ? '+' : ''}{monthly?.annualized_growth || 0}%
                 </div>
               </div>
               <div className="bg-[var(--bg-secondary)] rounded-xl p-4 border border-[var(--border)]">
                 <div className="text-sm text-[var(--text-secondary)]">Rating</div>
-                <div className={`text-2xl font-bold ${monthly?.rating === 'Excellent' || monthly?.rating === 'Good' ? 'text-[#22c55e]' : monthly?.rating === 'Average' ? 'text-[#eab308]' : 'text-[#ef4444]'}`}>
+                <div className={`text-xl md:text-2xl font-bold ${monthly?.rating === 'Excellent' || monthly?.rating === 'Good' ? 'text-[#22c55e]' : monthly?.rating === 'Average' ? 'text-[#eab308]' : 'text-[#ef4444]'}`}>
                   {monthly?.rating || '-'}
                 </div>
               </div>
               <div className="bg-[var(--bg-secondary)] rounded-xl p-4 border border-[var(--border)]">
                 <div className="text-sm text-[var(--text-secondary)]">Target (15%)</div>
-                <div className="text-2xl font-bold">
+                <div className="text-xl md:text-2xl font-bold">
                   {monthly?.performance?.good_growth ? <CheckCircle className="w-6 h-6 text-[#22c55e]" /> : <XCircle className="w-6 h-6 text-[#ef4444]" />}
                 </div>
               </div>
@@ -386,7 +386,7 @@ export default function NetWorthPage() {
             <div className="bg-[var(--bg-secondary)] rounded-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
               <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">{selectedMonth.month_name} {year}</h3>
               <p className="text-sm text-[var(--text-secondary)] mb-4">{selectedMonth.date}</p>
-              <div className="text-2xl font-bold text-[var(--text-primary)] mb-4">₹{selectedMonth.value.toLocaleString('en-IN')}</div>
+              <div className="text-xl md:text-2xl font-bold text-[var(--text-primary)] mb-4">₹{selectedMonth.value.toLocaleString('en-IN')}</div>
               <div className="space-y-2">
                 {Object.entries(selectedMonth.breakdown || {}).sort((a, b) => b[1] - a[1]).map(([name, value]) => (
                   <div key={name} className="flex justify-between items-center p-2 bg-[var(--bg-tertiary)] rounded-lg">

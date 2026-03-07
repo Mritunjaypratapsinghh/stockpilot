@@ -28,6 +28,7 @@ class VaultEntryResponse(BaseModel):
     details: dict
     notes: str | None
     nominee_visible: bool
+    files: list[str] = []
     created_at: str
     updated_at: str
 

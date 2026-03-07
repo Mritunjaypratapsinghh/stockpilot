@@ -76,9 +76,9 @@ export default function SIPPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">SIP Tracker</h1>
+      <main className="p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <h1 className="text-xl md:text-2xl font-bold">SIP Tracker</h1>
           <div className="flex gap-2">
             <button onClick={() => setShowCalc(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm"><Calculator className="w-4 h-4" /> Calculator</button>
             <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium"><Plus className="w-4 h-4" /> Add SIP</button>
@@ -121,7 +121,7 @@ export default function SIPPage() {
           <div className="space-y-3">
             {sips.map(sip => (
               <div key={sip._id} className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-4">
                     <div>
                       <div className="font-medium">{sip.symbol}</div>
@@ -171,7 +171,7 @@ export default function SIPPage() {
         {showForm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowForm(false)}>
             <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h2 className="text-lg font-semibold">Add SIP</h2>
                 <button onClick={() => setShowForm(false)} className="p-2 text-[var(--text-muted)] hover:text-white"><X className="w-5 h-5" /></button>
               </div>
@@ -225,7 +225,7 @@ export default function SIPPage() {
         {showCalc && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowCalc(false)}>
             <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h2 className="text-lg font-semibold">SIP Calculator</h2>
                 <button onClick={() => setShowCalc(false)} className="p-2 text-[var(--text-muted)] hover:text-white"><X className="w-5 h-5" /></button>
               </div>

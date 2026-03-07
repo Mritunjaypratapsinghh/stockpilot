@@ -52,9 +52,9 @@ export default function RebalancePage() {
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
       <main className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Portfolio Rebalancing</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">Portfolio Rebalancing</h1>
           <p className="text-[var(--text-secondary)]">Keep your portfolio aligned with your target allocation</p>
         </div>
         <button onClick={fetchData} className="p-2 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)]">
@@ -83,7 +83,7 @@ export default function RebalancePage() {
 
         {/* Target Allocation */}
         <div className="bg-[var(--bg-secondary)] rounded-xl p-6 border border-[var(--border)]">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <h2 className="text-lg font-semibold text-[var(--text-primary)]">Target Allocation</h2>
             {editing ? (
               <button onClick={saveTarget} className="flex items-center gap-1 px-3 py-1 bg-[#22c55e] text-white rounded-lg text-sm">

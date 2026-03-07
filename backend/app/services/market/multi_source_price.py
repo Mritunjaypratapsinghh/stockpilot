@@ -10,7 +10,21 @@ from ...utils.logger import logger
 
 # Cache: symbol -> (data, timestamp)
 _cache: Dict[str, tuple] = {}
-CACHE_TTL = 60  # 1 minute for live data
+CACHE_TTL_MARKET = 60  # 1 minute during market hours
+CACHE_TTL_CLOSED = 3600  # 1 hour when market is closed
+
+
+def _get_cache_ttl() -> int:
+    """Return cache TTL based on whether market is open."""
+    from datetime import datetime
+
+    import pytz
+
+    now = datetime.now(pytz.timezone("Asia/Kolkata"))
+    # Market: Mon-Fri, 9:15 AM - 3:30 PM IST
+    if now.weekday() < 5 and 915 <= now.hour * 100 + now.minute <= 1530:
+        return CACHE_TTL_MARKET
+    return CACHE_TTL_CLOSED
 
 
 async def _fetch_yahoo_chart(symbol: str) -> Optional[Dict]:
@@ -163,7 +177,7 @@ async def get_price(symbol: str, use_cache: bool = True) -> Optional[Dict]:
     # Check cache
     if use_cache and symbol in _cache:
         data, ts = _cache[symbol]
-        if time.time() - ts < CACHE_TTL:
+        if time.time() - ts < _get_cache_ttl():
             return data
 
     # Try sources in order

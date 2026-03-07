@@ -26,7 +26,7 @@ export default function MFHealthPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-6">Loading...</div></div>;
+  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-4 md:p-6">Loading...</div></div>;
 
   const getStatusColor = (status) => {
     if (status === 'Outperforming') return 'text-[#22c55e]';
@@ -45,12 +45,12 @@ export default function MFHealthPage() {
       <Navbar />
       <main className="p-6 space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Mutual Fund Health Check</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">Mutual Fund Health Check</h1>
           <p className="text-[var(--text-secondary)]">Analyze your MF portfolio for performance, overlap, and expenses</p>
         </div>
 
         {/* Health Score */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-[var(--bg-secondary)] rounded-xl p-6 border border-[var(--border)]">
             <div className="flex items-center gap-3">
               <div className={`p-3 rounded-xl ${health?.health_score >= 70 ? 'bg-[#22c55e]/20' : health?.health_score >= 40 ? 'bg-[#eab308]/20' : 'bg-[#ef4444]/20'}`}>
@@ -58,22 +58,22 @@ export default function MFHealthPage() {
               </div>
               <div>
                 <div className="text-sm text-[var(--text-secondary)]">Health Score</div>
-                <div className={`text-2xl font-bold ${health?.health_score >= 70 ? 'text-[#22c55e]' : health?.health_score >= 40 ? 'text-[#eab308]' : 'text-[#ef4444]'}`}>{health?.health_score || 0}/100</div>
+                <div className={`text-xl md:text-2xl font-bold ${health?.health_score >= 70 ? 'text-[#22c55e]' : health?.health_score >= 40 ? 'text-[#eab308]' : 'text-[#ef4444]'}`}>{health?.health_score || 0}/100</div>
                 {health?.note && <div className="text-xs text-[var(--text-secondary)] mt-1">{health.note}</div>}
               </div>
             </div>
           </div>
           <div className="bg-[var(--bg-secondary)] rounded-xl p-6 border border-[var(--border)]">
             <div className="text-sm text-[var(--text-secondary)]">Total MF Value</div>
-            <div className="text-2xl font-bold text-[var(--text-primary)]">₹{(health?.total_mf_value || 0).toLocaleString('en-IN')}</div>
+            <div className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">₹{(health?.total_mf_value || 0).toLocaleString('en-IN')}</div>
           </div>
           <div className="bg-[var(--bg-secondary)] rounded-xl p-6 border border-[var(--border)]">
             <div className="text-sm text-[var(--text-secondary)]">Avg Expense Ratio</div>
-            <div className={`text-2xl font-bold ${(health?.avg_expense_ratio || 0) > 1 ? 'text-[#ef4444]' : 'text-[#22c55e]'}`}>{health?.avg_expense_ratio || 0}%</div>
+            <div className={`text-xl md:text-2xl font-bold ${(health?.avg_expense_ratio || 0) > 1 ? 'text-[#ef4444]' : 'text-[#22c55e]'}`}>{health?.avg_expense_ratio || 0}%</div>
           </div>
           <div className="bg-[var(--bg-secondary)] rounded-xl p-6 border border-[var(--border)]">
             <div className="text-sm text-[var(--text-secondary)]">Annual Expense</div>
-            <div className="text-2xl font-bold text-[var(--text-primary)]">₹{(health?.total_annual_expense || 0).toLocaleString('en-IN')}</div>
+            <div className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">₹{(health?.total_annual_expense || 0).toLocaleString('en-IN')}</div>
           </div>
         </div>
 
@@ -97,7 +97,7 @@ export default function MFHealthPage() {
           <div className="space-y-3">
             {health?.funds?.map((fund, i) => (
               <div key={i} className={`p-4 rounded-lg ${getStatusBg(fund.status)}`}>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <div className="font-medium text-[var(--text-primary)]">{fund.symbol}</div>
                     <div className="text-sm text-[var(--text-secondary)]">{fund.category} • Expense: {fund.expense_ratio}%</div>
@@ -123,7 +123,7 @@ export default function MFHealthPage() {
         {expense && (
           <div className="bg-[var(--bg-secondary)] rounded-xl p-6 border border-[var(--border)]">
             <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Expense Ratio Impact (20 Years)</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="p-4 bg-[var(--bg-tertiary)] rounded-lg">
                 <div className="text-sm text-[var(--text-secondary)]">Current Plan Value</div>
                 <div className="text-xl font-bold text-[var(--text-primary)]">₹{(expense.future_value_current / 100000).toFixed(1)}L</div>

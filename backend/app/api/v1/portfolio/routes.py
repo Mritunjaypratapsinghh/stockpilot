@@ -190,6 +190,13 @@ async def get_sector_allocation(current_user: dict = Depends(get_current_user)) 
 )
 async def get_dashboard(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get complete dashboard with holdings, sectors, and recent transactions."""
+    from ....services.cache import cache_get, cache_set
+
+    cache_key = f"dashboard:{current_user['_id']}"
+    cached = await cache_get(cache_key)
+    if cached:
+        return StandardResponse.ok(cached)
+
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
         return StandardResponse.ok(
@@ -244,20 +251,89 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)) -> Stand
         for s, v in sorted(sector_values.items(), key=lambda x: x[1], reverse=True)
     ]
 
-    return StandardResponse.ok(
-        {
-            "holdings": holdings_list,
-            "sectors": sectors,
-            "xirr": None,
-            "transactions": txns[:50],
-            "summary": {
-                "invested": round(total_inv, 2),
-                "current": round(total_val, 2),
-                "pnl": round(total_val - total_inv, 2),
-                "pnl_pct": round(((total_val - total_inv) / total_inv * 100) if total_inv > 0 else 0, 2),
-            },
-        }
-    )
+    result = {
+        "holdings": holdings_list,
+        "sectors": sectors,
+        "xirr": _calc_xirr(holdings, total_val),
+        "xirr_stocks": _calc_xirr(
+            [h for h in holdings if h.holding_type != "MF"],
+            sum(hl["current_value"] for hl in holdings_list if hl["holding_type"] != "MF"),
+        ),
+        "xirr_mf": _calc_xirr(
+            [h for h in holdings if h.holding_type == "MF"],
+            sum(hl["current_value"] for hl in holdings_list if hl["holding_type"] == "MF"),
+        ),
+        "transactions": txns[:50],
+        "summary": {
+            "invested": round(total_inv, 2),
+            "current": round(total_val, 2),
+            "pnl": round(total_val - total_inv, 2),
+            "pnl_pct": round(((total_val - total_inv) / total_inv * 100) if total_inv > 0 else 0, 2),
+        },
+    }
+    await cache_set(cache_key, result, ttl=120 if _market_open() else 3600)
+    return StandardResponse.ok(result)
+
+
+def _market_open() -> bool:
+    from datetime import datetime
+
+    import pytz
+
+    now = datetime.now(pytz.timezone("Asia/Kolkata"))
+    return now.weekday() < 5 and 915 <= now.hour * 100 + now.minute <= 1530
+
+
+def _calc_xirr(holdings, current_value):
+    """Calculate XIRR from transaction history using Newton's method."""
+    from datetime import datetime
+
+    cashflows = []  # (date, amount) — negative for outflows, positive for inflows
+    for h in holdings:
+        for t in h.transactions:
+            try:
+                dt = datetime.strptime(t.date, "%Y-%m-%d")
+                amt = t.quantity * t.price
+                cashflows.append((dt, -amt if t.type == "BUY" else amt))
+            except (ValueError, TypeError):
+                continue
+
+    if not cashflows:
+        return None
+
+    # Add current portfolio value as final inflow
+    cashflows.append((datetime.now(), current_value))
+    cashflows.sort(key=lambda x: x[0])
+
+    if len(cashflows) < 2:
+        return None
+
+    # Newton's method for XIRR
+    d0 = cashflows[0][0]
+    days = [(cf[0] - d0).days / 365.0 for cf in cashflows]
+    amounts = [cf[1] for cf in cashflows]
+
+    def npv(rate):
+        return sum(a / (1 + rate) ** d for a, d in zip(amounts, days))
+
+    def dnpv(rate):
+        return sum(-d * a / (1 + rate) ** (d + 1) for a, d in zip(amounts, days))
+
+    rate = 0.1  # initial guess 10%
+    for _ in range(100):
+        n = npv(rate)
+        dn = dnpv(rate)
+        if abs(dn) < 1e-12:
+            break
+        new_rate = rate - n / dn
+        if abs(new_rate - rate) < 1e-7:
+            rate = new_rate
+            break
+        rate = new_rate
+        if rate < -0.99 or rate > 10:
+            return None
+
+    return round(rate * 100, 2) if -1 < rate < 10 else None
 
 
 @router.get("/transactions", summary="Get transactions", description="List all buy/sell transactions")
@@ -401,6 +477,239 @@ async def import_holdings(
             skipped += 1
 
     return StandardResponse.ok(ImportResult(broker=broker, imported=imported, skipped=skipped))
+
+
+@router.post(
+    "/import-transactions",
+    summary="Import transaction history",
+    description="Import transaction history from Groww XLSX (stocks or mutual funds)",
+)
+async def import_transactions(
+    file: UploadFile = File(...), current_user: dict = Depends(get_current_user)
+) -> StandardResponse:
+    """Import transactions from Groww order history XLSX."""
+    if not file.filename.endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="Only XLSX files supported")
+
+    import openpyxl
+
+    content = await file.read()
+    wb = openpyxl.load_workbook(io.BytesIO(content))
+    ws = wb.active
+
+    # Find header row
+    header_row = None
+    is_mf = False
+    for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
+        if not row:
+            continue
+        vals = [str(v).strip() if v else "" for v in row]
+        if "Symbol" in vals:
+            header_row = row_idx
+            break
+        if "Scheme Name" in vals:
+            header_row = row_idx
+            is_mf = True
+            break
+    if not header_row:
+        raise HTTPException(status_code=400, detail="Unsupported XLSX format")
+
+    headers = [str(c.value).strip().lower() if c.value else "" for c in ws[header_row]]
+    col = {h: i for i, h in enumerate(headers)}
+    user_id = PydanticObjectId(current_user["_id"])
+    imported = skipped = created = 0
+
+    if is_mf:
+        imported, skipped, created = await _import_mf_transactions(ws, header_row, col, user_id)
+    else:
+        imported, skipped, created = await _import_stock_transactions(ws, header_row, col, user_id)
+
+    return StandardResponse.ok(
+        {"imported": imported, "skipped": skipped, "holdings_created": created, "type": "MF" if is_mf else "STOCKS"}
+    )
+
+
+# MF scheme name -> DB symbol mapping
+MF_SYMBOL_MAP = {
+    "parag parikh flexi cap": "PPFAS",
+    "hdfc mid cap": "HDFC-MC",
+    "kotak large & midcap": "KOTAK-LM",
+    "bandhan small cap": "BANDHAN-SC",
+    "pgim india ultra short": "PGIM-USD",
+    "axis liquid": "AXIS-LIQ",
+    "motilal oswal midcap": "MOTILAL-MC",
+    "motilal oswal nifty 200": "MOTILAL-MOM30",
+    "jm flexicap": "JM-FLEXI",
+    "axis small cap": "AXIS-SC",
+    "nippon india small cap": "NIPPON-SC",
+}
+
+
+def _resolve_mf_symbol(scheme_name: str) -> str:
+    name = scheme_name.lower()
+    for key, symbol in MF_SYMBOL_MAP.items():
+        if key in name:
+            return symbol
+    # Fallback: first 2 words uppercased
+    parts = scheme_name.split()[:2]
+    return "-".join(p.upper()[:6] for p in parts)
+
+
+async def _import_mf_transactions(ws, header_row, col, user_id):
+    from datetime import datetime
+
+    txn_map = {}  # symbol -> list of txns
+    name_map = {}  # symbol -> scheme name
+
+    for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
+        if not row or not row[col.get("scheme name", 0)]:
+            continue
+        scheme = str(row[col["scheme name"]]).strip()
+        txn_type_raw = str(row[col["transaction type"]]).strip().upper()
+        txn_type = "BUY" if txn_type_raw == "PURCHASE" else "SELL" if txn_type_raw == "REDEEM" else None
+        if not txn_type:
+            continue
+        try:
+            units = float(row[col["units"]])
+            nav = float(row[col["nav"]])
+            amount_raw = str(row[col["amount"]]).replace(",", "")
+            float(amount_raw)  # validate
+            date_str = str(row[col["date"]]).strip()
+            dt = datetime.strptime(date_str, "%d %b %Y")
+            date_iso = dt.strftime("%Y-%m-%d")
+        except (ValueError, TypeError):
+            continue
+
+        symbol = _resolve_mf_symbol(scheme)
+        if symbol not in txn_map:
+            txn_map[symbol] = []
+            name_map[symbol] = scheme
+        txn_map[symbol].append(
+            {"type": txn_type, "quantity": round(units, 4), "price": round(nav, 2), "date": date_iso}
+        )
+
+    imported = skipped = created = 0
+    for symbol, txns in txn_map.items():
+        holding = await Holding.find_one(Holding.user_id == user_id, Holding.symbol == symbol)
+        if not holding:
+            net_qty = sum(t["quantity"] if t["type"] == "BUY" else -t["quantity"] for t in txns)
+            if net_qty <= 0:
+                skipped += len(txns)
+                continue
+            buy_txns = [t for t in txns if t["type"] == "BUY"]
+            avg = sum(t["price"] * t["quantity"] for t in buy_txns) / sum(t["quantity"] for t in buy_txns)
+            holding = Holding(
+                user_id=user_id,
+                symbol=symbol,
+                name=name_map[symbol],
+                quantity=round(net_qty, 4),
+                avg_price=round(avg, 2),
+                holding_type="MF",
+            )
+            await holding.insert()
+            created += 1
+
+        # Replace all transactions with XLSX (source of truth)
+        new_txns = [
+            EmbeddedTransaction(type=t["type"], quantity=t["quantity"], price=t["price"], date=t["date"]) for t in txns
+        ]
+        holding.transactions = new_txns
+        buys = [t for t in new_txns if t.type == "BUY"]
+        sells = [t for t in new_txns if t.type == "SELL"]
+        buy_qty = sum(t.quantity for t in buys)
+        sell_qty = sum(t.quantity for t in sells)
+        holding.quantity = round(buy_qty - sell_qty, 4)
+        if buys:
+            holding.avg_price = round(sum(t.quantity * t.price for t in buys) / buy_qty, 2)
+        holding.holding_type = "MF"
+        await holding.save()
+        imported += len(txns)
+
+    return imported, skipped, created
+
+
+async def _import_stock_transactions(ws, header_row, col, user_id):
+    from collections import Counter, defaultdict
+    from datetime import datetime
+
+    required = {"symbol", "type", "quantity", "value", "execution date and time"}
+    if not required.issubset(col.keys()):
+        raise HTTPException(status_code=400, detail=f"Missing columns: {required - col.keys()}")
+
+    txn_map = defaultdict(list)
+    skipped = 0
+    for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
+        if not row or not row[col["symbol"]]:
+            continue
+        symbol = str(row[col["symbol"]]).strip().upper()
+        txn_type = str(row[col["type"]]).strip().upper()
+        if txn_type not in ("BUY", "SELL"):
+            skipped += 1
+            continue
+        try:
+            qty = float(row[col["quantity"]])
+            value = float(row[col["value"]])
+            price = round(value / qty, 2) if qty > 0 else 0
+            date_str = str(row[col["execution date and time"]]).strip()
+            dt = datetime.strptime(date_str, "%d-%m-%Y %I:%M %p")
+            date_iso = dt.strftime("%Y-%m-%d")
+        except (ValueError, ZeroDivisionError):
+            skipped += 1
+            continue
+
+        name = str(row[col.get("stock name", col.get("symbol"))]).strip()
+        txn_map[symbol].append({"type": txn_type, "quantity": qty, "price": price, "date": date_iso, "name": name})
+
+    imported = created = 0
+    for symbol, txns in txn_map.items():
+        holding = await Holding.find_one(Holding.user_id == user_id, Holding.symbol == symbol)
+        if not holding:
+            net_qty = sum(t["quantity"] if t["type"] == "BUY" else -t["quantity"] for t in txns)
+            if net_qty <= 0:
+                skipped += len(txns)
+                continue
+            buy_txns = [t for t in txns if t["type"] == "BUY"]
+            avg = sum(t["price"] * t["quantity"] for t in buy_txns) / sum(t["quantity"] for t in buy_txns)
+            holding = Holding(
+                user_id=user_id,
+                symbol=symbol,
+                name=txns[0]["name"],
+                quantity=net_qty,
+                avg_price=round(avg, 2),
+            )
+            await holding.insert()
+            created += 1
+
+        # Use Counter-based dedup to handle same-day trades
+        xlsx_counter = Counter((t["date"], t["type"], t["quantity"]) for t in txns)
+        db_counter = Counter((t.date, t.type, t.quantity) for t in holding.transactions)
+        missing = xlsx_counter - db_counter
+
+        added = 0
+        for (date, ttype, qty), count in missing.items():
+            matching = [t for t in txns if t["date"] == date and t["type"] == ttype and t["quantity"] == qty]
+            for i in range(count):
+                if i < len(matching):
+                    t = matching[i]
+                    holding.transactions.append(
+                        EmbeddedTransaction(type=t["type"], quantity=t["quantity"], price=t["price"], date=t["date"])
+                    )
+                    added += 1
+
+        if added:
+            buys = [t for t in holding.transactions if t.type == "BUY"]
+            sells = [t for t in holding.transactions if t.type == "SELL"]
+            buy_qty = sum(t.quantity for t in buys)
+            sell_qty = sum(t.quantity for t in sells)
+            holding.quantity = buy_qty - sell_qty
+            if buys:
+                holding.avg_price = round(sum(t.quantity * t.price for t in buys) / buy_qty, 2)
+            await holding.save()
+            imported += added
+        else:
+            skipped += len(txns)
+
+    return imported, skipped, created
 
 
 def categorize_mf(name: str) -> tuple[str, int]:

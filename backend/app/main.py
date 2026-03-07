@@ -8,6 +8,7 @@ from .api.v1 import router as v1_router
 from .api.v1.alerts import router as alerts_router
 from .api.v1.analytics import router as analytics_router
 from .api.v1.auth import router as auth_router
+from .api.v1.chat import router as chat_router
 from .api.v1.export import router as export_router
 from .api.v1.finance import router as finance_router
 from .api.v1.ipo import router as ipo_router
@@ -81,6 +82,7 @@ app.include_router(analytics_router, prefix="/api/analytics", tags=["Analytics"]
 app.include_router(ipo_router, prefix="/api/ipo", tags=["IPO"])
 app.include_router(watchlist_router, prefix="/api/watchlist", tags=["Watchlist"])
 app.include_router(export_router, prefix="/api/export", tags=["Export"])
+app.include_router(chat_router, prefix="/api/chat", tags=["Chat"])
 
 
 @app.get("/")

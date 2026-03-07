@@ -87,33 +87,33 @@ export default function LedgerPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold flex items-center gap-2"><HandCoins className="w-6 h-6" /> Ledger</h1>
+      <main className="p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2"><HandCoins className="w-5 h-5 md:w-6 md:h-6" /> Ledger</h1>
           <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:opacity-90"><Plus className="w-4 h-4" /> Add Entry</button>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
-            <div className="text-sm text-[var(--text-muted)] mb-1">You Lent</div>
-            <div className="text-xl font-bold text-[#10b981]">{fmt(summary.total_lent)}</div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6">
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
+            <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">You Lent</div>
+            <div className="text-base md:text-xl font-bold text-[#10b981]">{fmt(summary.total_lent)}</div>
           </div>
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
-            <div className="text-sm text-[var(--text-muted)] mb-1">You Borrowed</div>
-            <div className="text-xl font-bold text-[#ef4444]">{fmt(summary.total_borrowed)}</div>
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
+            <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">You Borrowed</div>
+            <div className="text-base md:text-xl font-bold text-[#ef4444]">{fmt(summary.total_borrowed)}</div>
           </div>
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
-            <div className="text-sm text-[var(--text-muted)] mb-1">Net Balance</div>
-            <div className={`text-xl font-bold ${summary.net_balance >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>{fmt(summary.net_balance)}</div>
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
+            <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Net Balance</div>
+            <div className={`text-base md:text-xl font-bold ${summary.net_balance >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>{fmt(summary.net_balance)}</div>
           </div>
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
-            <div className="text-sm text-[var(--text-muted)] mb-1">Monthly EMI</div>
-            <div className="text-xl font-bold text-[#f59e0b]">{fmt(summary.monthly_outgoing)}</div>
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
+            <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Monthly EMI</div>
+            <div className="text-base md:text-xl font-bold text-[#f59e0b]">{fmt(summary.monthly_outgoing)}</div>
           </div>
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
-            <div className="text-sm text-[var(--text-muted)] mb-1">Pending</div>
-            <div className="text-xl font-bold">{summary.pending_entries}</div>
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4 col-span-2 md:col-span-1">
+            <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Pending</div>
+            <div className="text-base md:text-xl font-bold">{summary.pending_entries}</div>
           </div>
         </div>
 
@@ -175,7 +175,7 @@ export default function LedgerPage() {
           ) : entries.length === 0 ? (
             <div className="p-12 text-center text-[var(--text-muted)]">No entries yet</div>
           ) : (
-            <table className="w-full">
+            <table className="w-full min-w-[600px]">
               <thead>
                 <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-xs uppercase">
                   <th className="w-8"></th>
@@ -237,7 +237,7 @@ export default function LedgerPage() {
                   </tr>
                   {expanded === e.id && (
                     <tr key={`${e.id}-details`} className="bg-[var(--bg-tertiary)]">
-                      <td colSpan={8} className="px-6 py-4">
+                      <td colSpan={8} className="px-3 md:px-6 py-4">
                         <div className="grid grid-cols-2 gap-6 text-sm">
                           <div>
                             <div className="text-[var(--text-muted)] mb-2">Details</div>
@@ -278,7 +278,7 @@ export default function LedgerPage() {
         {showForm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { setShowForm(false); setEditEntry(null); setForm({ type: 'lent', person_name: '', amount: '', description: '', due_date: '', is_recurring: false, recurring_amount: '', recurring_day: '7', end_date: '' }); }}>
             <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h2 className="text-lg font-semibold">{editEntry ? 'Edit Entry' : 'Add Entry'}</h2>
                 <button onClick={() => { setShowForm(false); setEditEntry(null); setForm({ type: 'lent', person_name: '', amount: '', description: '', due_date: '', is_recurring: false, recurring_amount: '', recurring_day: '7', end_date: '' }); }} className="p-2 text-[var(--text-muted)] hover:text-white rounded-lg hover:bg-[var(--border)]"><X className="w-5 h-5" /></button>
               </div>
@@ -350,7 +350,7 @@ export default function LedgerPage() {
         {showSettle && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowSettle(null)}>
             <div className="w-full max-w-sm bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h2 className="text-lg font-semibold">Record Payment</h2>
                 <button onClick={() => setShowSettle(null)} className="p-2 text-[var(--text-muted)] hover:text-white rounded-lg hover:bg-[var(--border)]"><X className="w-5 h-5" /></button>
               </div>

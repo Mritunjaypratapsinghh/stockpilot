@@ -1,8 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Shield, Plus, Trash2, X, Pencil, Users, Building2, Heart, TrendingUp, Home, FileText, Smartphone, Phone } from 'lucide-react';
+import { Shield, Plus, Trash2, X, Pencil, Users, Building2, Heart, TrendingUp, Home, FileText, Smartphone, Phone, Upload, File, Download } from 'lucide-react';
 import Navbar from '../../components/Navbar';
-import { getVaultEntries, createVaultEntry, updateVaultEntry, deleteVaultEntry, getVaultNominees, addVaultNominee, removeVaultNominee } from '../../lib/api';
+import { getVaultEntries, createVaultEntry, updateVaultEntry, deleteVaultEntry, getVaultNominees, addVaultNominee, removeVaultNominee, uploadVaultFile, deleteVaultFile, getVaultFileUrl } from '../../lib/api';
 
 const CATEGORIES = [
   { id: 'bank', label: 'Bank Accounts', icon: Building2, fields: ['bank_name', 'account_number', 'ifsc', 'branch', 'account_type', 'balance'] },
@@ -85,24 +85,24 @@ export default function VaultPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Shield className="w-6 h-6" /> Family Vault</h1>
+      <main className="p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <h1 className="text-xl md:text-xl md:text-2xl font-bold flex items-center gap-2"><Shield className="w-5 h-5 md:w-6 md:h-6" /> Family Vault</h1>
           <div className="flex gap-2">
-            <button onClick={() => setShowNomineeForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg text-sm font-medium hover:bg-[var(--bg-tertiary)]">
-              <Users className="w-4 h-4" /> Nominees ({nominees.length})
+            <button onClick={() => setShowNomineeForm(true)} className="flex items-center gap-2 px-3 md:px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg text-sm font-medium hover:bg-[var(--bg-tertiary)]">
+              <Users className="w-4 h-4" /> <span className="hidden sm:inline">Nominees</span> ({nominees.length})
             </button>
-            <button onClick={() => openForm()} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:opacity-90">
-              <Plus className="w-4 h-4" /> Add Entry
+            <button onClick={() => openForm()} className="flex items-center gap-2 px-3 md:px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:opacity-90">
+              <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Add Entry</span>
             </button>
           </div>
         </div>
 
         {/* Category Tabs */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
           {CATEGORIES.map(cat => (
-            <button key={cat.id} onClick={() => setActiveTab(cat.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === cat.id ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>
-              <cat.icon className="w-4 h-4" /> {cat.label}
+            <button key={cat.id} onClick={() => setActiveTab(cat.id)} className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-colors ${activeTab === cat.id ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>
+              <cat.icon className="w-4 h-4" /> <span className="hidden sm:inline">{cat.label}</span><span className="sm:hidden">{cat.label.split(' ')[0]}</span>
             </button>
           ))}
         </div>
@@ -119,6 +119,10 @@ export default function VaultPage() {
                 <div className="flex items-start justify-between mb-3">
                   <h3 className="font-semibold text-[var(--text-primary)]">{entry.title}</h3>
                   <div className="flex gap-1">
+                    <label className="p-1.5 rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] cursor-pointer">
+                      <Upload className="w-4 h-4" />
+                      <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onChange={async (e) => { if (e.target.files[0]) { await uploadVaultFile(entry.id, e.target.files[0]); load(); } }} />
+                    </label>
                     <button onClick={() => openForm(entry)} className="p-1.5 rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)]"><Pencil className="w-4 h-4" /></button>
                     <button onClick={() => handleDelete(entry.id)} className="p-1.5 rounded hover:bg-[#ef4444]/10 text-[var(--text-muted)] hover:text-[#ef4444]"><Trash2 className="w-4 h-4" /></button>
                   </div>
@@ -131,6 +135,20 @@ export default function VaultPage() {
                     </div>
                   ))}
                 </div>
+                {entry.files?.length > 0 && (
+                  <div className="mt-3 pt-2 border-t border-[var(--border)]">
+                    <div className="text-xs text-[var(--text-muted)] mb-1">Attachments</div>
+                    <div className="flex flex-wrap gap-1">
+                      {entry.files.map(f => (
+                        <div key={f} className="flex items-center gap-1 text-xs bg-[var(--bg-tertiary)] rounded px-2 py-1">
+                          <File className="w-3 h-3" />
+                          <a href={getVaultFileUrl(f)} target="_blank" className="hover:text-[var(--accent)]">{f.slice(0, 12)}...</a>
+                          <button onClick={async () => { await deleteVaultFile(entry.id, f); load(); }} className="hover:text-[#ef4444]"><X className="w-3 h-3" /></button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {entry.notes && <p className="mt-3 text-xs text-[var(--text-muted)] border-t border-[var(--border)] pt-2">{entry.notes}</p>}
                 {!entry.nominee_visible && <span className="inline-block mt-2 text-xs px-2 py-0.5 bg-[var(--bg-tertiary)] rounded text-[var(--text-muted)]">Hidden from nominees</span>}
               </div>
@@ -142,7 +160,7 @@ export default function VaultPage() {
         {showForm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-[var(--bg-secondary)] rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b border-[var(--border)]">
                 <h2 className="font-semibold">{editEntry ? 'Edit' : 'Add'} {currentCategory?.label} Entry</h2>
                 <button onClick={() => setShowForm(false)} className="p-1 hover:bg-[var(--bg-tertiary)] rounded"><X className="w-5 h-5" /></button>
               </div>
@@ -175,7 +193,7 @@ export default function VaultPage() {
         {showNomineeForm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-[var(--bg-secondary)] rounded-lg w-full max-w-md">
-              <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b border-[var(--border)]">
                 <h2 className="font-semibold">Manage Nominees</h2>
                 <button onClick={() => setShowNomineeForm(false)} className="p-1 hover:bg-[var(--bg-tertiary)] rounded"><X className="w-5 h-5" /></button>
               </div>
@@ -183,7 +201,7 @@ export default function VaultPage() {
                 {nominees.length > 0 && (
                   <div className="mb-4 space-y-2">
                     {nominees.map(n => (
-                      <div key={n.id} className="flex items-center justify-between p-3 bg-[var(--bg-primary)] rounded-lg">
+                      <div key={n.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-[var(--bg-primary)] rounded-lg">
                         <div>
                           <div className="font-medium text-sm">{n.nominee_name}</div>
                           <div className="text-xs text-[var(--text-muted)]">{n.nominee_email} {n.relation && `• ${n.relation}`}</div>

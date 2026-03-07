@@ -9,6 +9,8 @@ export default function PortfolioPage() {
   const [transactions, setTransactions] = useState([]);
   const [sectors, setSectors] = useState([]);
   const [xirr, setXirr] = useState(null);
+  const [xirrStocks, setXirrStocks] = useState(null);
+  const [xirrMf, setXirrMf] = useState(null);
   const [summary, setSummary] = useState({ invested: 0, current: 0, pnl: 0, pnl_pct: 0 });
   const [dividends, setDividends] = useState([]);
   const [divSummary, setDivSummary] = useState({ total_dividend: 0, dividend_yield: 0, by_year: [], by_symbol: [] });
@@ -40,6 +42,8 @@ export default function PortfolioPage() {
       setHoldings(data.holdings || []);
       setSectors(data.sectors || []);
       setXirr(data.xirr);
+      setXirrStocks(data.xirr_stocks);
+      setXirrMf(data.xirr_mf);
       setTransactions(data.transactions || []);
       setSummary(data.summary || { invested: 0, current: 0, pnl: 0, pnl_pct: 0 });
       const dividendsList = divsData.dividends || [];
@@ -107,8 +111,21 @@ export default function PortfolioPage() {
     if (!file) return;
     setImporting(true);
     try {
-      const result = await importHoldings(file);
-      alert(`Imported ${result.imported} holdings from ${result.broker} (${result.skipped} skipped)`);
+      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/portfolio/import-transactions`, {
+          method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData,
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.detail || 'Import failed');
+        const d = json.data || json;
+        alert(`Imported ${d.imported} transactions (${d.skipped} skipped, ${d.holdings_created} new holdings)`);
+      } else {
+        const result = await importHoldings(file);
+        alert(`Imported ${result.imported} holdings from ${result.broker} (${result.skipped} skipped)`);
+      }
       setShowImport(false);
       loadData();
     } catch (err) { alert(err.message); }
@@ -169,54 +186,54 @@ export default function PortfolioPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Portfolio</h1>
-          <div className="flex gap-2">
-            <button onClick={() => setShowExport(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg text-sm font-medium hover:bg-[var(--bg-tertiary)]">
-              <Download className="w-4 h-4" /> Export
+      <main className="p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <h1 className="text-xl md:text-2xl font-bold">Portfolio</h1>
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => setShowExport(true)} className="flex items-center gap-1.5 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg text-sm font-medium hover:bg-[var(--bg-tertiary)]">
+              <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export</span>
             </button>
-            <button onClick={() => setShowImport(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg text-sm font-medium hover:bg-[var(--bg-tertiary)]">
-              <Upload className="w-4 h-4" /> Import
+            <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg text-sm font-medium hover:bg-[var(--bg-tertiary)]">
+              <Upload className="w-4 h-4" /> <span className="hidden sm:inline">Import</span>
             </button>
-            <button onClick={() => setShowTxn(true)} className="flex items-center gap-2 px-4 py-2 bg-[#10b981] text-white rounded-lg text-sm font-medium hover:bg-[#0d9668]">
-              <Plus className="w-4 h-4" /> Record Trade
+            <button onClick={() => setShowTxn(true)} className="flex items-center gap-1.5 px-3 py-2 bg-[#10b981] text-white rounded-lg text-sm font-medium hover:bg-[#0d9668]">
+              <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Record Trade</span>
             </button>
           </div>
         </div>
 
         {/* Asset Type Filter */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           {[{k: 'all', l: 'All'}, {k: 'stocks', l: 'Stocks'}, {k: 'mf', l: 'Mutual Funds'}].map(f => (
-            <button key={f.k} onClick={() => setHoldingFilter(f.k)} className={`px-4 py-2 rounded-lg text-sm font-medium ${holdingFilter === f.k ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-muted)] hover:text-white'}`}>{f.l}</button>
+            <button key={f.k} onClick={() => setHoldingFilter(f.k)} className={`px-3 md:px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${holdingFilter === f.k ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-muted)] hover:text-white'}`}>{f.l}</button>
           ))}
         </div>
 
         {/* Summary Row */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
-            <div className="text-sm text-[var(--text-muted)] mb-1">Invested</div>
-            <div className="text-xl font-semibold tabular">₹{fmt(dynamicSummary.invested)}</div>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
+            <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Invested</div>
+            <div className="text-base md:text-xl font-semibold tabular">₹{fmt(dynamicSummary.invested)}</div>
           </div>
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
-            <div className="text-sm text-[var(--text-muted)] mb-1">Current Value</div>
-            <div className="text-xl font-semibold tabular">₹{fmt(dynamicSummary.current)}</div>
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
+            <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Current Value</div>
+            <div className="text-base md:text-xl font-semibold tabular">₹{fmt(dynamicSummary.current)}</div>
           </div>
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
-            <div className="text-sm text-[var(--text-muted)] mb-1">Total P&L</div>
-            <div className={`text-xl font-semibold tabular ${dynamicSummary.pnl >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
-              {dynamicSummary.pnl >= 0 ? '+' : ''}₹{fmt(dynamicSummary.pnl)} ({dynamicSummary.pnl_pct?.toFixed(2) || 0}%)
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
+            <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Total P&L</div>
+            <div className={`text-base md:text-xl font-semibold tabular ${dynamicSummary.pnl >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
+              {dynamicSummary.pnl >= 0 ? '+' : ''}₹{fmt(dynamicSummary.pnl)} <span className="text-xs md:text-sm">({dynamicSummary.pnl_pct?.toFixed(2) || 0}%)</span>
             </div>
           </div>
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
-            <div className="text-sm text-[var(--text-muted)] mb-1">XIRR</div>
-            <div className={`text-xl font-semibold tabular ${(xirr || 0) >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
-              {xirr != null ? `${xirr >= 0 ? '+' : ''}${xirr.toFixed(2)}%` : '—'}
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
+            <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">XIRR</div>
+            <div className={`text-base md:text-xl font-semibold tabular ${((holdingFilter === 'stocks' ? xirrStocks : holdingFilter === 'mf' ? xirrMf : xirr) || 0) >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
+              {(() => { const v = holdingFilter === 'stocks' ? xirrStocks : holdingFilter === 'mf' ? xirrMf : xirr; return v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : '—'; })()}
             </div>
           </div>
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
-            <div className="text-sm text-[var(--text-muted)] mb-1">Dividends</div>
-            <div className="text-xl font-semibold tabular text-[#10b981]">₹{fmt(divSummary.total_dividend)}</div>
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
+            <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Dividends</div>
+            <div className="text-base md:text-xl font-semibold tabular text-[#10b981]">₹{fmt(divSummary.total_dividend)}</div>
             <div className="text-xs text-[var(--text-muted)]">{divSummary.dividend_yield}% yield</div>
           </div>
         </div>
@@ -272,34 +289,34 @@ export default function PortfolioPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-[600px]">
                   <thead>
                     <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-xs uppercase">
-                      <th className="text-left px-6 py-3 font-medium">{holdingFilter === 'mf' ? 'Fund' : 'Stock'}</th>
-                      <th className="text-right px-6 py-3 font-medium">{holdingFilter === 'mf' ? 'Units' : 'Qty'}</th>
-                      <th className="text-right px-6 py-3 font-medium">{holdingFilter === 'mf' ? 'Avg NAV' : 'Avg'}</th>
-                      <th className="text-right px-6 py-3 font-medium">{holdingFilter === 'mf' ? 'NAV' : 'LTP'}</th>
-                      <th className="text-right px-6 py-3 font-medium">P&L</th>
-                      <th className="text-right px-6 py-3 font-medium">Actions</th>
+                      <th className="text-left px-3 md:px-6 py-3 font-medium">{holdingFilter === 'mf' ? 'Fund' : 'Stock'}</th>
+                      <th className="text-right px-3 md:px-6 py-3 font-medium">{holdingFilter === 'mf' ? 'Units' : 'Qty'}</th>
+                      <th className="text-right px-3 md:px-6 py-3 font-medium">{holdingFilter === 'mf' ? 'Avg NAV' : 'Avg'}</th>
+                      <th className="text-right px-3 md:px-6 py-3 font-medium">{holdingFilter === 'mf' ? 'NAV' : 'LTP'}</th>
+                      <th className="text-right px-3 md:px-6 py-3 font-medium">P&L</th>
+                      <th className="text-right px-3 md:px-6 py-3 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredHoldings.map(h => (
                       <tr key={h._id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-hover)]">
-                        <td className="px-6 py-4">
+                        <td className="px-3 md:px-6 py-4">
                           <a href={`/stock?s=${h.symbol}`} className="hover:text-[var(--accent)]">
                             <div className="font-medium">{h.symbol}</div>
                             <div className="text-sm text-[var(--text-muted)]">{h.name}</div>
                           </a>
                         </td>
-                        <td className="px-6 py-4 text-right tabular">{parseFloat(h.quantity?.toFixed(4))}</td>
-                        <td className="px-6 py-4 text-right tabular">₹{fmt(h.avg_price)}</td>
-                        <td className="px-6 py-4 text-right tabular">₹{fmt(h.current_price)}</td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-3 md:px-6 py-4 text-right tabular">{parseFloat(h.quantity?.toFixed(4))}</td>
+                        <td className="px-3 md:px-6 py-4 text-right tabular">₹{fmt(h.avg_price)}</td>
+                        <td className="px-3 md:px-6 py-4 text-right tabular">₹{fmt(h.current_price)}</td>
+                        <td className="px-3 md:px-6 py-4 text-right">
                           <div className={`tabular font-medium ${h.pnl >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>{h.pnl >= 0 ? '+' : ''}₹{fmt(h.pnl)}</div>
                           <div className={`text-sm tabular ${h.pnl >= 0 ? 'text-[#10b981]/70' : 'text-[#ef4444]/70'}`}>{h.pnl_pct >= 0 ? '+' : ''}{h.pnl_pct?.toFixed(2)}%</div>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-3 md:px-6 py-4 text-right">
                           <button onClick={() => recordTxnFor(h.symbol)} className="p-2 text-[var(--text-muted)] hover:text-[#10b981] hover:bg-[#10b981]/10 rounded-lg" title="Record trade"><Plus className="w-4 h-4" /></button>
                           <button onClick={() => deleteHolding(h._id)} className="p-2 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                         </td>
@@ -322,33 +339,33 @@ export default function PortfolioPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-[600px]">
                   <thead>
                     <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-xs uppercase">
-                      <th className="text-left px-6 py-3 font-medium">Date</th>
-                      <th className="text-left px-6 py-3 font-medium">Stock</th>
-                      <th className="text-left px-6 py-3 font-medium">Type</th>
-                      <th className="text-right px-6 py-3 font-medium">Qty</th>
-                      <th className="text-right px-6 py-3 font-medium">Price</th>
-                      <th className="text-right px-6 py-3 font-medium">Value</th>
-                      <th className="text-right px-6 py-3 font-medium">Actions</th>
+                      <th className="text-left px-3 md:px-6 py-3 font-medium">Date</th>
+                      <th className="text-left px-3 md:px-6 py-3 font-medium">Stock</th>
+                      <th className="text-left px-3 md:px-6 py-3 font-medium">Type</th>
+                      <th className="text-right px-3 md:px-6 py-3 font-medium">Qty</th>
+                      <th className="text-right px-3 md:px-6 py-3 font-medium">Price</th>
+                      <th className="text-right px-3 md:px-6 py-3 font-medium">Value</th>
+                      <th className="text-right px-3 md:px-6 py-3 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {transactions.filter(t => t.symbol.toLowerCase().includes(search.toLowerCase())).map((t, i) => (
                       <tr key={i} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-hover)]">
-                        <td className="px-6 py-4 text-sm">{t.date}</td>
-                        <td className="px-6 py-4 font-medium">{t.symbol}</td>
-                        <td className="px-6 py-4">
+                        <td className="px-3 md:px-6 py-4 text-sm">{t.date}</td>
+                        <td className="px-3 md:px-6 py-4 font-medium">{t.symbol}</td>
+                        <td className="px-3 md:px-6 py-4">
                           <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${t.type === 'BUY' ? 'bg-[#10b981]/20 text-[#10b981]' : 'bg-[#ef4444]/20 text-[#ef4444]'}`}>
                             {t.type === 'BUY' ? <ArrowDownLeft className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
                             {t.type}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right tabular">{parseFloat(t.quantity?.toFixed(4))}</td>
-                        <td className="px-6 py-4 text-right tabular">₹{fmt(t.price)}</td>
-                        <td className="px-6 py-4 text-right tabular font-medium">₹{fmt(t.quantity * t.price)}</td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-3 md:px-6 py-4 text-right tabular">{parseFloat(t.quantity?.toFixed(4))}</td>
+                        <td className="px-3 md:px-6 py-4 text-right tabular">₹{fmt(t.price)}</td>
+                        <td className="px-3 md:px-6 py-4 text-right tabular font-medium">₹{fmt(t.quantity * t.price)}</td>
+                        <td className="px-3 md:px-6 py-4 text-right">
                           <button onClick={() => handleDeleteTxn(t.holding_id, t.index)} className="p-2 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                         </td>
                       </tr>
@@ -398,26 +415,26 @@ export default function PortfolioPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full min-w-[600px]">
                     <thead>
                       <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-xs uppercase">
-                        <th className="text-left px-6 py-3 font-medium">Ex-Date</th>
-                        <th className="text-left px-6 py-3 font-medium">Stock</th>
-                        <th className="text-right px-6 py-3 font-medium">Per Share</th>
-                        <th className="text-right px-6 py-3 font-medium">Qty</th>
-                        <th className="text-right px-6 py-3 font-medium">Total</th>
-                        <th className="text-right px-6 py-3 font-medium">Actions</th>
+                        <th className="text-left px-3 md:px-6 py-3 font-medium">Ex-Date</th>
+                        <th className="text-left px-3 md:px-6 py-3 font-medium">Stock</th>
+                        <th className="text-right px-3 md:px-6 py-3 font-medium">Per Share</th>
+                        <th className="text-right px-3 md:px-6 py-3 font-medium">Qty</th>
+                        <th className="text-right px-3 md:px-6 py-3 font-medium">Total</th>
+                        <th className="text-right px-3 md:px-6 py-3 font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {dividends.filter(d => d.symbol.toLowerCase().includes(search.toLowerCase())).map(d => (
                         <tr key={d._id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-hover)]">
-                          <td className="px-6 py-4 text-sm">{d.ex_date}</td>
-                          <td className="px-6 py-4 font-medium">{d.symbol}</td>
-                          <td className="px-6 py-4 text-right tabular">₹{d.amount}</td>
-                          <td className="px-6 py-4 text-right tabular">{d.quantity}</td>
-                          <td className="px-6 py-4 text-right tabular font-medium text-[#10b981]">₹{fmt(d.total)}</td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-3 md:px-6 py-4 text-sm">{d.ex_date}</td>
+                          <td className="px-3 md:px-6 py-4 font-medium">{d.symbol}</td>
+                          <td className="px-3 md:px-6 py-4 text-right tabular">₹{d.amount}</td>
+                          <td className="px-3 md:px-6 py-4 text-right tabular">{d.quantity}</td>
+                          <td className="px-3 md:px-6 py-4 text-right tabular font-medium text-[#10b981]">₹{fmt(d.total)}</td>
+                          <td className="px-3 md:px-6 py-4 text-right">
                             <button onClick={() => handleDeleteDiv(d._id)} className="p-2 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                           </td>
                         </tr>
@@ -434,7 +451,7 @@ export default function PortfolioPage() {
         {showTxn && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { setShowTxn(false); setShowSymbolDropdown(false); }}>
             <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h2 className="text-lg font-semibold">Record Trade</h2>
                 <button onClick={() => setShowTxn(false)} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--border)]"><X className="w-5 h-5" /></button>
               </div>
@@ -525,20 +542,21 @@ export default function PortfolioPage() {
         {showImport && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowImport(false)}>
             <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h2 className="text-lg font-semibold">Import Holdings</h2>
                 <button onClick={() => setShowImport(false)} className="p-2 text-[var(--text-muted)] hover:text-white rounded-lg hover:bg-[var(--border)]"><X className="w-5 h-5" /></button>
               </div>
               <div className="space-y-4">
-                <p className="text-sm text-[var(--text-muted)]">Upload a CSV file from your broker:</p>
+                <p className="text-sm text-[var(--text-muted)]">Upload from your broker:</p>
                 <ul className="text-sm text-[var(--text-muted)] list-disc list-inside space-y-1">
-                  <li><strong>Zerodha:</strong> Console → Reports → Tradebook → Download</li>
-                  <li><strong>Groww:</strong> Stocks → Export → Download CSV</li>
+                  <li><strong>Groww (Transactions):</strong> Profile → Reports → Order History → Download XLSX</li>
+                  <li><strong>Groww (Holdings):</strong> Stocks → Export → Download CSV</li>
+                  <li><strong>Zerodha:</strong> Console → Reports → Tradebook → Download CSV</li>
                 </ul>
                 <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[var(--border)] rounded-lg cursor-pointer hover:border-[var(--accent)] ${importing ? 'opacity-50' : ''}`}>
                   <Upload className="w-8 h-8 text-[var(--text-muted)] mb-2" />
-                  <span className="text-sm text-[var(--text-muted)]">{importing ? 'Importing...' : 'Click to upload CSV'}</span>
-                  <input type="file" accept=".csv" className="hidden" onChange={handleImport} disabled={importing} />
+                  <span className="text-sm text-[var(--text-muted)]">{importing ? 'Importing...' : 'Click to upload CSV or XLSX'}</span>
+                  <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleImport} disabled={importing} />
                 </label>
               </div>
             </div>
@@ -549,7 +567,7 @@ export default function PortfolioPage() {
         {showDiv && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowDiv(false)}>
             <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h2 className="text-lg font-semibold">Add Dividend</h2>
                 <button onClick={() => setShowDiv(false)} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--border)]"><X className="w-5 h-5" /></button>
               </div>
@@ -579,7 +597,7 @@ export default function PortfolioPage() {
         {showExport && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowExport(false)}>
             <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h2 className="text-lg font-semibold">Export Reports</h2>
                 <button onClick={() => setShowExport(false)} className="p-2 text-[var(--text-muted)] hover:text-white rounded-lg hover:bg-[var(--border)]"><X className="w-5 h-5" /></button>
               </div>

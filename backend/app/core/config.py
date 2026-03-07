@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     # Google OAuth
     google_client_id: str = ""
 
+    # Frontend URL (for email links)
+    frontend_url: str = "http://localhost:3000"
+
+    # Gemini AI
+    gemini_api_key: str = ""
+
+    # Groq AI
+    groq_api_key: str = ""
+
     class Config:
         env_file = "../.env"  # Relative to backend/ directory where uvicorn is run
 

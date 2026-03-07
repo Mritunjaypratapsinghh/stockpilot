@@ -13,6 +13,7 @@ from .ledger import router as ledger_router
 from .market import router as market_router
 from .portfolio import router as portfolio_router
 from .vault import router as vault_router
+from .chat import router as chat_router
 from .watchlist import router as watchlist_router
 
 # Create v1 router
@@ -31,5 +32,6 @@ router.include_router(ledger_router, prefix="/ledger", tags=["Ledger"])
 router.include_router(export_router, prefix="/export", tags=["Export"])
 router.include_router(calculators_router, prefix="/calculators", tags=["Calculators"])
 router.include_router(vault_router, prefix="/vault", tags=["Vault"])
+router.include_router(chat_router, prefix="/chat", tags=["Chat"])
 
 __all__ = ["router"]

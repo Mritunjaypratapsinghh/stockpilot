@@ -264,18 +264,25 @@ async def get_tax_harvest(current_user: dict = Depends(get_current_user)) -> Sta
     """Get tax loss harvesting opportunities."""
     from datetime import datetime, timedelta
 
+    from ....services.cache import cache_get, cache_set
+
+    cache_key = f"tax_harvest:{current_user['_id']}"
+    cached = await cache_get(cache_key)
+    if cached:
+        return StandardResponse.ok(cached)
+
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
-        return StandardResponse.ok(
-            {"suggestions": [], "total_harvestable_loss": 0, "potential_tax_saved": 0, "note": ""}
-        )
+        return StandardResponse.ok({"losses": [], "gains": [], "stcg": {}, "ltcg": {}, "note": ""})
 
     prices = await get_prices_for_holdings(holdings) or {}
-    suggestions = []
-    total_harvestable_loss = 0
+    losses = []
+    gains = []
     one_year_ago = datetime.now() - timedelta(days=365)
     LTCG_RATE = 0.125
     STCG_RATE = 0.20
+
+    stcg_total = stcl_total = ltcg_total = ltcl_total = 0
 
     for h in holdings:
         if h.quantity <= 0:
@@ -285,7 +292,6 @@ async def get_tax_harvest(current_user: dict = Depends(get_current_user)) -> Sta
         pnl = (curr_price - h.avg_price) * h.quantity
         pnl_pct = ((curr_price - h.avg_price) / h.avg_price * 100) if h.avg_price > 0 else 0
 
-        # Check if long-term (> 1 year)
         first_buy = None
         for t in h.transactions:
             if t.type == "BUY":
@@ -294,46 +300,76 @@ async def get_tax_harvest(current_user: dict = Depends(get_current_user)) -> Sta
                     first_buy = t_date
 
         is_lt = first_buy and first_buy < one_year_ago
-
-        # Suggest harvesting if loss > 5%
-        if pnl < 0 and pnl_pct < -5:
-            loss_amt = abs(pnl)
-            tax_rate = LTCG_RATE if is_lt else STCG_RATE
-            suggestions.append(
-                {
-                    "symbol": h.symbol,
-                    "quantity": h.quantity,
-                    "avg_price": h.avg_price,
-                    "current_price": round(curr_price, 2),
-                    "loss": round(loss_amt, 2),
-                    "loss_pct": round(pnl_pct, 1),
-                    "type": "LTCG" if is_lt else "STCG",
-                    "tax_saved": round(loss_amt * tax_rate, 2),
-                    "recommendation": "Sell to book loss, can rebuy after 30 days",
-                }
-            )
-            total_harvestable_loss += loss_amt
-
-    # Sort by loss amount
-    suggestions.sort(key=lambda x: x["loss"], reverse=True)
-
-    return StandardResponse.ok(
-        {
-            "suggestions": suggestions[:10],
-            "total_harvestable_loss": round(total_harvestable_loss, 2),
-            "potential_tax_saved": round(total_harvestable_loss * STCG_RATE, 2),
-            "note": (
-                "Sell loss-making stocks before March 31 to offset gains. "
-                "Avoid wash sale - wait 30 days before rebuying."
-            ),
+        entry = {
+            "symbol": h.symbol,
+            "quantity": h.quantity,
+            "avg_price": h.avg_price,
+            "current_price": round(curr_price, 2),
+            "pnl": round(pnl, 2),
+            "pnl_pct": round(pnl_pct, 1),
+            "type": "LTCG" if is_lt else "STCG",
         }
-    )
+
+        if pnl < 0:
+            entry["tax_saved"] = round(abs(pnl) * (LTCG_RATE if is_lt else STCG_RATE), 2)
+            losses.append(entry)
+            if is_lt:
+                ltcl_total += abs(pnl)
+            else:
+                stcl_total += abs(pnl)
+        elif pnl > 0:
+            entry["tax_due"] = round(pnl * (LTCG_RATE if is_lt else STCG_RATE), 2)
+            gains.append(entry)
+            if is_lt:
+                ltcg_total += pnl
+            else:
+                stcg_total += pnl
+
+    losses.sort(key=lambda x: x["pnl"])
+    gains.sort(key=lambda x: -x["pnl"])
+
+    stcg_net = stcg_total - stcl_total
+    ltcg_net = ltcg_total - ltcl_total
+
+    result = {
+        "losses": losses[:10],
+        "gains": gains[:10],
+        "stcg": {
+            "gains": round(stcg_total, 2),
+            "losses": round(stcl_total, 2),
+            "net": round(stcg_net, 2),
+            "tax": round(max(0, stcg_net) * STCG_RATE, 2),
+        },
+        "ltcg": {
+            "gains": round(ltcg_total, 2),
+            "losses": round(ltcl_total, 2),
+            "net": round(ltcg_net, 2),
+            "tax": round(max(0, ltcg_net - 125000) * LTCG_RATE, 2),
+            "exemption": 125000,
+        },
+        "total_harvestable_loss": round(stcl_total + ltcl_total, 2),
+        "potential_tax_saved": round(stcl_total * STCG_RATE + ltcl_total * LTCG_RATE, 2),
+        "note": (
+            "Sell loss-making stocks before March 31 to offset gains. "
+            "STCL offsets STCG (20%), LTCL offsets LTCG (12.5%). "
+            "Avoid wash sale - wait 30 days before rebuying."
+        ),
+    }
+    await cache_set(cache_key, result, ttl=300)
+    return StandardResponse.ok(result)
 
 
 @router.get("/tax", summary="Get tax summary", description="Calculate LTCG and STCG tax liability")
 async def get_tax_summary(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Calculate tax liability based on holding period."""
     from datetime import datetime, timedelta
+
+    from ....services.cache import cache_get, cache_set
+
+    cache_key = f"tax_summary:{current_user['_id']}"
+    cached = await cache_get(cache_key)
+    if cached:
+        return StandardResponse.ok(cached)
 
     holdings = await get_user_holdings(current_user["_id"])
     now = datetime.now()
@@ -378,25 +414,25 @@ async def get_tax_summary(current_user: dict = Depends(get_current_user)) -> Sta
     ltcg_tax = ltcg_taxable * 0.125
     stcg_tax = max(0, unrealized_stcg) * 0.20  # Only tax on gains, not losses
 
-    return StandardResponse.ok(
-        {
-            "financial_year": fy,
-            "realized": {"stcg": 0, "ltcg": 0, "total": 0},
-            "unrealized": {
-                "stcg": round(unrealized_stcg, 2),
-                "ltcg": round(unrealized_ltcg, 2),
-                "total": round(unrealized_ltcg + unrealized_stcg, 2),
-            },
-            "tax_liability": {
-                "ltcg_exemption": ltcg_exemption,
-                "taxable_ltcg": round(ltcg_taxable, 2),
-                "ltcg_tax": round(ltcg_tax, 2),
-                "stcg_tax": round(stcg_tax, 2),
-                "total_tax": round(ltcg_tax + stcg_tax, 2),
-            },
-            "transactions": [],
-        }
-    )
+    result = {
+        "financial_year": fy,
+        "realized": {"stcg": 0, "ltcg": 0, "total": 0},
+        "unrealized": {
+            "stcg": round(unrealized_stcg, 2),
+            "ltcg": round(unrealized_ltcg, 2),
+            "total": round(unrealized_ltcg + unrealized_stcg, 2),
+        },
+        "tax_liability": {
+            "ltcg_exemption": ltcg_exemption,
+            "taxable_ltcg": round(ltcg_taxable, 2),
+            "ltcg_tax": round(ltcg_tax, 2),
+            "stcg_tax": round(stcg_tax, 2),
+            "total_tax": round(ltcg_tax + stcg_tax, 2),
+        },
+        "transactions": [],
+    }
+    await cache_set(cache_key, result, ttl=300)
+    return StandardResponse.ok(result)
 
 
 @router.get("/dividends", summary="Get dividends", description="List dividend income from holdings")
@@ -405,6 +441,13 @@ async def get_dividends(current_user: dict = Depends(get_current_user)) -> Stand
     from datetime import datetime
 
     import httpx
+
+    from ....services.cache import cache_get, cache_set
+
+    cache_key = f"dividends:{current_user['_id']}"
+    cached = await cache_get(cache_key)
+    if cached:
+        return StandardResponse.ok(cached)
 
     holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
     if not holdings:
@@ -449,15 +492,15 @@ async def get_dividends(current_user: dict = Depends(get_current_user)) -> Stand
     past_dividends.sort(key=lambda x: x["date"], reverse=True)
     upcoming_dividends.sort(key=lambda x: x["date"])
 
-    return StandardResponse.ok(
-        {
-            "dividends": past_dividends[:20],
-            "upcoming": upcoming_dividends,
-            "total": len(past_dividends),
-            "expected_income": round(upcoming_income, 2),
-            "past_income": round(past_income, 2),
-        }
-    )
+    result = {
+        "dividends": past_dividends[:20],
+        "upcoming": upcoming_dividends,
+        "total": len(past_dividends),
+        "expected_income": round(upcoming_income, 2),
+        "past_income": round(past_income, 2),
+    }
+    await cache_set(cache_key, result, ttl=300)
+    return StandardResponse.ok(result)
 
 
 @router.get("/networth", summary="Get networth", description="Get total networth breakdown")
@@ -712,3 +755,183 @@ async def delete_asset(asset_id: str, current_user: dict = Depends(get_current_u
     await asset.delete()
 
     return StandardResponse.ok({"message": "Asset deleted"})
+
+
+@router.get("/tax/export", summary="Export tax report to Excel")
+async def export_tax_report(current_user: dict = Depends(get_current_user)):
+    """Export tax report as Excel file for CA/ITR filing."""
+    import io
+    from datetime import datetime, timedelta
+
+    from fastapi.responses import StreamingResponse
+
+    holdings = await get_user_holdings(current_user["_id"])
+    now = datetime.now()
+    fy_start = datetime(now.year if now.month >= 4 else now.year - 1, 4, 1)
+    fy = f"FY{fy_start.year}-{fy_start.year + 1}"
+    one_year_ago = now - timedelta(days=365)
+
+    prices = (await get_prices_for_holdings(holdings) if holdings else {}) or {}
+
+    # Build CSV content
+    lines = [
+        f"Tax Report - {fy}",
+        f"Generated: {now.strftime('%Y-%m-%d %H:%M')}",
+        "",
+        "HOLDINGS SUMMARY",
+        "Symbol,Quantity,Avg Price,Current Price,Invested,Current Value,P&L,P&L %,Holding Type,Tax Type",
+    ]
+
+    total_stcg = total_ltcg = 0
+    for h in holdings:
+        curr_price = prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price
+        invested = h.quantity * h.avg_price
+        current_val = h.quantity * curr_price
+        pnl = current_val - invested
+        pnl_pct = (pnl / invested * 100) if invested > 0 else 0
+
+        first_buy = None
+        for t in h.transactions:
+            if t.type == "BUY":
+                t_date = datetime.fromisoformat(t.date) if isinstance(t.date, str) else t.date
+                if first_buy is None or t_date < first_buy:
+                    first_buy = t_date
+
+        tax_type = "LTCG" if first_buy and first_buy < one_year_ago else "STCG"
+        if tax_type == "LTCG":
+            total_ltcg += pnl
+        else:
+            total_stcg += pnl
+
+        lines.append(
+            f"{h.symbol},{h.quantity},{h.avg_price:.2f},{curr_price:.2f},{invested:.2f},{current_val:.2f},{pnl:.2f},{pnl_pct:.1f}%,{h.holding_type},{tax_type}"
+        )
+
+    # Tax calculation
+    ltcg_exemption = 125000
+    ltcg_taxable = max(0, total_ltcg - ltcg_exemption)
+    ltcg_tax = ltcg_taxable * 0.125
+    stcg_tax = max(0, total_stcg) * 0.20
+
+    lines.extend(
+        [
+            "",
+            "TAX CALCULATION",
+            f"Total STCG (Short Term),{total_stcg:.2f}",
+            f"STCG Tax @ 20%,{stcg_tax:.2f}",
+            f"Total LTCG (Long Term),{total_ltcg:.2f}",
+            f"Less: Exemption u/s 112A,{ltcg_exemption}",
+            f"Taxable LTCG,{ltcg_taxable:.2f}",
+            f"LTCG Tax @ 12.5%,{ltcg_tax:.2f}",
+            f"Total Tax Liability,{ltcg_tax + stcg_tax:.2f}",
+        ]
+    )
+
+    content = "\n".join(lines)
+    buffer = io.BytesIO(content.encode("utf-8"))
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=tax_report_{fy}.csv"},
+    )
+
+
+@router.get("/tax/advance", summary="Get advance tax schedule")
+async def get_advance_tax_schedule(current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Get advance tax payment schedule and reminders."""
+    from datetime import datetime
+
+    now = datetime.now()
+    fy_start = datetime(now.year if now.month >= 4 else now.year - 1, 4, 1)
+
+    # Advance tax due dates
+    schedule = [
+        {"due_date": f"{fy_start.year}-06-15", "percent": 15, "label": "Q1 - 15th June"},
+        {"due_date": f"{fy_start.year}-09-15", "percent": 45, "label": "Q2 - 15th September"},
+        {"due_date": f"{fy_start.year}-12-15", "percent": 75, "label": "Q3 - 15th December"},
+        {"due_date": f"{fy_start.year + 1}-03-15", "percent": 100, "label": "Q4 - 15th March"},
+    ]
+
+    # Get estimated tax
+    tax_data = await get_tax_summary(current_user)
+    total_tax = tax_data.data.get("tax_liability", {}).get("total_tax", 0) if hasattr(tax_data, "data") else 0
+
+    for s in schedule:
+        due = datetime.strptime(s["due_date"], "%Y-%m-%d")
+        s["amount_due"] = round(total_tax * s["percent"] / 100, 2)
+        s["is_past"] = now > due
+        s["is_upcoming"] = not s["is_past"] and (due - now).days <= 30
+
+    next_due = next((s for s in schedule if not s["is_past"]), None)
+
+    return StandardResponse.ok(
+        {
+            "financial_year": f"{fy_start.year}-{fy_start.year + 1}",
+            "estimated_tax": total_tax,
+            "schedule": schedule,
+            "next_due": next_due,
+            "note": "Advance tax applies if total tax liability exceeds ₹10,000 in a financial year.",
+        }
+    )
+
+
+@router.get("/tax/dividend-income", summary="Get dividend income for tax")
+async def get_dividend_tax(current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    """Get dividend income summary for tax purposes (taxable at slab rate)."""
+    from datetime import datetime
+
+    import httpx
+
+    holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
+    now = datetime.now()
+    fy_start = datetime(now.year if now.month >= 4 else now.year - 1, 4, 1)
+
+    if not holdings:
+        return StandardResponse.ok({"dividends": [], "total_income": 0, "tax_note": ""})
+
+    holdings_map = {h.symbol: h for h in holdings if h.holding_type != "MF"}
+    dividends = []
+    total_income = 0
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        for symbol, holding in list(holdings_map.items())[:15]:
+            try:
+                resp = await client.get(
+                    f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.NS?interval=1d&range=1y&events=div",
+                    headers={"User-Agent": "Mozilla/5.0"},
+                )
+                if resp.status_code == 200:
+                    events = resp.json().get("chart", {}).get("result", [{}])[0].get("events", {})
+                    for ts, div in events.get("dividends", {}).items():
+                        div_date = datetime.fromtimestamp(int(ts))
+                        if div_date >= fy_start and div_date <= now:
+                            amount = div.get("amount", 0)
+                            income = amount * holding.quantity
+                            dividends.append(
+                                {
+                                    "symbol": symbol,
+                                    "date": div_date.strftime("%Y-%m-%d"),
+                                    "per_share": amount,
+                                    "quantity": holding.quantity,
+                                    "income": round(income, 2),
+                                }
+                            )
+                            total_income += income
+            except Exception:
+                pass
+
+    dividends.sort(key=lambda x: x["date"], reverse=True)
+
+    return StandardResponse.ok(
+        {
+            "financial_year": f"{fy_start.year}-{fy_start.year + 1}",
+            "dividends": dividends,
+            "total_income": round(total_income, 2),
+            "tax_note": (
+                "Dividend income is taxable at your income tax slab rate."
+                " TDS of 10% applies if dividend exceeds ₹5,000 from a company."
+            ),
+        }
+    )

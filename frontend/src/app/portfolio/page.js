@@ -107,8 +107,21 @@ export default function PortfolioPage() {
     if (!file) return;
     setImporting(true);
     try {
-      const result = await importHoldings(file);
-      alert(`Imported ${result.imported} holdings from ${result.broker} (${result.skipped} skipped)`);
+      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/portfolio/import-transactions`, {
+          method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData,
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.detail || 'Import failed');
+        const d = json.data || json;
+        alert(`Imported ${d.imported} transactions (${d.skipped} skipped, ${d.holdings_created} new holdings)`);
+      } else {
+        const result = await importHoldings(file);
+        alert(`Imported ${result.imported} holdings from ${result.broker} (${result.skipped} skipped)`);
+      }
       setShowImport(false);
       loadData();
     } catch (err) { alert(err.message); }
@@ -530,15 +543,16 @@ export default function PortfolioPage() {
                 <button onClick={() => setShowImport(false)} className="p-2 text-[var(--text-muted)] hover:text-white rounded-lg hover:bg-[var(--border)]"><X className="w-5 h-5" /></button>
               </div>
               <div className="space-y-4">
-                <p className="text-sm text-[var(--text-muted)]">Upload a CSV file from your broker:</p>
+                <p className="text-sm text-[var(--text-muted)]">Upload from your broker:</p>
                 <ul className="text-sm text-[var(--text-muted)] list-disc list-inside space-y-1">
-                  <li><strong>Zerodha:</strong> Console → Reports → Tradebook → Download</li>
-                  <li><strong>Groww:</strong> Stocks → Export → Download CSV</li>
+                  <li><strong>Groww (Transactions):</strong> Profile → Reports → Order History → Download XLSX</li>
+                  <li><strong>Groww (Holdings):</strong> Stocks → Export → Download CSV</li>
+                  <li><strong>Zerodha:</strong> Console → Reports → Tradebook → Download CSV</li>
                 </ul>
                 <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[var(--border)] rounded-lg cursor-pointer hover:border-[var(--accent)] ${importing ? 'opacity-50' : ''}`}>
                   <Upload className="w-8 h-8 text-[var(--text-muted)] mb-2" />
-                  <span className="text-sm text-[var(--text-muted)]">{importing ? 'Importing...' : 'Click to upload CSV'}</span>
-                  <input type="file" accept=".csv" className="hidden" onChange={handleImport} disabled={importing} />
+                  <span className="text-sm text-[var(--text-muted)]">{importing ? 'Importing...' : 'Click to upload CSV or XLSX'}</span>
+                  <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleImport} disabled={importing} />
                 </label>
               </div>
             </div>

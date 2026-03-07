@@ -136,8 +136,8 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden lg:flex items-center ml-4 gap-0.5">
-            <div className="w-px h-5 bg-[var(--border-light)] mr-3"></div>
+          <div className="hidden lg:flex items-center ml-4 gap-0.5 overflow-x-auto scrollbar-hide min-w-0">
+            <div className="w-px h-5 bg-[var(--border-light)] mr-3 shrink-0"></div>
             {mainNav.map((item) => {
               const isActive = pathname === item.href;
               return (
@@ -157,7 +157,7 @@ export default function Navbar() {
           <div className="flex-1"></div>
 
           {/* Theme Toggle - Desktop */}
-          <div ref={themeRef} className="relative hidden lg:block">
+          <div ref={themeRef} className="relative hidden lg:block shrink-0">
             <button onClick={() => setShowThemeMenu(!showThemeMenu)} className="p-2 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors">
               {theme === 'light' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
@@ -182,7 +182,7 @@ export default function Navbar() {
           </div>
 
           {/* Logout - Desktop */}
-          <button onClick={() => { localStorage.removeItem('token'); window.location.href = '/login'; }} className="hidden lg:flex items-center p-2 rounded-md text-[var(--text-secondary)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors" title="Logout">
+          <button onClick={() => { localStorage.removeItem('token'); window.location.href = '/login'; }} className="hidden lg:flex items-center p-2 rounded-md text-[var(--text-secondary)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors shrink-0" title="Logout">
             <LogOut className="w-4 h-4" />
           </button>
 

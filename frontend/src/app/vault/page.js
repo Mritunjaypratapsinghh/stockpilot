@@ -85,24 +85,24 @@ export default function VaultPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Shield className="w-6 h-6" /> Family Vault</h1>
+      <main className="p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2"><Shield className="w-5 h-5 md:w-6 md:h-6" /> Family Vault</h1>
           <div className="flex gap-2">
-            <button onClick={() => setShowNomineeForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg text-sm font-medium hover:bg-[var(--bg-tertiary)]">
-              <Users className="w-4 h-4" /> Nominees ({nominees.length})
+            <button onClick={() => setShowNomineeForm(true)} className="flex items-center gap-2 px-3 md:px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg text-sm font-medium hover:bg-[var(--bg-tertiary)]">
+              <Users className="w-4 h-4" /> <span className="hidden sm:inline">Nominees</span> ({nominees.length})
             </button>
-            <button onClick={() => openForm()} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:opacity-90">
-              <Plus className="w-4 h-4" /> Add Entry
+            <button onClick={() => openForm()} className="flex items-center gap-2 px-3 md:px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:opacity-90">
+              <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Add Entry</span>
             </button>
           </div>
         </div>
 
         {/* Category Tabs */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
           {CATEGORIES.map(cat => (
-            <button key={cat.id} onClick={() => setActiveTab(cat.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === cat.id ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>
-              <cat.icon className="w-4 h-4" /> {cat.label}
+            <button key={cat.id} onClick={() => setActiveTab(cat.id)} className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-colors ${activeTab === cat.id ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>
+              <cat.icon className="w-4 h-4" /> <span className="hidden sm:inline">{cat.label}</span><span className="sm:hidden">{cat.label.split(' ')[0]}</span>
             </button>
           ))}
         </div>

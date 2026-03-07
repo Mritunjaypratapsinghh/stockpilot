@@ -37,16 +37,16 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-6">
+      <main className="p-4 md:p-6">
         {/* Market Indices */}
         {Object.keys(indices).length > 0 && (
-          <div className="flex gap-4 mb-6">
+          <div className="flex gap-3 mb-6 overflow-x-auto pb-2">
             {Object.entries(indices).filter(([, data]) => data).map(([name, data]) => (
-              <div key={name} className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg px-5 py-3">
-                <div className="text-sm text-[var(--text-muted)] mb-1">{name}</div>
-                <div className="text-lg font-semibold tabular">{data.price?.toLocaleString('en-IN')}</div>
-                <div className={`flex items-center gap-1 text-sm ${(data.change_pct || 0) >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
-                  {(data.change_pct || 0) >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+              <div key={name} className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg px-4 py-2.5 shrink-0">
+                <div className="text-xs text-[var(--text-muted)] mb-0.5">{name}</div>
+                <div className="text-base font-semibold tabular">{data.price?.toLocaleString('en-IN')}</div>
+                <div className={`flex items-center gap-1 text-xs ${(data.change_pct || 0) >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
+                  {(data.change_pct || 0) >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                   {Math.abs(data.change_pct || 0).toFixed(2)}%
                 </div>
               </div>
@@ -55,7 +55,7 @@ export default function Dashboard() {
         )}
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
           <SummaryCard label="Current Value" value={`₹${fmt(portfolio?.current_value)}`} loading={loading} />
           <SummaryCard label="Invested" value={`₹${fmt(portfolio?.total_investment)}`} loading={loading} />
           <SummaryCard 
@@ -76,8 +76,8 @@ export default function Dashboard() {
 
         {/* Holdings Table */}
         <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg">
-          <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
-            <h2 className="font-semibold text-lg">Holdings</h2>
+          <div className="px-4 md:px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
+            <h2 className="font-semibold text-base md:text-lg">Holdings</h2>
             <Link href="/portfolio" className="text-sm text-[var(--accent)] hover:text-[#5558e3]">View All →</Link>
           </div>
           
@@ -87,45 +87,45 @@ export default function Dashboard() {
             <EmptyState icon={Wallet} message="No holdings yet" action={{ href: '/portfolio', label: 'Add your first stock' }} />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[600px]">
                 <thead>
                   <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-xs uppercase">
-                    <th className="text-left px-6 py-3 font-medium">Stock</th>
-                    <th className="text-right px-6 py-3 font-medium">Qty</th>
-                    <th className="text-right px-6 py-3 font-medium">Avg Price</th>
-                    <th className="text-right px-6 py-3 font-medium">LTP</th>
-                    <th className="text-right px-6 py-3 font-medium">Current Value</th>
-                    <th className="text-right px-6 py-3 font-medium">P&L</th>
-                    <th className="text-right px-6 py-3 font-medium">Day Change</th>
+                    <th className="text-left px-4 md:px-6 py-3 font-medium">Stock</th>
+                    <th className="text-right px-4 md:px-6 py-3 font-medium">Qty</th>
+                    <th className="text-right px-4 md:px-6 py-3 font-medium hidden sm:table-cell">Avg Price</th>
+                    <th className="text-right px-4 md:px-6 py-3 font-medium">LTP</th>
+                    <th className="text-right px-4 md:px-6 py-3 font-medium hidden md:table-cell">Current Value</th>
+                    <th className="text-right px-4 md:px-6 py-3 font-medium">P&L</th>
+                    <th className="text-right px-4 md:px-6 py-3 font-medium hidden lg:table-cell">Day Change</th>
                   </tr>
                 </thead>
                 <tbody>
                   {holdings.slice(0, 10).map((h) => (
                     <tr key={h._id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-hover)]">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-semibold ${h.pnl >= 0 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>
+                      <td className="px-4 md:px-6 py-3 md:py-4">
+                        <div className="flex items-center gap-2 md:gap-3">
+                          <div className={`w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center text-xs md:text-sm font-semibold ${h.pnl >= 0 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>
                             {h.symbol?.slice(0, 2)}
                           </div>
                           <div>
-                            <div className="font-medium">{h.symbol}</div>
-                            <div className="text-sm text-[var(--text-muted)]">{h.holding_type}</div>
+                            <div className="font-medium text-sm md:text-base">{h.symbol}</div>
+                            <div className="text-xs text-[var(--text-muted)]">{h.holding_type}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right tabular">{parseFloat(h.quantity?.toFixed(4))}</td>
-                      <td className="px-6 py-4 text-right tabular">₹{h.avg_price?.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-right tabular">₹{h.current_price?.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-right tabular font-medium">₹{fmt(h.current_value)}</td>
-                      <td className="px-6 py-4 text-right">
-                        <div className={`tabular font-medium ${h.pnl >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
+                      <td className="px-4 md:px-6 py-3 md:py-4 text-right tabular text-sm">{parseFloat(h.quantity?.toFixed(4))}</td>
+                      <td className="px-4 md:px-6 py-3 md:py-4 text-right tabular text-sm hidden sm:table-cell">₹{h.avg_price?.toFixed(2)}</td>
+                      <td className="px-4 md:px-6 py-3 md:py-4 text-right tabular text-sm">₹{h.current_price?.toFixed(2)}</td>
+                      <td className="px-4 md:px-6 py-3 md:py-4 text-right tabular font-medium text-sm hidden md:table-cell">₹{fmt(h.current_value)}</td>
+                      <td className="px-4 md:px-6 py-3 md:py-4 text-right">
+                        <div className={`tabular font-medium text-sm ${h.pnl >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
                           {h.pnl >= 0 ? '+' : ''}₹{fmt(h.pnl)}
                         </div>
-                        <div className={`text-sm tabular ${h.pnl >= 0 ? 'text-[#10b981]/70' : 'text-[#ef4444]/70'}`}>
+                        <div className={`text-xs tabular ${h.pnl >= 0 ? 'text-[#10b981]/70' : 'text-[#ef4444]/70'}`}>
                           {h.pnl_pct >= 0 ? '+' : ''}{h.pnl_pct?.toFixed(2)}%
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-4 md:px-6 py-3 md:py-4 text-right hidden lg:table-cell">
                         <span className={`inline-block px-2 py-1 rounded text-sm tabular font-medium ${(h.day_change_pct || 0) >= 0 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>
                           {(h.day_change_pct || 0) >= 0 ? '+' : ''}{(h.day_change_pct || 0).toFixed(2)}%
                         </span>
@@ -144,14 +144,14 @@ export default function Dashboard() {
 
 function SummaryCard({ label, value, sub, positive, loading }) {
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-5">
-      <div className="text-sm text-[var(--text-muted)] mb-2">{label}</div>
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-5">
+      <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1 md:mb-2">{label}</div>
       {loading ? (
-        <div className="h-8 w-32 bg-[var(--border)] rounded animate-pulse" />
+        <div className="h-6 md:h-8 w-20 md:w-32 bg-[var(--border)] rounded animate-pulse" />
       ) : (
         <>
-          <div className={`text-2xl font-semibold tabular ${sub !== undefined ? (positive ? 'text-[#10b981]' : 'text-[#ef4444]') : ''}`}>{value}</div>
-          {sub && <div className={`text-sm tabular ${positive ? 'text-[#10b981]/70' : 'text-[#ef4444]/70'}`}>{sub}</div>}
+          <div className={`text-lg md:text-2xl font-semibold tabular ${sub !== undefined ? (positive ? 'text-[#10b981]' : 'text-[#ef4444]') : ''}`}>{value}</div>
+          {sub && <div className={`text-xs md:text-sm tabular ${positive ? 'text-[#10b981]/70' : 'text-[#ef4444]/70'}`}>{sub}</div>}
         </>
       )}
     </div>

@@ -63,21 +63,34 @@ async def scrape_ipo_data() -> None:
                 from bs4 import BeautifulSoup
 
                 soup = BeautifulSoup(resp.text, "html.parser")
-                table = soup.find("table")
+                tables = soup.find_all("table")
 
-                if table:
+                # Process first 2 tables (upcoming SME and mainboard)
+                for table in tables[:2]:
                     rows = table.find_all("tr")[1:]
-                    for row in rows[:20]:
+                    for row in rows[:15]:
                         cols = row.find_all("td")
-                        if len(cols) >= 6:
+                        if len(cols) >= 5:
+                            # Table structure: IPO, GMP, Price Band, Listing Gain, Date
                             name = cols[0].get_text(strip=True)
                             gmp_text = cols[1].get_text(strip=True).replace("₹", "").replace(",", "")
                             price_text = cols[2].get_text(strip=True).replace("₹", "").replace(",", "")
-                            date_text = cols[5].get_text(strip=True) if len(cols) > 5 else ""
-                            type_text = cols[6].get_text(strip=True) if len(cols) > 6 else ""
+                            date_text = cols[4].get_text(strip=True) if len(cols) > 4 else ""
+
+                            # Skip invalid entries
+                            if not name or name == "-" or "[" in price_text:
+                                continue
+
+                            # Detect SME from name
+                            ipo_type = "SME" if "SME" in name.upper() else "MAINBOARD"
 
                             try:
-                                price = float(price_text) if price_text and price_text != "-" else 0
+                                # Handle price band like "100-105" or just "100"
+                                if "-" in price_text and price_text != "-":
+                                    parts = price_text.split("-")
+                                    price = float(parts[-1].strip()) if parts[-1].strip() else 0
+                                else:
+                                    price = float(price_text) if price_text and price_text != "-" else 0
                             except ValueError:
                                 price = 0
                             if price == 0:
@@ -97,7 +110,8 @@ async def scrape_ipo_data() -> None:
                             else:
                                 status = "UPCOMING"
 
-                            ipo_type = "SME" if "SME" in type_text.upper() else "MAINBOARD"
+                            # SME IPOs typically have lower price and lot size targets ~1L
+                            # Mainboard targets ~15K
                             lot_size = (
                                 max(1, int(100000 / price))
                                 if ipo_type == "SME" and price > 0

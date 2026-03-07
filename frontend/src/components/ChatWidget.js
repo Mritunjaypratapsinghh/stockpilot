@@ -65,13 +65,56 @@ export default function ChatWidget() {
     setLoading(false);
   };
 
+  const [pos, setPos] = useState({ x: 24, y: 24 }); // distance from bottom-right
+  const dragRef = useRef(null);
+  const dragging = useRef(false);
+  const didDrag = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragging.current) return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      setPos({
+        x: Math.max(8, window.innerWidth - clientX - dragStart.current.x),
+        y: Math.max(8, window.innerHeight - clientY - dragStart.current.y),
+      });
+      didDrag.current = true;
+    };
+    const onUp = () => { dragging.current = false; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchmove', onMove);
+    window.addEventListener('touchend', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+    };
+  }, []);
+
+  const startDrag = (e) => {
+    dragging.current = true;
+    didDrag.current = false;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const rect = dragRef.current.getBoundingClientRect();
+    dragStart.current = { x: rect.right - clientX, y: rect.bottom - clientY };
+  };
+
   return (
     <>
       {/* Floating Button */}
       {!open && (
         <button
-          onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 w-14 h-14 bg-[var(--accent)] text-white rounded-full shadow-lg hover:opacity-90 flex items-center justify-center z-50 transition-transform hover:scale-105"
+          ref={dragRef}
+          onMouseDown={startDrag}
+          onTouchStart={startDrag}
+          onClick={() => { if (!didDrag.current) setOpen(true); }}
+          style={{ right: pos.x, bottom: pos.y }}
+          className="fixed w-14 h-14 bg-[var(--accent)] text-white rounded-full shadow-lg hover:opacity-90 flex items-center justify-center z-50 cursor-grab active:cursor-grabbing"
         >
           <MessageSquare className="w-6 h-6" />
         </button>
@@ -79,7 +122,7 @@ export default function ChatWidget() {
 
       {/* Chat Panel */}
       {open && (
-        <div className="fixed bottom-6 right-6 w-[380px] h-[520px] bg-[var(--bg-primary)] border border-[var(--border)] rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden">
+        <div style={{ right: Math.max(16, pos.x - 160), bottom: pos.y }} className="fixed w-[380px] h-[520px] bg-[var(--bg-primary)] border border-[var(--border)] rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
             <div className="flex items-center gap-2">

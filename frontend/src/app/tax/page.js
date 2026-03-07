@@ -49,7 +49,7 @@ export default function TaxPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-4 md:p-6">
+      <main className="p-4 md:p-6 overflow-x-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2"><Receipt className="w-5 h-5 md:w-6 md:h-6" /> Tax Center</h1>
           <div className="flex items-center gap-3">
@@ -61,7 +61,7 @@ export default function TaxPage() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
+        <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 md:gap-4 mb-6">
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
             <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Realized STCG</div>
             <div className={`text-base md:text-xl font-semibold ${summary?.realized?.stcg >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>₹{fmt(summary?.realized?.stcg)}</div>

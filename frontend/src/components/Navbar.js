@@ -136,7 +136,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden lg:flex items-center ml-4 gap-0.5 overflow-x-auto scrollbar-hide min-w-0">
+          <div className="hidden lg:flex items-center ml-4 gap-0.5 min-w-0">
             <div className="w-px h-5 bg-[var(--border-light)] mr-3 shrink-0"></div>
             {mainNav.map((item) => {
               const isActive = pathname === item.href;

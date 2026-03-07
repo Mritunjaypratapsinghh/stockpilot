@@ -136,21 +136,21 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden lg:flex items-center ml-6 gap-1">
-            <div className="w-px h-5 bg-[var(--border-light)] mr-5"></div>
+          <div className="hidden lg:flex items-center ml-4 gap-0.5">
+            <div className="w-px h-5 bg-[var(--border-light)] mr-3"></div>
             {mainNav.map((item) => {
               const isActive = pathname === item.href;
               return (
-                <Link key={item.href} href={item.href} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}>
-                  <item.icon className="w-4 h-4" />{item.label}
+                <Link key={item.href} href={item.href} className={`flex items-center gap-1.5 px-2 xl:px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${isActive ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}>
+                  <item.icon className="w-4 h-4" /><span className="hidden xl:inline">{item.label}</span>
                 </Link>
               );
             })}
             <Dropdown label="Tools" items={toolsMenu} pathname={pathname} />
             <Dropdown label="Planning" items={planningMenu} pathname={pathname} />
             <Dropdown label="Tracking" items={trackingMenu} pathname={pathname} />
-            <Link href="/settings" className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${pathname === '/settings' ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}>
-              <Settings className="w-4 h-4" />Settings
+            <Link href="/settings" className={`flex items-center gap-1.5 px-2 xl:px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${pathname === '/settings' ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}>
+              <Settings className="w-4 h-4" /><span className="hidden xl:inline">Settings</span>
             </Link>
           </div>
 
@@ -183,8 +183,8 @@ export default function Navbar() {
           </div>
 
           {/* Logout - Desktop */}
-          <button onClick={() => { localStorage.removeItem('token'); window.location.href = '/login'; }} className="hidden md:flex items-center gap-1.5 px-3 py-1.5 ml-2 rounded-md text-sm font-medium text-[var(--text-secondary)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors">
-            <LogOut className="w-4 h-4" /><span className="hidden sm:inline">Logout</span>
+          <button onClick={() => { localStorage.removeItem('token'); window.location.href = '/login'; }} className="hidden md:flex items-center gap-1.5 px-2 py-1.5 ml-1 rounded-md text-sm font-medium text-[var(--text-secondary)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors">
+            <LogOut className="w-4 h-4" /><span className="hidden xl:inline">Logout</span>
           </button>
 
           {/* Mobile Menu Button */}

@@ -157,10 +157,9 @@ export default function Navbar() {
           <div className="flex-1"></div>
 
           {/* Theme Toggle - Desktop */}
-          <div ref={themeRef} className="relative hidden md:block">
-            <button onClick={() => setShowThemeMenu(!showThemeMenu)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors">
+          <div ref={themeRef} className="relative hidden lg:block">
+            <button onClick={() => setShowThemeMenu(!showThemeMenu)} className="p-2 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors">
               {theme === 'light' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              <span className="hidden sm:inline">{theme === 'oled' ? 'OLED' : theme === 'light' ? 'Light' : 'Dark'}</span>
             </button>
             {showThemeMenu && (
               <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg shadow-lg p-2 z-50">
@@ -183,8 +182,8 @@ export default function Navbar() {
           </div>
 
           {/* Logout - Desktop */}
-          <button onClick={() => { localStorage.removeItem('token'); window.location.href = '/login'; }} className="hidden md:flex items-center gap-1.5 px-2 py-1.5 ml-1 rounded-md text-sm font-medium text-[var(--text-secondary)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors">
-            <LogOut className="w-4 h-4" /><span className="hidden xl:inline">Logout</span>
+          <button onClick={() => { localStorage.removeItem('token'); window.location.href = '/login'; }} className="hidden lg:flex items-center p-2 rounded-md text-[var(--text-secondary)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors" title="Logout">
+            <LogOut className="w-4 h-4" />
           </button>
 
           {/* Mobile Menu Button */}

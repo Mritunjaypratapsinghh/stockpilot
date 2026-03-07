@@ -100,13 +100,27 @@ async def get_ipos_from_db() -> StandardResponse:
 @router.get("/upcoming", summary="Get upcoming IPOs", description="List upcoming and open IPOs")
 async def get_upcoming_ipos() -> StandardResponse:
     """Get upcoming IPOs."""
-    return StandardResponse.ok(await get_ipos_from_db())
+    from ....services.cache import cache_get, cache_set
+
+    cached = await cache_get("ipo:upcoming")
+    if cached:
+        return StandardResponse.ok(cached)
+    result = await get_ipos_from_db()
+    await cache_set("ipo:upcoming", result, ttl=3600)
+    return StandardResponse.ok(result)
 
 
 @router.get("/gmp", summary="Get GMP tracker", description="Get IPO grey market premium data")
 async def get_gmp_tracker() -> StandardResponse:
     """Get IPO GMP data."""
-    return StandardResponse.ok(await get_ipos_from_db())
+    from ....services.cache import cache_get, cache_set
+
+    cached = await cache_get("ipo:gmp")
+    if cached:
+        return StandardResponse.ok(cached)
+    result = await get_ipos_from_db()
+    await cache_set("ipo:gmp", result, ttl=3600)
+    return StandardResponse.ok(result)
 
 
 @router.post("/refresh", summary="Refresh IPO data", description="Manually refresh IPO data from sources")

@@ -3,12 +3,18 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import httpx
+from bson import ObjectId
 
 from ...core.config import get_settings
 from ...core.database import get_database as get_db
 from ...utils.logger import logger
 
 settings = get_settings()
+
+
+def _to_oid(uid):
+    """Ensure user_id is an ObjectId for raw MongoDB queries."""
+    return ObjectId(uid) if not isinstance(uid, ObjectId) else uid
 
 
 async def send_email(to_email: str, subject: str, body: str) -> None:
@@ -34,7 +40,7 @@ async def send_web_push(user_id, title: str, body: str) -> None:
     db = get_db()
     if db is None:
         return
-    user = await db.users.find_one({"_id": user_id})
+    user = await db.users.find_one({"_id": _to_oid(user_id)})
 
     if not user or not user.get("push_subscription"):
         return
@@ -48,7 +54,7 @@ async def send_web_push(user_id, title: str, body: str) -> None:
 
 async def send_alert_notification(alert: dict, current_price: float) -> None:
     db = get_db()
-    user = await db.users.find_one({"_id": alert["user_id"]})
+    user = await db.users.find_one({"_id": _to_oid(alert["user_id"])})
 
     if not user:
         return
@@ -84,7 +90,7 @@ async def send_alert_notification(alert: dict, current_price: float) -> None:
 
 async def send_daily_digest(user_id, digest: dict) -> None:
     db = get_db()
-    user = await db.users.find_one({"_id": user_id})
+    user = await db.users.find_one({"_id": _to_oid(user_id)})
 
     if not user:
         return

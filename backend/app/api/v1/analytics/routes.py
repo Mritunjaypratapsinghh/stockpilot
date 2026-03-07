@@ -19,6 +19,13 @@ router = APIRouter()
 @router.get("", summary="Get analytics", description="Get portfolio analytics and sector breakdown")
 async def get_analytics(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get portfolio analytics."""
+    from ....services.cache import cache_get, cache_set, market_ttl
+
+    ck = f"analytics:{current_user['_id']}"
+    cached = await cache_get(ck)
+    if cached:
+        return StandardResponse.ok(cached)
+
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
         return StandardResponse.ok(AnalyticsSummary(total_value=0, sectors=[], holdings_count=0))
@@ -39,9 +46,9 @@ async def get_analytics(current_user: dict = Depends(get_current_user)) -> Stand
         for s, v in sorted(sector_values.items(), key=lambda x: x[1], reverse=True)
     ]
 
-    return StandardResponse.ok(
-        AnalyticsSummary(total_value=round(total_value, 2), sectors=sectors, holdings_count=len(holdings))
-    )
+    result = AnalyticsSummary(total_value=round(total_value, 2), sectors=sectors, holdings_count=len(holdings))
+    await cache_set(ck, result.model_dump() if hasattr(result, "model_dump") else result, ttl=market_ttl())
+    return StandardResponse.ok(result)
 
 
 @router.get("/pnl-calendar", summary="Get PnL calendar", description="Get daily buy/sell activity calendar")
@@ -180,6 +187,13 @@ async def get_metrics(current_user: dict = Depends(get_current_user)) -> Standar
     """Calculate advanced portfolio metrics."""
     import math
 
+    from ....services.cache import cache_get, cache_set, market_ttl
+
+    ck = f"metrics:{current_user['_id']}"
+    cached = await cache_get(ck)
+    if cached:
+        return StandardResponse.ok(cached)
+
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
         return StandardResponse.ok({"error": "No holdings found"})
@@ -227,29 +241,34 @@ async def get_metrics(current_user: dict = Depends(get_current_user)) -> Standar
         else:
             return {"level": "Aggressive", "description": "Higher risk, potential for higher returns"}
 
-    return StandardResponse.ok(
-        {
-            "portfolio_value": round(total_value, 2),
-            "holdings_count": len(holdings_data),
-            "metrics": {
-                "beta": round(portfolio_beta, 2),
-                "volatility_annual": round(volatility, 1),
-                "top_5_concentration": round(top_5_concentration, 1),
-                "herfindahl_index": round(hhi, 0),
-                "diversification": "Good" if hhi < 1500 else "Moderate" if hhi < 2500 else "Concentrated",
-            },
-            "risk_profile": get_risk_profile(portfolio_beta, volatility),
-            "top_holdings": [
-                {"symbol": h["symbol"], "weight": round(h["weight"] * 100, 1)} for h in sorted_holdings[:5]
-            ],
-        }
-    )
+    result = {
+        "portfolio_value": round(total_value, 2),
+        "holdings_count": len(holdings_data),
+        "metrics": {
+            "beta": round(portfolio_beta, 2),
+            "volatility_annual": round(volatility, 1),
+            "top_5_concentration": round(top_5_concentration, 1),
+            "herfindahl_index": round(hhi, 0),
+            "diversification": "Good" if hhi < 1500 else "Moderate" if hhi < 2500 else "Concentrated",
+        },
+        "risk_profile": get_risk_profile(portfolio_beta, volatility),
+        "top_holdings": [{"symbol": h["symbol"], "weight": round(h["weight"] * 100, 1)} for h in sorted_holdings[:5]],
+    }
+    await cache_set(ck, result, ttl=market_ttl())
+    return StandardResponse.ok(result)
 
 
 @router.get("/returns", summary="Get returns breakdown", description="Get returns by holding")
 async def get_returns(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get returns breakdown with proper CAGR calculation."""
     from datetime import datetime
+
+    from ....services.cache import cache_get, cache_set, market_ttl
+
+    ck = f"returns:{current_user['_id']}"
+    cached = await cache_get(ck)
+    if cached:
+        return StandardResponse.ok(cached)
 
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
@@ -293,25 +312,31 @@ async def get_returns(current_user: dict = Depends(get_current_user)) -> Standar
     # Nifty 50 average CAGR ~12%
     nifty_benchmark = 12.0
 
-    return StandardResponse.ok(
-        {
-            "invested": round(invested, 2),
-            "current_value": round(current, 2),
-            "absolute_return": round(pnl, 2),
-            "absolute_return_pct": round(pnl_pct, 2),
-            "cagr": round(cagr, 2),
-            "holding_period_years": round(years_held, 1),
-            "benchmark_comparison": {
-                "nifty_cagr_5yr": nifty_benchmark,
-                "outperformance": round(cagr - nifty_benchmark, 2),
-            },
-        }
-    )
+    result = {
+        "invested": round(invested, 2),
+        "current_value": round(current, 2),
+        "absolute_return": round(pnl, 2),
+        "absolute_return_pct": round(pnl_pct, 2),
+        "cagr": round(cagr, 2),
+        "holding_period_years": round(years_held, 1),
+        "benchmark_comparison": {
+            "nifty_cagr_5yr": nifty_benchmark,
+            "outperformance": round(cagr - nifty_benchmark, 2),
+        },
+    }
+    await cache_set(ck, result, ttl=market_ttl())
+    return StandardResponse.ok(result)
 
 
 @router.get("/drawdown", summary="Get drawdown analysis", description="Get portfolio drawdown metrics")
 async def get_drawdown(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Analyze portfolio drawdown."""
+    from ....services.cache import cache_get, cache_set, market_ttl
+
+    ck = f"drawdown:{current_user['_id']}"
+    cached = await cache_get(ck)
+    if cached:
+        return StandardResponse.ok(cached)
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
         return StandardResponse.ok({"portfolio_drawdown": 0, "holdings_in_drawdown": [], "total_holdings_down": 0})
@@ -346,22 +371,28 @@ async def get_drawdown(current_user: dict = Depends(get_current_user)) -> Standa
 
     holdings_in_drawdown.sort(key=lambda x: x["drawdown_pct"], reverse=True)
 
-    return StandardResponse.ok(
-        {
-            "portfolio_drawdown": round(current_drawdown, 1),
-            "estimated_peak": round(estimated_peak, 2),
-            "current_value": round(total_current, 2),
-            "recovery_needed": round((estimated_peak / total_current - 1) * 100, 1) if total_current > 0 else 0,
-            "holdings_in_drawdown": holdings_in_drawdown[:10],
-            "total_holdings_down": len(holdings_in_drawdown),
-            "risk_note": "A 50% loss requires 100% gain to recover. Consider rebalancing if drawdown exceeds 20%.",
-        }
-    )
+    result = {
+        "portfolio_drawdown": round(current_drawdown, 1),
+        "estimated_peak": round(estimated_peak, 2),
+        "current_value": round(total_current, 2),
+        "recovery_needed": round((estimated_peak / total_current - 1) * 100, 1) if total_current > 0 else 0,
+        "holdings_in_drawdown": holdings_in_drawdown[:10],
+        "total_holdings_down": len(holdings_in_drawdown),
+        "risk_note": "A 50% loss requires 100% gain to recover. Consider rebalancing if drawdown exceeds 20%.",
+    }
+    await cache_set(ck, result, ttl=market_ttl(300, 3600))
+    return StandardResponse.ok(result)
 
 
 @router.get("/sector-risk", summary="Get sector risk", description="Get sector concentration risk")
 async def get_sector_risk(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Analyze sector concentration risk with MF categorization."""
+    from ....services.cache import cache_get, cache_set, market_ttl
+
+    ck = f"sector_risk:{current_user['_id']}"
+    cached = await cache_get(ck)
+    if cached:
+        return StandardResponse.ok(cached)
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
         return StandardResponse.ok({"sectors": [], "total_sectors": 0, "recommendations": []})
@@ -429,14 +460,14 @@ async def get_sector_risk(current_user: dict = Depends(get_current_user)) -> Sta
     if len(sectors) < 5:
         recommendations.append("Consider diversifying into more sectors")
 
-    return StandardResponse.ok(
-        {
-            "sectors": sectors,
-            "total_sectors": len(sectors),
-            "recommendations": recommendations,
-            "ideal_allocation": "No single sector should exceed 25-30% for balanced risk",
-        }
-    )
+    result = {
+        "sectors": sectors,
+        "total_sectors": len(sectors),
+        "recommendations": recommendations,
+        "ideal_allocation": "No single sector should exceed 25-30% for balanced risk",
+    }
+    await cache_set(ck, result, ttl=market_ttl(300, 3600))
+    return StandardResponse.ok(result)
 
 
 @router.get("/pnl-monthly", summary="Get monthly PnL", description="Get monthly PnL summary")
@@ -527,24 +558,30 @@ async def get_signals(current_user: dict = Depends(get_current_user)) -> Standar
     # Get IPO recommendations
     ipo_recs = await analyze_ipo_opportunities()
 
-    return StandardResponse.ok({
-        "portfolio": result["signals"],
-        "ipos": ipo_recs,
-        "market_regime": result["market_regime"],
-        "nifty_change": result["nifty_change"],
-        "summary": result["summary"],
-    })
-
+    return StandardResponse.ok(
+        {
+            "portfolio": result["signals"],
+            "ipos": ipo_recs,
+            "market_regime": result["market_regime"],
+            "nifty_change": result["nifty_change"],
+            "summary": result["summary"],
+        }
+    )
 
 
 @router.get("/mf-overlap", summary="MF Overlap Analyzer", description="Find overlapping stocks across mutual funds")
 async def get_mf_overlap(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Analyze stock overlap across mutual fund holdings."""
-    import re
 
     from beanie import PydanticObjectId
 
     from ....models.documents import Holding
+    from ....services.cache import cache_get, cache_set
+
+    ck = f"mf_overlap:{current_user['_id']}"
+    cached = await cache_get(ck)
+    if cached:
+        return StandardResponse.ok(cached)
 
     holdings = await Holding.find(
         Holding.user_id == PydanticObjectId(current_user["_id"]),
@@ -578,34 +615,76 @@ async def get_mf_overlap(current_user: dict = Depends(get_current_user)) -> Stan
     # Typical top holdings by fund category (based on public SEBI disclosures)
     CATEGORY_STOCKS = {
         "largecap": [
-            ("RELIANCE", 8.5), ("HDFCBANK", 7.2), ("ICICIBANK", 6.8), ("INFY", 5.5),
-            ("TCS", 5.0), ("BHARTIARTL", 4.2), ("ITC", 3.8), ("LT", 3.5),
-            ("SBIN", 3.2), ("KOTAKBANK", 3.0),
+            ("RELIANCE", 8.5),
+            ("HDFCBANK", 7.2),
+            ("ICICIBANK", 6.8),
+            ("INFY", 5.5),
+            ("TCS", 5.0),
+            ("BHARTIARTL", 4.2),
+            ("ITC", 3.8),
+            ("LT", 3.5),
+            ("SBIN", 3.2),
+            ("KOTAKBANK", 3.0),
         ],
         "midcap": [
-            ("PERSISTENT", 4.5), ("COFORGE", 4.0), ("MPHASIS", 3.8), ("VOLTAS", 3.5),
-            ("AUROPHARMA", 3.2), ("GODREJCP", 3.0), ("CUMMINSIND", 2.8), ("SUNDARMFIN", 2.5),
-            ("OBEROIRLTY", 2.3), ("FEDERALBNK", 2.0),
+            ("PERSISTENT", 4.5),
+            ("COFORGE", 4.0),
+            ("MPHASIS", 3.8),
+            ("VOLTAS", 3.5),
+            ("AUROPHARMA", 3.2),
+            ("GODREJCP", 3.0),
+            ("CUMMINSIND", 2.8),
+            ("SUNDARMFIN", 2.5),
+            ("OBEROIRLTY", 2.3),
+            ("FEDERALBNK", 2.0),
         ],
         "smallcap": [
-            ("KPITTECH", 3.5), ("RATNAMANI", 3.2), ("CAMS", 3.0), ("FIVESTAR", 2.8),
-            ("KAYNES", 2.5), ("HAPPSTMNDS", 2.3), ("ROUTE", 2.0), ("SAFARI", 1.8),
-            ("MEDPLUS", 1.5), ("IIFL", 1.3),
+            ("KPITTECH", 3.5),
+            ("RATNAMANI", 3.2),
+            ("CAMS", 3.0),
+            ("FIVESTAR", 2.8),
+            ("KAYNES", 2.5),
+            ("HAPPSTMNDS", 2.3),
+            ("ROUTE", 2.0),
+            ("SAFARI", 1.8),
+            ("MEDPLUS", 1.5),
+            ("IIFL", 1.3),
         ],
         "flexicap": [
-            ("HDFCBANK", 7.0), ("RELIANCE", 6.5), ("ICICIBANK", 5.5), ("INFY", 4.8),
-            ("BHARTIARTL", 4.0), ("TCS", 3.5), ("AXISBANK", 3.0), ("SBIN", 2.8),
-            ("PERSISTENT", 2.5), ("COFORGE", 2.0),
+            ("HDFCBANK", 7.0),
+            ("RELIANCE", 6.5),
+            ("ICICIBANK", 5.5),
+            ("INFY", 4.8),
+            ("BHARTIARTL", 4.0),
+            ("TCS", 3.5),
+            ("AXISBANK", 3.0),
+            ("SBIN", 2.8),
+            ("PERSISTENT", 2.5),
+            ("COFORGE", 2.0),
         ],
         "largemid": [
-            ("HDFCBANK", 6.0), ("RELIANCE", 5.5), ("ICICIBANK", 5.0), ("INFY", 4.5),
-            ("PERSISTENT", 3.5), ("COFORGE", 3.0), ("VOLTAS", 2.8), ("TCS", 2.5),
-            ("BHARTIARTL", 2.3), ("AUROPHARMA", 2.0),
+            ("HDFCBANK", 6.0),
+            ("RELIANCE", 5.5),
+            ("ICICIBANK", 5.0),
+            ("INFY", 4.5),
+            ("PERSISTENT", 3.5),
+            ("COFORGE", 3.0),
+            ("VOLTAS", 2.8),
+            ("TCS", 2.5),
+            ("BHARTIARTL", 2.3),
+            ("AUROPHARMA", 2.0),
         ],
         "index": [
-            ("RELIANCE", 10.0), ("HDFCBANK", 8.5), ("ICICIBANK", 7.5), ("INFY", 6.0),
-            ("TCS", 4.5), ("BHARTIARTL", 4.0), ("ITC", 3.5), ("LT", 3.0),
-            ("SBIN", 2.8), ("KOTAKBANK", 2.5),
+            ("RELIANCE", 10.0),
+            ("HDFCBANK", 8.5),
+            ("ICICIBANK", 7.5),
+            ("INFY", 6.0),
+            ("TCS", 4.5),
+            ("BHARTIARTL", 4.0),
+            ("ITC", 3.5),
+            ("LT", 3.0),
+            ("SBIN", 2.8),
+            ("KOTAKBANK", 2.5),
         ],
     }
 
@@ -614,13 +693,15 @@ async def get_mf_overlap(current_user: dict = Depends(get_current_user)) -> Stan
         name = h.name or h.symbol
         category = classify_fund(name)
         stocks = CATEGORY_STOCKS.get(category, [])
-        funds.append({
-            "symbol": h.symbol,
-            "name": name,
-            "value": round(h.quantity * h.avg_price, 2),
-            "category": category,
-            "stocks": [{"symbol": s, "weight": w} for s, w in stocks],
-        })
+        funds.append(
+            {
+                "symbol": h.symbol,
+                "name": name,
+                "value": round(h.quantity * h.avg_price, 2),
+                "category": category,
+                "stocks": [{"symbol": s, "weight": w} for s, w in stocks],
+            }
+        )
 
     # Only equity funds participate in overlap
     equity_funds = [f for f in funds if f["category"] != "debt"]
@@ -630,9 +711,13 @@ async def get_mf_overlap(current_user: dict = Depends(get_current_user)) -> Stan
     stock_map: dict = {}
     for f in equity_funds:
         for s in f["stocks"]:
-            stock_map.setdefault(s["symbol"], []).append({
-                "fund": f["name"], "fund_symbol": f["symbol"], "weight": s["weight"],
-            })
+            stock_map.setdefault(s["symbol"], []).append(
+                {
+                    "fund": f["name"],
+                    "fund_symbol": f["symbol"],
+                    "weight": s["weight"],
+                }
+            )
 
     overlaps = sorted(
         [
@@ -654,11 +739,13 @@ async def get_mf_overlap(current_user: dict = Depends(get_current_user)) -> Stan
     matrix = []
     for f in equity_funds:
         sw = {s["symbol"]: s["weight"] for s in f["stocks"]}
-        matrix.append({
-            "fund": f["symbol"],
-            "fund_name": f["name"],
-            "weights": {s: sw.get(s, 0) for s in overlap_stocks},
-        })
+        matrix.append(
+            {
+                "fund": f["symbol"],
+                "fund_name": f["name"],
+                "weights": {s: sw.get(s, 0) for s in overlap_stocks},
+            }
+        )
 
     high_overlap = len([o for o in overlaps if o["fund_count"] >= 3])
     eq_count = len(equity_funds)
@@ -667,10 +754,15 @@ async def get_mf_overlap(current_user: dict = Depends(get_current_user)) -> Stan
     duplicate_cats = len(categories) - len(set(categories))
     score = max(0, min(100, 100 - (duplicate_cats * 25) - (high_overlap * 5)))
 
-    return StandardResponse.ok({
+    result = {
         "funds": [
-            {"symbol": f["symbol"], "name": f["name"], "value": f["value"],
-             "category": f["category"], "stock_count": len(f["stocks"])}
+            {
+                "symbol": f["symbol"],
+                "name": f["name"],
+                "value": f["value"],
+                "category": f["category"],
+                "stock_count": len(f["stocks"]),
+            }
             for f in funds
         ],
         "overlaps": overlaps,
@@ -685,9 +777,13 @@ async def get_mf_overlap(current_user: dict = Depends(get_current_user)) -> Stan
             "recommendation": (
                 "High overlap detected among equity funds. Consider consolidating similar category funds."
                 if high_overlap > 3
-                else "Moderate overlap — typical for diversified equity funds."
-                if high_overlap > 0
-                else "Minimal overlap. Good diversification across your funds."
+                else (
+                    "Moderate overlap — typical for diversified equity funds."
+                    if high_overlap > 0
+                    else "Minimal overlap. Good diversification across your funds."
+                )
             ),
-        }
-    })
+        },
+    }
+    await cache_set(ck, result, ttl=600)
+    return StandardResponse.ok(result)

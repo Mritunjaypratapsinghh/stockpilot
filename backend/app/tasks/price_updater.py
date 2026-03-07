@@ -13,15 +13,25 @@ async def update_all_prices():
         return
 
     prices = await get_bulk_prices(symbols)
+    now = datetime.now(timezone.utc)
 
     for symbol, data in prices.items():
-        if data.get("current_price"):
-            cache = await PriceCache.find_one(PriceCache.symbol == symbol)
-            if cache:
-                for k, v in data.items():
-                    setattr(cache, k, v)
-                cache.updated_at = datetime.now(timezone.utc)
-                await cache.save()
-            else:
-                data.pop("symbol", None)  # Remove duplicate key
-                await PriceCache(symbol=symbol, **data, updated_at=datetime.now(timezone.utc)).insert()
+        if not data.get("current_price"):
+            continue
+
+        # Map API response to PriceCache fields
+        cache_data = {
+            "price": data.get("current_price"),
+            "change": data.get("day_change"),
+            "change_percent": data.get("day_change_pct"),
+            "volume": data.get("volume"),
+            "last_updated": now,
+        }
+
+        cache = await PriceCache.find_one(PriceCache.symbol == symbol)
+        if cache:
+            for k, v in cache_data.items():
+                setattr(cache, k, v)
+            await cache.save()
+        else:
+            await PriceCache(symbol=symbol, **cache_data).insert()

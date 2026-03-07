@@ -416,7 +416,7 @@ async def analyze_ipo_opportunities() -> list:
             rec["action"] = "APPLY"
             rec["reasons"].append(f"Good GMP of ₹{gmp} ({gmp_pct:.0f}%)")
         elif gmp_pct > 5:
-            rec["action"] = "RISKY"
+            rec["action"] = "MAY APPLY"
             rec["reasons"].append(f"Moderate GMP ({gmp_pct:.0f}%)")
             rec["reasons"].append("Apply only if fundamentals are strong")
         elif gmp_pct <= 0:
@@ -424,8 +424,8 @@ async def analyze_ipo_opportunities() -> list:
             rec["reasons"].append("Negative/Zero GMP")
             rec["reasons"].append("High risk of listing loss")
         else:
-            rec["action"] = "WAIT"
-            rec["reasons"].append("Low GMP - wait for better opportunity")
+            rec["action"] = "RISKY"
+            rec["reasons"].append(f"Low GMP ({gmp_pct:.0f}%) - high risk")
 
         recommendations.append(rec)
 

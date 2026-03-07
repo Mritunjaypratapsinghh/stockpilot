@@ -72,6 +72,12 @@ async def get_portfolio_summary(current_user: dict = Depends(get_current_user)) 
 @router.get("/holdings", summary="Get all holdings", description="List all stock and MF holdings with current prices")
 async def get_holdings(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get all holdings with current prices and P&L."""
+    from ....services.cache import cache_get, cache_set, market_ttl
+
+    ck = f"holdings:{current_user['_id']}"
+    cached = await cache_get(ck)
+    if cached:
+        return StandardResponse.ok(cached)
     holdings = await get_user_holdings(current_user["_id"])
     prices = await get_prices_for_holdings(holdings) or {}
 
@@ -98,6 +104,8 @@ async def get_holdings(current_user: dict = Depends(get_current_user)) -> Standa
                 pnl_pct=round((pnl / inv * 100) if inv > 0 else 0, 2),
             )
         )
+    serialized = [r.model_dump() if hasattr(r, "model_dump") else r for r in result]
+    await cache_set(ck, serialized, ttl=market_ttl())
     return StandardResponse.ok(result)
 
 
@@ -159,6 +167,12 @@ async def delete_holding(holding_id: str, current_user: dict = Depends(get_curre
 @router.get("/sectors", summary="Get sector allocation", description="Get portfolio breakdown by sector")
 async def get_sector_allocation(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get portfolio sector allocation breakdown."""
+    from ....services.cache import cache_get, cache_set, market_ttl
+
+    ck = f"sectors:{current_user['_id']}"
+    cached = await cache_get(ck)
+    if cached:
+        return StandardResponse.ok(cached)
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
         return StandardResponse.ok({"sectors": [], "total_value": 0})
@@ -180,7 +194,12 @@ async def get_sector_allocation(current_user: dict = Depends(get_current_user)) 
         )
         for s, v in sorted(sector_values.items(), key=lambda x: x[1], reverse=True)
     ]
-    return StandardResponse.ok({"sectors": sectors, "total_value": round(total_value, 2)})
+    result = {
+        "sectors": [s.model_dump() if hasattr(s, "model_dump") else s for s in sectors],
+        "total_value": round(total_value, 2),
+    }
+    await cache_set(ck, result, ttl=market_ttl(300, 3600))
+    return StandardResponse.ok(result)
 
 
 @router.get(
@@ -276,12 +295,9 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)) -> Stand
 
 
 def _market_open() -> bool:
-    from datetime import datetime
+    from ....services.cache import market_open
 
-    import pytz
-
-    now = datetime.now(pytz.timezone("Asia/Kolkata"))
-    return now.weekday() < 5 and 915 <= now.hour * 100 + now.minute <= 1530
+    return market_open()
 
 
 def _calc_xirr(holdings, current_value):
@@ -733,6 +749,13 @@ def categorize_mf(name: str) -> tuple[str, int]:
 @router.get("/mf/health", summary="MF health check", description="Analyze mutual fund performance and health")
 async def mf_health_check(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Analyze mutual fund portfolio health with benchmarks and recommendations."""
+    from ....services.cache import cache_get, cache_set
+
+    ck = f"mf_health:{current_user['_id']}"
+    cached = await cache_get(ck)
+    if cached:
+        return StandardResponse.ok(cached)
+
     holdings = await get_user_holdings(current_user["_id"])
     mf_holdings = [h for h in holdings if h.holding_type == "MF"]
 
@@ -848,18 +871,18 @@ async def mf_health_check(current_user: dict = Depends(get_current_user)) -> Sta
     if not any("Index" in a["category"] for a in analysis):
         recommendations.append({"type": "add", "message": "Consider adding low-cost index funds for core allocation"})
 
-    return StandardResponse.ok(
-        {
-            "total_mf_value": round(total_value, 2),
-            "total_annual_expense": round(total_expense, 2),
-            "avg_expense_ratio": round(avg_expense, 2),
-            "funds": analysis,
-            "issues": issues,
-            "health_score": max(10, 100 - len(issues) * 10),
-            "recommendations": recommendations,
-            "note": "Returns comparison is vs annual benchmarks. Short holding periods may show underperformance.",
-        }
-    )
+    result = {
+        "total_mf_value": round(total_value, 2),
+        "total_annual_expense": round(total_expense, 2),
+        "avg_expense_ratio": round(avg_expense, 2),
+        "funds": analysis,
+        "issues": issues,
+        "health_score": max(10, 100 - len(issues) * 10),
+        "recommendations": recommendations,
+        "note": "Returns comparison is vs annual benchmarks. Short holding periods may show underperformance.",
+    }
+    await cache_set(ck, result, ttl=600)
+    return StandardResponse.ok(result)
 
 
 @router.get("/mf/overlap", summary="MF overlap analysis", description="Analyze stock overlap between mutual funds")

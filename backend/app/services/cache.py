@@ -58,6 +58,21 @@ async def cache_delete(key: str) -> bool:
         return False
 
 
+def market_open() -> bool:
+    """Check if Indian stock market is currently open."""
+    from datetime import datetime
+
+    import pytz
+
+    now = datetime.now(pytz.timezone("Asia/Kolkata"))
+    return now.weekday() < 5 and 915 <= now.hour * 100 + now.minute <= 1530
+
+
+def market_ttl(active: int = 120, closed: int = 3600) -> int:
+    """Return TTL based on market hours."""
+    return active if market_open() else closed
+
+
 async def cache_mget(keys: list[str]) -> dict[str, Any]:
     """Get multiple values from cache."""
     if not keys:

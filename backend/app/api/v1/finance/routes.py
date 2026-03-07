@@ -507,6 +507,12 @@ async def get_dividends(current_user: dict = Depends(get_current_user)) -> Stand
 async def get_networth(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get total networth breakdown."""
     from ....models.documents import Asset
+    from ....services.cache import cache_get, cache_set, market_ttl
+
+    ck = f"networth:{current_user['_id']}"
+    cached = await cache_get(ck)
+    if cached:
+        return StandardResponse.ok(cached)
 
     holdings = await get_user_holdings(current_user["_id"])
     prices = (await get_prices_for_holdings(holdings) if holdings else {}) or {}
@@ -533,16 +539,16 @@ async def get_networth(current_user: dict = Depends(get_current_user)) -> Standa
     categories = {"Equity": equity, "Mutual Funds": mf, **assets_by_category}
     allocation = {k: round(v / total * 100, 1) if total > 0 else 0 for k, v in categories.items()}
 
-    return StandardResponse.ok(
-        {
-            "total": round(total, 2),
-            "equity": round(equity, 2),
-            "mf": round(mf, 2),
-            "categories": {k: round(v, 2) for k, v in categories.items()},
-            "allocation": allocation,
-            "assets": [{"name": a.name, "category": a.category, "value": a.value, "id": str(a.id)} for a in assets],
-        }
-    )
+    result = {
+        "total": round(total, 2),
+        "equity": round(equity, 2),
+        "mf": round(mf, 2),
+        "categories": {k: round(v, 2) for k, v in categories.items()},
+        "allocation": allocation,
+        "assets": [{"name": a.name, "category": a.category, "value": a.value, "id": str(a.id)} for a in assets],
+    }
+    await cache_set(ck, result, ttl=market_ttl(300, 3600))
+    return StandardResponse.ok(result)
 
 
 @router.get("/networth/history", summary="Get networth history")
@@ -551,6 +557,12 @@ async def get_networth_history(year: int, current_user: dict = Depends(get_curre
     from datetime import datetime
 
     from ....models.documents import NetworthHistory
+    from ....services.cache import cache_get, cache_set
+
+    ck = f"networth_hist:{current_user['_id']}:{year}"
+    cached = await cache_get(ck)
+    if cached:
+        return StandardResponse.ok(cached)
 
     start = datetime(year, 1, 1)
     end = datetime(year, 12, 31, 23, 59, 59)
@@ -625,24 +637,24 @@ async def get_networth_history(year: int, current_user: dict = Depends(get_curre
     ytd_growth = ((last_val - first_val) / first_val * 100) if first_val else 0
     annualized = (ytd_growth / last_month) * 12 if last_month else 0
 
-    return StandardResponse.ok(
-        {
-            "monthly": monthly,
-            "ytd_growth": round(ytd_growth, 2),
-            "annualized_growth": round(annualized, 2),
-            "rating": (
-                "Excellent"
-                if annualized >= 15
-                else "Good" if annualized >= 12 else "Average" if annualized >= 7 else "Poor"
-            ),
-            "performance": {
-                "beating_inflation": annualized >= 6,
-                "beating_fd": annualized >= 7,
-                "beating_nifty": annualized >= 12,
-                "good_growth": annualized >= 15,
-            },
-        }
-    )
+    result = {
+        "monthly": monthly,
+        "ytd_growth": round(ytd_growth, 2),
+        "annualized_growth": round(annualized, 2),
+        "rating": (
+            "Excellent"
+            if annualized >= 15
+            else "Good" if annualized >= 12 else "Average" if annualized >= 7 else "Poor"
+        ),
+        "performance": {
+            "beating_inflation": annualized >= 6,
+            "beating_fd": annualized >= 7,
+            "beating_nifty": annualized >= 12,
+            "good_growth": annualized >= 15,
+        },
+    }
+    await cache_set(ck, result, ttl=600)
+    return StandardResponse.ok(result)
 
 
 @router.post("/networth/snapshot", summary="Take networth snapshot")

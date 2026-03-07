@@ -3,6 +3,7 @@ import httpx
 from ..core.config import settings
 from ..models.documents import Holding, User
 from ..services.market.price_service import get_bulk_prices
+from ..services.notification.service import send_email
 from ..utils.logger import logger
 
 
@@ -34,3 +35,11 @@ async def send_hourly_update():
                     )
             except httpx.HTTPError as e:
                 logger.warning(f"Hourly update telegram error: {e}")
+
+        if user.email:
+            html = (
+                f"<h2>⏰ Hourly Portfolio Update</h2>"
+                f"<p>💰 Value: ₹{current_val:,.0f}</p>"
+                f"<p>{emoji} P&L: ₹{pnl:,.0f} ({pnl_pct:+.1f}%)</p>"
+            )
+            await send_email(user.email, "StockPilot Hourly Update", html)

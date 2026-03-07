@@ -542,10 +542,13 @@ async def get_mf_overlap(current_user: dict = Depends(get_current_user)) -> Stan
     """Analyze stock overlap across mutual fund holdings."""
     import httpx
 
+    from beanie import PydanticObjectId
+
     from ....models.documents import Holding
 
     holdings = await Holding.find(
-        Holding.user_id == current_user["_id"], Holding.holding_type == "MF"
+        Holding.user_id == PydanticObjectId(current_user["_id"]),
+        Holding.holding_type == "MF",
     ).to_list()
 
     if not holdings:

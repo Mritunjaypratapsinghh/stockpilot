@@ -248,7 +248,7 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)) -> Stand
         {
             "holdings": holdings_list,
             "sectors": sectors,
-            "xirr": None,
+            "xirr": _calc_xirr(holdings, total_val),
             "transactions": txns[:50],
             "summary": {
                 "invested": round(total_inv, 2),
@@ -258,6 +258,58 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)) -> Stand
             },
         }
     )
+
+
+def _calc_xirr(holdings, current_value):
+    """Calculate XIRR from transaction history using Newton's method."""
+    from datetime import datetime
+
+    cashflows = []  # (date, amount) — negative for outflows, positive for inflows
+    for h in holdings:
+        for t in h.transactions:
+            try:
+                dt = datetime.strptime(t.date, "%Y-%m-%d")
+                amt = t.quantity * t.price
+                cashflows.append((dt, -amt if t.type == "BUY" else amt))
+            except (ValueError, TypeError):
+                continue
+
+    if not cashflows:
+        return None
+
+    # Add current portfolio value as final inflow
+    cashflows.append((datetime.now(), current_value))
+    cashflows.sort(key=lambda x: x[0])
+
+    if len(cashflows) < 2:
+        return None
+
+    # Newton's method for XIRR
+    d0 = cashflows[0][0]
+    days = [(cf[0] - d0).days / 365.0 for cf in cashflows]
+    amounts = [cf[1] for cf in cashflows]
+
+    def npv(rate):
+        return sum(a / (1 + rate) ** d for a, d in zip(amounts, days))
+
+    def dnpv(rate):
+        return sum(-d * a / (1 + rate) ** (d + 1) for a, d in zip(amounts, days))
+
+    rate = 0.1  # initial guess 10%
+    for _ in range(100):
+        n = npv(rate)
+        dn = dnpv(rate)
+        if abs(dn) < 1e-12:
+            break
+        new_rate = rate - n / dn
+        if abs(new_rate - rate) < 1e-7:
+            rate = new_rate
+            break
+        rate = new_rate
+        if rate < -0.99 or rate > 10:
+            return None
+
+    return round(rate * 100, 2) if -1 < rate < 10 else None
 
 
 @router.get("/transactions", summary="Get transactions", description="List all buy/sell transactions")

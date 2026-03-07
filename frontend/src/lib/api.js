@@ -94,3 +94,16 @@ export const addLedgerEntry = (data) => api('/api/v1/ledger', { method: 'POST', 
 export const updateLedgerEntry = (id, data) => api(`/api/v1/ledger/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const settleLedgerEntry = (id, data) => api(`/api/v1/ledger/${id}/settle`, { method: 'POST', body: JSON.stringify(data) });
 export const deleteLedgerEntry = (id) => api(`/api/v1/ledger/${id}`, { method: 'DELETE' });
+
+
+// Vault
+export const getVaultEntries = (category) => api(`/api/v1/vault/entries${category ? `?category=${category}` : ''}`);
+export const createVaultEntry = (data) => api('/api/v1/vault/entries', { method: 'POST', body: JSON.stringify(data) });
+export const updateVaultEntry = (id, data) => api(`/api/v1/vault/entries/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteVaultEntry = (id) => api(`/api/v1/vault/entries/${id}`, { method: 'DELETE' });
+export const getVaultNominees = () => api('/api/v1/vault/nominees');
+export const addVaultNominee = (data) => api('/api/v1/vault/nominees', { method: 'POST', body: JSON.stringify(data) });
+export const removeVaultNominee = (id) => api(`/api/v1/vault/nominees/${id}`, { method: 'DELETE' });
+export const getSharedVaults = () => api('/api/v1/vault/shared');
+export const viewSharedVault = (email) => api(`/api/v1/vault/shared/${encodeURIComponent(email)}`);
+export const acceptVaultInvite = (token) => api(`/api/v1/vault/accept-invite?token=${token}`, { method: 'POST' });

@@ -65,7 +65,7 @@ export default function ChatPage() {
           <div className="px-4 md:px-6 pt-4 pb-2">
             <h1 className="text-lg font-bold flex items-center gap-2">
               <MessageSquare className="w-5 h-5" /> Portfolio Assistant
-              <span className="text-[10px] bg-[var(--accent)]/20 text-[var(--accent)] px-2 py-0.5 rounded-full">Gemini AI</span>
+              <span className="text-[10px] bg-[var(--accent)]/20 text-[var(--accent)] px-2 py-0.5 rounded-full">StockPilot AI</span>
             </h1>
           </div>
 

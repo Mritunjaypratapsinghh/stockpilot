@@ -228,6 +228,14 @@ export default function SignalsPage() {
                                 </ul>
                               </div>
 
+                              {/* AI Insight */}
+                              {r.ai_insight && (
+                                <div className="bg-[var(--accent)]/10 border border-[var(--accent)]/20 rounded-lg p-3 flex items-start gap-2">
+                                  <span className="text-xs">🤖</span>
+                                  <p className="text-sm text-[var(--text-secondary)]">{r.ai_insight}</p>
+                                </div>
+                              )}
+
                               {/* Confidence Factors */}
                               {r.confidence_factors?.length > 0 && (
                                 <div className="flex flex-wrap gap-2">

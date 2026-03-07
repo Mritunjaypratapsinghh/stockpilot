@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Shield, Users, ChevronRight, Building2, Heart, TrendingUp, Home, FileText, Smartphone, Phone, File } from 'lucide-react';
 import Navbar from '../../../components/Navbar';
@@ -16,7 +16,7 @@ const FIELD_LABELS = {
   name: 'Name', relation: 'Relation', phone: 'Phone', email: 'Email', role: 'Role'
 };
 
-export default function SharedVaultsPage() {
+function SharedVaultsContent() {
   const searchParams = useSearchParams();
   const [sharedVaults, setSharedVaults] = useState([]);
   const [selectedVault, setSelectedVault] = useState(null);
@@ -145,5 +145,13 @@ export default function SharedVaultsPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function SharedVaultsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><main className="p-6"><div className="text-center py-12 text-[var(--text-muted)]">Loading...</div></main></div>}>
+      <SharedVaultsContent />
+    </Suspense>
   );
 }

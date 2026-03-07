@@ -66,20 +66,24 @@ export default function ChatWidget() {
   };
 
   const [pos, setPos] = useState({ x: 24, y: 24 }); // distance from bottom-right
+  const [panelPos, setPanelPos] = useState({ x: 24, y: 24 });
   const dragRef = useRef(null);
   const dragging = useRef(false);
   const didDrag = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
+  const dragTarget = useRef(null); // 'btn' or 'panel'
 
   useEffect(() => {
     const onMove = (e) => {
       if (!dragging.current) return;
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      setPos({
+      const newPos = {
         x: Math.max(8, window.innerWidth - clientX - dragStart.current.x),
         y: Math.max(8, window.innerHeight - clientY - dragStart.current.y),
-      });
+      };
+      if (dragTarget.current === 'panel') setPanelPos(newPos);
+      else setPos(newPos);
       didDrag.current = true;
     };
     const onUp = () => { dragging.current = false; };
@@ -98,9 +102,20 @@ export default function ChatWidget() {
   const startDrag = (e) => {
     dragging.current = true;
     didDrag.current = false;
+    dragTarget.current = 'btn';
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     const rect = dragRef.current.getBoundingClientRect();
+    dragStart.current = { x: rect.right - clientX, y: rect.bottom - clientY };
+  };
+
+  const panelRef = useRef(null);
+  const startPanelDrag = (e) => {
+    dragging.current = true;
+    dragTarget.current = 'panel';
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const rect = panelRef.current.getBoundingClientRect();
     dragStart.current = { x: rect.right - clientX, y: rect.bottom - clientY };
   };
 
@@ -122,9 +137,13 @@ export default function ChatWidget() {
 
       {/* Chat Panel */}
       {open && (
-        <div style={{ right: Math.max(16, pos.x - 160), bottom: pos.y }} className="fixed w-[380px] h-[520px] bg-[var(--bg-primary)] border border-[var(--border)] rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+        <div ref={panelRef} style={{ right: panelPos.x, bottom: panelPos.y }} className="fixed w-[380px] h-[520px] bg-[var(--bg-primary)] border border-[var(--border)] rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden">
+          {/* Header - draggable */}
+          <div
+            onMouseDown={startPanelDrag}
+            onTouchStart={startPanelDrag}
+            className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-secondary)] cursor-grab active:cursor-grabbing select-none"
+          >
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-[var(--accent)] flex items-center justify-center">
                 <Bot className="w-3.5 h-3.5 text-white" />

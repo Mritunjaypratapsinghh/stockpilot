@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # Frontend URL (for email links)
     frontend_url: str = "http://localhost:3000"
 
+    # Gemini AI
+    gemini_api_key: str = ""
+
     class Config:
         env_file = "../.env"  # Relative to backend/ directory where uvicorn is run
 

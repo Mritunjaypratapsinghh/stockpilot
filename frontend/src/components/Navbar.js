@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Bell, Search, TrendingUp, LogOut, Briefcase, Eye, Calendar, Zap, Sun, Moon, Settings, Target, Receipt, BarChart3, Filter, RefreshCw, Scissors, ArrowRightLeft, ChevronDown, Wallet, CalendarDays, Activity, HandCoins, Calculator } from 'lucide-react';
+import { LayoutDashboard, Bell, Search, TrendingUp, LogOut, Briefcase, Eye, Calendar, Zap, Sun, Moon, Settings, Target, Receipt, BarChart3, Filter, RefreshCw, Scissors, ArrowRightLeft, ChevronDown, Wallet, CalendarDays, Activity, HandCoins, Calculator, Shield } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 
 const mainNav = [
@@ -33,6 +33,7 @@ const trackingMenu = [
   { href: '/watchlist', label: 'Watchlist', icon: Eye },
   { href: '/alerts', label: 'Alerts', icon: Bell },
   { href: '/ledger', label: 'Ledger', icon: HandCoins },
+  { href: '/vault', label: 'Vault', icon: Shield },
   { href: '/corporate-actions', label: 'Corp Actions', icon: Scissors },
   { href: '/ipo', label: 'IPO', icon: Calendar },
 ];

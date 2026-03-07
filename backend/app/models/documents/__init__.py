@@ -16,6 +16,7 @@ from .signal_history import SignalHistory
 from .sip import SIP
 from .transaction import Transaction
 from .user import User
+from .vault import VaultCategory, VaultEntry, VaultNominee
 from .watchlist import WatchlistItem
 
 ALL_DOCUMENTS = [
@@ -37,4 +38,6 @@ ALL_DOCUMENTS = [
     DailyDigest,
     PriceCache,
     Ledger,
+    VaultEntry,
+    VaultNominee,
 ]

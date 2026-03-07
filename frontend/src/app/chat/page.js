@@ -12,12 +12,54 @@ const SUGGESTIONS = [
   "What's my tax liability?",
   "Show me my top gainers",
   "Any stocks in loss?",
+  "Compare my stocks vs mutual funds",
+  "What should I buy next?",
 ];
 
 const fmt = (n) => n?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0';
 
+const FOLLOW_UP_MAP = {
+  perform: ["Which stocks are dragging me down?", "How are my MFs doing?", "What's my XIRR?"],
+  tax: ["How can I save tax?", "Show STCG vs LTCG breakdown", "Which losses should I harvest?"],
+  sell: ["What should I buy instead?", "Am I well diversified?", "Show my sector allocation"],
+  divers: ["Show my sector allocation", "Do my MFs overlap?", "Should I add more sectors?"],
+  loss: ["Should I sell or hold?", "Can I harvest these losses?", "What's my tax liability?"],
+  gain: ["Should I book profits?", "What's my tax on these gains?", "Am I overweight in any stock?"],
+  mf: ["Do my MFs overlap?", "Check MF health", "Compare stocks vs MF returns"],
+  buy: ["Am I well diversified?", "What sectors am I missing?", "What's my risk level?"],
+};
+
+function getFollowUps(messages) {
+  const last = messages.filter(m => m.role === 'user').pop()?.content?.toLowerCase() || '';
+  for (const [key, suggestions] of Object.entries(FOLLOW_UP_MAP)) {
+    if (last.includes(key)) return suggestions;
+  }
+  return SUGGESTIONS.slice(0, 4);
+}
+
 function Markdown({ text }) {
-  return <>{text.split('**').map((part, j) => j % 2 === 1 ? <strong key={j}>{part}</strong> : part)}</>;
+  if (!text) return null;
+  return (
+    <div className="space-y-1.5">
+      {text.split('\n').map((line, i) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={i} className="h-1" />;
+        if (trimmed.startsWith('### ')) return <div key={i} className="font-semibold text-[var(--text-primary)] mt-2">{trimmed.slice(4)}</div>;
+        if (trimmed.startsWith('## ')) return <div key={i} className="font-bold text-[var(--text-primary)] mt-2">{trimmed.slice(3)}</div>;
+        const isBullet = /^[-•*]\s/.test(trimmed);
+        const isNumbered = /^\d+[.)]\s/.test(trimmed);
+        const content = isBullet ? trimmed.slice(2) : isNumbered ? trimmed.replace(/^\d+[.)]\s/, '') : trimmed;
+        const rendered = content.split(/(\*\*[^*]+\*\*|`[^`]+`)/).map((part, j) => {
+          if (part.startsWith('**') && part.endsWith('**')) return <strong key={j}>{part.slice(2, -2)}</strong>;
+          if (part.startsWith('`') && part.endsWith('`')) return <code key={j} className="px-1 py-0.5 bg-[var(--bg-tertiary)] rounded text-xs">{part.slice(1, -1)}</code>;
+          return part;
+        });
+        if (isBullet) return <div key={i} className="flex gap-2 ml-1"><span className="text-[var(--accent)] mt-0.5">•</span><span>{rendered}</span></div>;
+        if (isNumbered) return <div key={i} className="flex gap-2 ml-1"><span className="text-[var(--text-muted)] min-w-[1.2em]">{trimmed.match(/^\d+/)[0]}.</span><span>{rendered}</span></div>;
+        return <div key={i}>{rendered}</div>;
+      })}
+    </div>
+  );
 }
 
 export default function ChatPage() {
@@ -163,7 +205,11 @@ export default function ChatPage() {
                       <Bot className="w-3.5 h-3.5 text-white" />
                     </div>
                     <div className="bg-[var(--bg-secondary)] border border-[var(--border)] p-3 rounded-lg">
-                      <Loader2 className="w-4 h-4 animate-spin text-[var(--text-muted)]" />
+                      <div className="flex gap-1 items-center h-4">
+                        <span className="w-1.5 h-1.5 bg-[var(--text-muted)] rounded-full animate-bounce" style={{animationDelay: '0ms'}} />
+                        <span className="w-1.5 h-1.5 bg-[var(--text-muted)] rounded-full animate-bounce" style={{animationDelay: '150ms'}} />
+                        <span className="w-1.5 h-1.5 bg-[var(--text-muted)] rounded-full animate-bounce" style={{animationDelay: '300ms'}} />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -175,9 +221,9 @@ export default function ChatPage() {
           {/* Input */}
           <div className="px-4 md:px-6 py-3 border-t border-[var(--border)]">
             {messages.length > 0 && (
-              <div className="flex gap-2 mb-2 overflow-x-auto pb-1">
-                {SUGGESTIONS.slice(0, 4).map((s, i) => (
-                  <button key={i} onClick={() => handleSend(s)} className="px-3 py-1 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-full text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] whitespace-nowrap">
+              <div className="flex gap-2 mb-2 overflow-x-auto pb-1 scrollbar-hide">
+                {getFollowUps(messages).map((s, i) => (
+                  <button key={i} onClick={() => handleSend(s)} className="px-3 py-1 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-full text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]/50 whitespace-nowrap transition-colors">
                     {s}
                   </button>
                 ))}

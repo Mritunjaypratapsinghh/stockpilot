@@ -18,21 +18,24 @@ router = APIRouter()
 
 client = Groq(api_key=settings.groq_api_key) if settings.groq_api_key else None
 
-SYSTEM_PROMPT = """You are StockPilot AI — a friendly, expert Indian stock market portfolio assistant built into the StockPilot app.
-
-Style:
-- Be conversational and warm, not robotic. Use emojis sparingly (📊 📈 📉 💡 ⚠️).
-- Format currency in Indian style with ₹ symbol (e.g., ₹1,21,992).
-- Keep responses 3-8 lines. Use bullet points for lists.
-- Bold important numbers and stock names using **text**.
-
-Rules:
-- Answer ONLY from the portfolio data below. Never fabricate holdings or prices.
-- When suggesting action, explain WHY briefly (e.g., "DAMCAPITAL is down 28% — if fundamentals haven't changed, consider averaging down or booking the loss for tax harvesting").
-- If sector data shows N/A, say "sector info isn't available for some holdings" — don't say "data doesn't provide enough information".
-- Reference other StockPilot features when relevant (Tax Center, MF Overlap Analyzer, Signals page).
-- Never give specific price targets or guaranteed advice. Use words like "consider", "you might want to".
-"""
+SYSTEM_PROMPT = (
+    "You are StockPilot AI — a friendly, expert Indian stock market "
+    "portfolio assistant built into the StockPilot app.\n\n"
+    "Style:\n"
+    "- Be conversational and warm, not robotic. Use emojis sparingly.\n"
+    "- Format currency in Indian style with ₹ symbol (e.g., ₹1,21,992).\n"
+    "- Use markdown: **bold** for emphasis, bullet points with - for lists.\n"
+    "- Keep responses focused but thorough (5-15 lines).\n\n"
+    "Rules:\n"
+    "- Answer ONLY from the portfolio data below. Never fabricate.\n"
+    "- When suggesting action, explain WHY briefly.\n"
+    "- Reference StockPilot features when relevant "
+    "(Tax Center, MF Overlap Analyzer, Signals, MF Health Check).\n"
+    "- Never give specific price targets. Use 'consider', 'you might want to'.\n"
+    "- Mention STCG (20%) for <1yr and LTCG (12.5% above ₹1.25L) for >1yr.\n"
+    "- For MFs, comment on diversification across fund categories.\n"
+    "- End with a relevant follow-up question to keep conversation going.\n"
+)
 
 
 class ChatRequest(BaseModel):
@@ -41,6 +44,8 @@ class ChatRequest(BaseModel):
 
 
 async def build_context(user_id: str) -> str:
+    from datetime import datetime, timedelta
+
     uid = PydanticObjectId(user_id)
     holdings = await Holding.find(Holding.user_id == uid).to_list()
 
@@ -51,6 +56,8 @@ async def build_context(user_id: str) -> str:
     total_invested = total_current = 0
     sectors = {}
     stcg_loss = ltcg_loss = stcg_gain = ltcg_gain = 0
+    now = datetime.now()
+    one_year_ago = now - timedelta(days=365)
 
     for h in holdings:
         current = (h.current_price or h.avg_price) * h.quantity
@@ -60,26 +67,47 @@ async def build_context(user_id: str) -> str:
         total_invested += invested
         total_current += current
 
-        # Sector tracking
         sec = h.sector or "Unknown"
         sectors[sec] = sectors.get(sec, 0) + current
 
-        # Tax estimation (simplified: <1yr = STCG, >1yr = LTCG)
-        if pnl > 0:
-            stcg_gain += pnl
-        else:
-            stcg_loss += pnl
+        # First buy date and holding period
+        first_buy = None
+        for t in h.transactions:
+            if t.type == "BUY":
+                try:
+                    td = datetime.strptime(t.date, "%Y-%m-%d")
+                    if first_buy is None or td < first_buy:
+                        first_buy = td
+                except ValueError:
+                    pass
 
+        is_lt = first_buy and first_buy < one_year_ago
+        holding_days = (now - first_buy).days if first_buy else 0
+        tax_type = "LTCG" if is_lt else "STCG"
+
+        if pnl > 0:
+            if is_lt:
+                ltcg_gain += pnl
+            else:
+                stcg_gain += pnl
+        else:
+            if is_lt:
+                ltcg_loss += pnl
+            else:
+                stcg_loss += pnl
+
+        period_str = f"{holding_days}d" if holding_days else "?"
+        buy_str = first_buy.strftime("%Y-%m-%d") if first_buy else "?"
         lines.append(
             f"{h.symbol} | {h.holding_type} | Qty:{h.quantity:.2f} | "
             f"Avg:₹{h.avg_price:.1f} | CMP:₹{h.current_price or 0:.1f} | "
-            f"P&L:₹{pnl:,.0f} ({pnl_pct:+.1f}%) | Sector:{sec}"
+            f"P&L:₹{pnl:,.0f} ({pnl_pct:+.1f}%) | {tax_type} | "
+            f"Held:{period_str} | Since:{buy_str} | Sector:{sec}"
         )
 
     total_pnl = total_current - total_invested
     total_pnl_pct = (total_pnl / total_invested * 100) if total_invested else 0
 
-    # Sector summary
     sector_lines = sorted(sectors.items(), key=lambda x: -x[1])
     sector_str = ", ".join(f"{s}: {v / total_current * 100:.1f}%" for s, v in sector_lines[:8] if s != "Unknown")
 
@@ -88,16 +116,15 @@ async def build_context(user_id: str) -> str:
         f"Invested: ₹{total_invested:,.0f} | Current: ₹{total_current:,.0f} | "
         f"P&L: ₹{total_pnl:,.0f} ({total_pnl_pct:+.1f}%)\n"
         f"SECTORS: {sector_str or 'Not available for most holdings'}\n"
-        f"TAX ESTIMATE: Gains: ₹{stcg_gain:,.0f} | Losses: ₹{abs(stcg_loss):,.0f} | "
-        f"Net taxable: ₹{max(0, stcg_gain + stcg_loss):,.0f}\n\n"
+        f"TAX: STCG gains: ₹{stcg_gain:,.0f} | STCG losses: ₹{abs(stcg_loss):,.0f} | "
+        f"LTCG gains: ₹{ltcg_gain:,.0f} | LTCG losses: ₹{abs(ltcg_loss):,.0f}\n"
+        f"DATE: {now.strftime('%d %b %Y, %A')}\n\n"
         f"HOLDINGS:\n" + "\n".join(lines)
     )
 
 
 @router.post("/ask")
-async def chat_ask(
-    req: ChatRequest, current_user: dict = Depends(get_current_user)
-):
+async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_user)):
     if not client:
         return StandardResponse.error("AI chat not configured. Set GROQ_API_KEY.")
 
@@ -113,7 +140,7 @@ async def chat_ask(
             model="llama-3.3-70b-versatile",
             messages=messages,
             temperature=0.3,
-            max_completion_tokens=500,
+            max_completion_tokens=800,
             stream=True,
         )
 

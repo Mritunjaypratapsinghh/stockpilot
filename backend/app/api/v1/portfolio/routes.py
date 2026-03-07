@@ -403,6 +403,121 @@ async def import_holdings(
     return StandardResponse.ok(ImportResult(broker=broker, imported=imported, skipped=skipped))
 
 
+@router.post(
+    "/import-transactions",
+    summary="Import transaction history",
+    description="Import transaction history from Groww XLSX order history",
+)
+async def import_transactions(
+    file: UploadFile = File(...), current_user: dict = Depends(get_current_user)
+) -> StandardResponse:
+    """Import transactions from Groww order history XLSX."""
+    if not file.filename.endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="Only XLSX files supported")
+
+    from datetime import datetime
+
+    import openpyxl
+
+    content = await file.read()
+    wb = openpyxl.load_workbook(io.BytesIO(content))
+    ws = wb.active
+
+    # Find header row (contains "Symbol")
+    header_row = None
+    for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
+        if row and "Symbol" in (row or []):
+            header_row = row_idx
+            break
+    if not header_row:
+        raise HTTPException(status_code=400, detail="Could not find header row with 'Symbol' column")
+
+    headers = [str(c.value).strip().lower() if c.value else "" for c in ws[header_row]]
+    col = {h: i for i, h in enumerate(headers)}
+
+    required = {"symbol", "type", "quantity", "value", "execution date and time"}
+    if not required.issubset(col.keys()):
+        raise HTTPException(status_code=400, detail=f"Missing columns: {required - col.keys()}")
+
+    user_id = PydanticObjectId(current_user["_id"])
+    imported = skipped = created = 0
+
+    # Group transactions by symbol
+    from collections import defaultdict
+
+    txn_map = defaultdict(list)
+    for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
+        if not row or not row[col["symbol"]]:
+            continue
+        symbol = str(row[col["symbol"]]).strip().upper()
+        txn_type = str(row[col["type"]]).strip().upper()
+        if txn_type not in ("BUY", "SELL"):
+            skipped += 1
+            continue
+        try:
+            qty = float(row[col["quantity"]])
+            value = float(row[col["value"]])
+            price = round(value / qty, 2) if qty > 0 else 0
+            date_str = str(row[col["execution date and time"]]).strip()
+            # Parse "27-11-2020 12:08 PM" format
+            dt = datetime.strptime(date_str, "%d-%m-%Y %I:%M %p")
+            date_iso = dt.strftime("%Y-%m-%d")
+        except (ValueError, ZeroDivisionError):
+            skipped += 1
+            continue
+
+        name = str(row[col.get("stock name", col.get("symbol"))]).strip()
+        txn_map[symbol].append({"type": txn_type, "quantity": qty, "price": price, "date": date_iso, "name": name})
+
+    # Apply to holdings
+    for symbol, txns in txn_map.items():
+        holding = await Holding.find_one(Holding.user_id == user_id, Holding.symbol == symbol)
+        if not holding:
+            # Create holding from transactions
+            net_qty = sum(t["quantity"] if t["type"] == "BUY" else -t["quantity"] for t in txns)
+            if net_qty <= 0:
+                skipped += len(txns)
+                continue
+            buy_txns = [t for t in txns if t["type"] == "BUY"]
+            avg = sum(t["price"] * t["quantity"] for t in buy_txns) / sum(t["quantity"] for t in buy_txns)
+            holding = Holding(
+                user_id=user_id,
+                symbol=symbol,
+                name=txns[0]["name"],
+                quantity=net_qty,
+                avg_price=round(avg, 2),
+            )
+            await holding.insert()
+            created += 1
+
+        # Deduplicate: skip txns that match existing date+type+qty
+        existing = {(t.date, t.type, t.quantity) for t in holding.transactions}
+        new_txns = []
+        for t in txns:
+            key = (t["date"], t["type"], t["quantity"])
+            if key not in existing:
+                new_txns.append(
+                    EmbeddedTransaction(type=t["type"], quantity=t["quantity"], price=t["price"], date=t["date"])
+                )
+                existing.add(key)
+
+        if new_txns:
+            holding.transactions.extend(new_txns)
+            imported += len(new_txns)
+            # Recalculate avg_price from all BUY transactions
+            buys = [t for t in holding.transactions if t.type == "BUY"]
+            if buys:
+                total_qty = sum(t.quantity for t in buys)
+                total_val = sum(t.quantity * t.price for t in buys)
+                holding.avg_price = round(total_val / total_qty, 2) if total_qty > 0 else holding.avg_price
+                holding.quantity = sum(t.quantity if t.type == "BUY" else -t.quantity for t in holding.transactions)
+            await holding.save()
+        else:
+            skipped += len(txns)
+
+    return StandardResponse.ok({"imported": imported, "skipped": skipped, "holdings_created": created})
+
+
 def categorize_mf(name: str) -> tuple[str, int]:
     """Categorize mutual fund by name and return expected benchmark return."""
     name = name.upper()

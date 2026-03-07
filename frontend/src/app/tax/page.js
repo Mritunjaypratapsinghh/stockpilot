@@ -44,7 +44,16 @@ export default function TaxPage() {
 
   const fmt = (n) => n?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0';
 
-  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-4 md:p-6">Loading...</div></div>;
+  if (loading) return (
+    <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar />
+      <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4">
+        <div className="h-8 w-48 bg-[var(--bg-secondary)] rounded-lg animate-pulse" />
+        <div className="flex gap-1 bg-[var(--bg-secondary)] p-1 rounded-lg"><div className="h-9 w-24 bg-[var(--bg-tertiary)] rounded-md animate-pulse" /><div className="h-9 w-24 bg-[var(--bg-tertiary)] rounded-md animate-pulse" /><div className="h-9 w-24 bg-[var(--bg-tertiary)] rounded-md animate-pulse" /></div>
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">{[...Array(4)].map((_, i) => <div key={i} className="h-24 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg animate-pulse" />)}</div>
+        <div className="h-64 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg animate-pulse" />
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] max-w-[100vw] overflow-x-hidden">

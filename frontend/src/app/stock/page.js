@@ -108,14 +108,14 @@ function StockContent() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-6">
+      <main className="p-4 md:p-6">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Link href="/portfolio" className="p-2 hover:bg-[var(--bg-secondary)] rounded-lg">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold">{symbol}</h1>
+            <h1 className="text-xl md:text-2xl font-bold">{symbol}</h1>
             {data?.name && <p className="text-[var(--text-muted)]">{data.name}</p>}
           </div>
           {analysis && (
@@ -149,7 +149,7 @@ function StockContent() {
             {/* Enhanced Analysis Card */}
             {enhanced && (
               <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-5">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                   <h3 className="font-semibold">Enhanced Analysis</h3>
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                     enhanced.recommendation === 'STRONG_BUY' ? 'bg-[#10b981]/20 text-[#10b981]' :
@@ -252,7 +252,7 @@ function StockContent() {
                     <h3 className="font-semibold mb-4">Moving Averages</h3>
                     <div className="space-y-3">
                       {[['SMA 20', analysis.sma_20], ['SMA 50', analysis.sma_50], ['SMA 200', analysis.sma_200]].map(([label, value]) => value && (
-                        <div key={label} className="flex items-center justify-between">
+                        <div key={label} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           <span className="text-[var(--text-muted)]">{label}</span>
                           <div className="flex items-center gap-3">
                             <span className="font-medium tabular">₹{fmt(value)}</span>

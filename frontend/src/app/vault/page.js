@@ -87,7 +87,7 @@ export default function VaultPage() {
       <Navbar />
       <main className="p-4 md:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2"><Shield className="w-5 h-5 md:w-6 md:h-6" /> Family Vault</h1>
+          <h1 className="text-xl md:text-xl md:text-2xl font-bold flex items-center gap-2"><Shield className="w-5 h-5 md:w-6 md:h-6" /> Family Vault</h1>
           <div className="flex gap-2">
             <button onClick={() => setShowNomineeForm(true)} className="flex items-center gap-2 px-3 md:px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg text-sm font-medium hover:bg-[var(--bg-tertiary)]">
               <Users className="w-4 h-4" /> <span className="hidden sm:inline">Nominees</span> ({nominees.length})
@@ -160,7 +160,7 @@ export default function VaultPage() {
         {showForm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-[var(--bg-secondary)] rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b border-[var(--border)]">
                 <h2 className="font-semibold">{editEntry ? 'Edit' : 'Add'} {currentCategory?.label} Entry</h2>
                 <button onClick={() => setShowForm(false)} className="p-1 hover:bg-[var(--bg-tertiary)] rounded"><X className="w-5 h-5" /></button>
               </div>
@@ -193,7 +193,7 @@ export default function VaultPage() {
         {showNomineeForm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-[var(--bg-secondary)] rounded-lg w-full max-w-md">
-              <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b border-[var(--border)]">
                 <h2 className="font-semibold">Manage Nominees</h2>
                 <button onClick={() => setShowNomineeForm(false)} className="p-1 hover:bg-[var(--bg-tertiary)] rounded"><X className="w-5 h-5" /></button>
               </div>
@@ -201,7 +201,7 @@ export default function VaultPage() {
                 {nominees.length > 0 && (
                   <div className="mb-4 space-y-2">
                     {nominees.map(n => (
-                      <div key={n.id} className="flex items-center justify-between p-3 bg-[var(--bg-primary)] rounded-lg">
+                      <div key={n.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-[var(--bg-primary)] rounded-lg">
                         <div>
                           <div className="font-medium text-sm">{n.nominee_name}</div>
                           <div className="text-xs text-[var(--text-muted)]">{n.nominee_email} {n.relation && `• ${n.relation}`}</div>

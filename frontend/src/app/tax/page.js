@@ -24,14 +24,14 @@ export default function TaxPage() {
 
   const fmt = (n) => n?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0';
 
-  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-6">Loading...</div></div>;
+  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-4 md:p-6">Loading...</div></div>;
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Tax Center</h1>
+      <main className="p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <h1 className="text-xl md:text-2xl font-bold">Tax Center</h1>
           <span className="text-sm text-[var(--text-muted)]">FY {summary?.financial_year}</span>
         </div>
 
@@ -210,7 +210,7 @@ export default function TaxPage() {
         {/* Report Tab */}
         {activeTab === 'report' && summary && (
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-5">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <h3 className="font-medium flex items-center gap-2"><FileText className="w-5 h-5 text-[var(--accent)]" /> ITR Schedule CG</h3>
             </div>
             <div className="space-y-4">

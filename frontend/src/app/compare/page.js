@@ -43,8 +43,8 @@ export default function ComparePage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-6">
-        <h1 className="text-2xl font-bold mb-6">Compare Stocks</h1>
+      <main className="p-4 md:p-6">
+        <h1 className="text-xl md:text-2xl font-bold mb-6">Compare Stocks</h1>
 
         {/* Search */}
         <div className="flex gap-3 mb-6">
@@ -58,7 +58,7 @@ export default function ComparePage() {
               className="w-full pl-10 pr-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)]"
             />
           </div>
-          <button onClick={compare} disabled={loading} className="px-6 py-3 bg-[var(--accent)] text-white rounded-lg font-medium flex items-center gap-2">
+          <button onClick={compare} disabled={loading} className="px-3 md:px-6 py-3 bg-[var(--accent)] text-white rounded-lg font-medium flex items-center gap-2">
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRightLeft className="w-5 h-5" />}
             Compare
           </button>
@@ -78,7 +78,7 @@ export default function ComparePage() {
         {stocks.length > 0 && (
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[600px]">
                 <thead>
                   <tr className="border-b border-[var(--border)]">
                     <th className="text-left px-4 py-3 text-sm text-[var(--text-muted)] font-medium">Metric</th>

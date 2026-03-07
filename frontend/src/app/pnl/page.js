@@ -77,15 +77,15 @@ export default function PnLCalendarPage() {
     return days;
   };
 
-  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-6">Loading...</div></div>;
+  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-4 md:p-6">Loading...</div></div>;
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
       <main className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">P&L Calendar</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">P&L Calendar</h1>
             <p className="text-[var(--text-secondary)]">Track your daily and monthly profit & loss</p>
           </div>
           <div className="flex gap-2">
@@ -123,7 +123,7 @@ export default function PnLCalendarPage() {
         {view === 'calendar' ? (
           <div className="bg-[var(--bg-secondary)] rounded-xl p-6 border border-[var(--border)]">
             {/* Month Navigation */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
               <button onClick={prevMonth} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg">
                 <ChevronLeft className="w-5 h-5 text-[var(--text-secondary)]" />
               </button>

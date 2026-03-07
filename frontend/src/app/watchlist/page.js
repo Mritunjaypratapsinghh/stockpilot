@@ -21,9 +21,9 @@ export default function WatchlistPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Watchlist</h1>
+      <main className="p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <h1 className="text-xl md:text-2xl font-bold">Watchlist</h1>
           <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3]">
             <Plus className="w-4 h-4" /> Add Stock
           </button>
@@ -37,7 +37,7 @@ export default function WatchlistPage() {
         {showForm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowForm(false)}>
             <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h2 className="text-lg font-semibold">Add to Watchlist</h2>
                 <button onClick={() => setShowForm(false)} className="p-2 text-[var(--text-muted)] hover:text-white rounded-lg hover:bg-[var(--border)]"><X className="w-5 h-5" /></button>
               </div>
@@ -56,16 +56,16 @@ export default function WatchlistPage() {
           ) : filtered.length === 0 ? (
             <div className="p-12 text-center"><div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--border)] flex items-center justify-center"><Eye className="w-8 h-8 text-[var(--text-muted)]" /></div><div className="text-[var(--text-muted)]">{search ? 'No matches' : 'Watchlist empty'}</div></div>
           ) : (
-            <table className="w-full">
-              <thead><tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-xs uppercase"><th className="text-left px-6 py-3 font-medium">Stock</th><th className="text-left px-6 py-3 font-medium">Notes</th><th className="text-right px-6 py-3 font-medium">Price</th><th className="text-right px-6 py-3 font-medium">Change</th><th className="text-right px-6 py-3 font-medium">Actions</th></tr></thead>
+            <table className="w-full min-w-[600px]">
+              <thead><tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-xs uppercase"><th className="text-left px-3 md:px-6 py-3 font-medium">Stock</th><th className="text-left px-3 md:px-6 py-3 font-medium">Notes</th><th className="text-right px-3 md:px-6 py-3 font-medium">Price</th><th className="text-right px-3 md:px-6 py-3 font-medium">Change</th><th className="text-right px-3 md:px-6 py-3 font-medium">Actions</th></tr></thead>
               <tbody>
                 {filtered.map(w => (
                   <tr key={w._id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-hover)]">
-                    <td className="px-6 py-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center text-sm font-semibold text-[var(--accent)]">{w.symbol.slice(0, 2)}</div><span className="font-medium">{w.symbol}</span></div></td>
-                    <td className="px-6 py-4 text-[var(--text-muted)]">{w.notes || '-'}</td>
-                    <td className="px-6 py-4 text-right tabular font-medium">{w.current_price ? `₹${w.current_price.toFixed(2)}` : '-'}</td>
-                    <td className="px-6 py-4 text-right">{w.day_change_pct !== undefined ? <span className={`inline-block px-2 py-1 rounded text-sm tabular font-medium ${w.day_change_pct >= 0 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>{w.day_change_pct >= 0 ? '+' : ''}{w.day_change_pct.toFixed(2)}%</span> : '-'}</td>
-                    <td className="px-6 py-4 text-right"><button onClick={() => removeFromWatchlist(w._id)} className="p-2 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg"><Trash2 className="w-4 h-4" /></button></td>
+                    <td className="px-3 md:px-6 py-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center text-sm font-semibold text-[var(--accent)]">{w.symbol.slice(0, 2)}</div><span className="font-medium">{w.symbol}</span></div></td>
+                    <td className="px-3 md:px-6 py-4 text-[var(--text-muted)]">{w.notes || '-'}</td>
+                    <td className="px-3 md:px-6 py-4 text-right tabular font-medium">{w.current_price ? `₹${w.current_price.toFixed(2)}` : '-'}</td>
+                    <td className="px-3 md:px-6 py-4 text-right">{w.day_change_pct !== undefined ? <span className={`inline-block px-2 py-1 rounded text-sm tabular font-medium ${w.day_change_pct >= 0 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>{w.day_change_pct >= 0 ? '+' : ''}{w.day_change_pct.toFixed(2)}%</span> : '-'}</td>
+                    <td className="px-3 md:px-6 py-4 text-right"><button onClick={() => removeFromWatchlist(w._id)} className="p-2 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg"><Trash2 className="w-4 h-4" /></button></td>
                   </tr>
                 ))}
               </tbody>

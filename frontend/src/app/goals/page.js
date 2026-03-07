@@ -49,9 +49,9 @@ export default function GoalsPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Financial Goals</h1>
+      <main className="p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <h1 className="text-xl md:text-2xl font-bold">Financial Goals</h1>
           <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3]">
             <Plus className="w-4 h-4" /> Add Goal
           </button>
@@ -88,7 +88,7 @@ export default function GoalsPage() {
             <div className="text-[var(--text-muted)]">No goals yet. Create your first financial goal!</div>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid gap-3 md:gap-4">
             {goals.map(g => {
               const cat = CATEGORIES.find(c => c.value === g.category) || CATEGORIES[4];
               return (
@@ -114,7 +114,7 @@ export default function GoalsPage() {
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
                     <div className="flex items-center gap-4">
                       <div><span className="text-[var(--text-muted)]">Your SIP:</span> ₹{fmt(g.monthly_sip)}/mo</div>
                       <div><span className="text-[var(--text-muted)]">Required:</span> <span className={g.on_track ? 'text-[#10b981]' : 'text-[#ef4444]'}>₹{fmt(g.required_sip)}/mo</span></div>
@@ -133,7 +133,7 @@ export default function GoalsPage() {
         {showForm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowForm(false)}>
             <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h2 className="text-lg font-semibold">Create Goal</h2>
                 <button onClick={() => setShowForm(false)} className="p-2 text-[var(--text-muted)] hover:text-white"><X className="w-5 h-5" /></button>
               </div>

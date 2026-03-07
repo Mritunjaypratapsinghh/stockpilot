@@ -29,13 +29,13 @@ export default function SettingsPage() {
     setSaving(false);
   };
 
-  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-6">Loading...</div></div>;
+  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-4 md:p-6">Loading...</div></div>;
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
       <main className="p-6 max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Settings</h1>
+        <h1 className="text-xl md:text-2xl font-bold mb-6">Settings</h1>
 
         <div className="space-y-6">
           {/* Telegram */}
@@ -66,7 +66,7 @@ export default function SettingsPage() {
               <label className="block text-sm text-[var(--text-secondary)] mb-2">Email Address</label>
               <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="your@email.com" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[var(--accent)]" />
             </div>
-            <label className="flex items-center justify-between cursor-pointer">
+            <label className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer">
               <div>
                 <div className="font-medium">Email Alerts</div>
                 <div className="text-sm text-[var(--text-muted)]">Receive alerts and digest via email</div>
@@ -82,21 +82,21 @@ export default function SettingsPage() {
               <span className="font-medium">Alert Preferences</span>
             </div>
             <div className="space-y-4">
-              <label className="flex items-center justify-between cursor-pointer">
+              <label className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer">
                 <div>
                   <div className="font-medium">Hourly Updates</div>
                   <div className="text-sm text-[var(--text-muted)]">Portfolio snapshot every hour (9 AM - 4 PM)</div>
                 </div>
                 <input type="checkbox" checked={settings.hourly_alerts} onChange={e => setSettings({...settings, hourly_alerts: e.target.checked})} className="w-5 h-5 accent-[var(--accent)]" />
               </label>
-              <label className="flex items-center justify-between cursor-pointer">
+              <label className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer">
                 <div>
                   <div className="font-medium">Daily Digest</div>
                   <div className="text-sm text-[var(--text-muted)]">Receive portfolio summary at 6 PM daily</div>
                 </div>
                 <input type="checkbox" checked={settings.daily_digest} onChange={e => setSettings({...settings, daily_digest: e.target.checked})} className="w-5 h-5 accent-[var(--accent)]" />
               </label>
-              <label className="flex items-center justify-between cursor-pointer">
+              <label className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer">
                 <div>
                   <div className="font-medium">Price Alerts</div>
                   <div className="text-sm text-[var(--text-muted)]">Get notified when stocks hit target prices</div>

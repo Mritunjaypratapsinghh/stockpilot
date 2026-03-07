@@ -87,7 +87,7 @@ export default function LoginPage() {
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-sm">
             <div className="lg:hidden flex items-center gap-3 mb-8"><a href="/landing" className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-[var(--accent)] flex items-center justify-center"><TrendingUp className="w-5 h-5 text-white" /></div><span className="text-xl font-semibold">StockPilot</span></a></div>
-            <h2 className="text-2xl font-bold mb-1">{isLogin ? 'Welcome back' : 'Create account'}</h2>
+            <h2 className="text-xl md:text-2xl font-bold mb-1">{isLogin ? 'Welcome back' : 'Create account'}</h2>
             <p className="text-[var(--text-muted)] mb-6">{isLogin ? 'Enter your credentials' : 'Start your journey'}</p>
 
             <div id="google-btn" className="mb-4 [&>div]:w-full"></div>

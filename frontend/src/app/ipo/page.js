@@ -26,9 +26,9 @@ export default function IPOPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">IPO Tracker</h1>
+      <main className="p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <h1 className="text-xl md:text-2xl font-bold">IPO Tracker</h1>
           <button onClick={loadIPOs} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh</button>
         </div>
 
@@ -46,43 +46,43 @@ export default function IPOPage() {
             <div className="p-12 text-center"><Calendar className="w-12 h-12 mx-auto mb-4 text-[var(--text-muted)]" /><div className="text-[var(--text-muted)]">No IPO data</div></div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[600px]">
                 <thead><tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-xs uppercase">
-                  <th className="text-left px-6 py-3 font-medium">IPO Name</th>
-                  <th className="text-left px-6 py-3 font-medium">Type</th>
-                  <th className="text-left px-6 py-3 font-medium">Status</th>
-                  <th className="text-left px-6 py-3 font-medium">Dates</th>
-                  <th className="text-right px-6 py-3 font-medium">Price</th>
-                  <th className="text-right px-6 py-3 font-medium">Lot</th>
-                  <th className="text-right px-6 py-3 font-medium">Min Amt</th>
-                  <th className="text-right px-6 py-3 font-medium">GMP</th>
-                  <th className="text-right px-6 py-3 font-medium">Gain %</th>
-                  <th className="text-center px-6 py-3 font-medium">Action</th>
+                  <th className="text-left px-3 md:px-6 py-3 font-medium">IPO Name</th>
+                  <th className="text-left px-3 md:px-6 py-3 font-medium">Type</th>
+                  <th className="text-left px-3 md:px-6 py-3 font-medium">Status</th>
+                  <th className="text-left px-3 md:px-6 py-3 font-medium">Dates</th>
+                  <th className="text-right px-3 md:px-6 py-3 font-medium">Price</th>
+                  <th className="text-right px-3 md:px-6 py-3 font-medium">Lot</th>
+                  <th className="text-right px-3 md:px-6 py-3 font-medium">Min Amt</th>
+                  <th className="text-right px-3 md:px-6 py-3 font-medium">GMP</th>
+                  <th className="text-right px-3 md:px-6 py-3 font-medium">Gain %</th>
+                  <th className="text-center px-3 md:px-6 py-3 font-medium">Action</th>
                 </tr></thead>
                 <tbody>
                   {filteredIpos.map((ipo, i) => (
                     <tr key={i} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-tertiary)]">
-                      <td className="px-6 py-4">
+                      <td className="px-3 md:px-6 py-4">
                         <div className="font-medium">{ipo.name}</div>
                         {ipo.review && <div className="text-sm text-[var(--text-muted)]">{ipo.review}</div>}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 md:px-6 py-4">
                         <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${ipo.type?.toUpperCase() === 'MAINBOARD' ? 'bg-[var(--accent)]/10 text-[var(--accent)]' : 'bg-[#f59e0b]/10 text-[#f59e0b]'}`}>{ipo.type}</span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 md:px-6 py-4">
                         <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${ipo.status === 'OPEN' ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[var(--accent)]/10 text-[var(--accent)]'}`}>{ipo.status}</span>
                       </td>
-                      <td className="px-6 py-4 text-[var(--text-muted)] text-sm">{ipo.dates || '-'}</td>
-                      <td className="px-6 py-4 text-right tabular font-medium">₹{ipo.price}</td>
-                      <td className="px-6 py-4 text-right tabular text-[var(--text-secondary)]">{ipo.lot_size}</td>
-                      <td className="px-6 py-4 text-right tabular font-medium">₹{fmt(ipo.min_investment)}</td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-3 md:px-6 py-4 text-[var(--text-muted)] text-sm">{ipo.dates || '-'}</td>
+                      <td className="px-3 md:px-6 py-4 text-right tabular font-medium">₹{ipo.price}</td>
+                      <td className="px-3 md:px-6 py-4 text-right tabular text-[var(--text-secondary)]">{ipo.lot_size}</td>
+                      <td className="px-3 md:px-6 py-4 text-right tabular font-medium">₹{fmt(ipo.min_investment)}</td>
+                      <td className="px-3 md:px-6 py-4 text-right">
                         <span className={`tabular font-medium ${ipo.gmp > 0 ? 'text-[#10b981]' : ipo.gmp < 0 ? 'text-[#ef4444]' : 'text-[var(--text-muted)]'}`}>{ipo.gmp > 0 ? '+' : ''}₹{ipo.gmp}</span>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-3 md:px-6 py-4 text-right">
                         <span className={`inline-block px-2 py-1 rounded text-sm tabular font-medium ${ipo.gmp_pct > 0 ? 'bg-[#10b981]/10 text-[#10b981]' : ipo.gmp_pct < 0 ? 'bg-[#ef4444]/10 text-[#ef4444]' : 'bg-[var(--border)] text-[var(--text-muted)]'}`}>{ipo.gmp_pct > 0 ? '+' : ''}{ipo.gmp_pct}%</span>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-3 md:px-6 py-4 text-center">
                         <span className={`inline-block px-3 py-1 rounded text-sm font-medium ${getStyle(ipo.action)}`}>{ipo.action}</span>
                       </td>
                     </tr>

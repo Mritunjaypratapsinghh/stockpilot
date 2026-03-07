@@ -52,8 +52,8 @@ export default function ResearchPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-6">
-        <h1 className="text-2xl font-bold mb-6">Stock Research</h1>
+      <main className="p-4 md:p-6">
+        <h1 className="text-xl md:text-2xl font-bold mb-6">Stock Research</h1>
 
         <form onSubmit={handleSubmit} className="flex gap-3 mb-6 w-96">
           <div className="relative flex-1">
@@ -78,7 +78,7 @@ export default function ResearchPage() {
               </div>
             )}
           </div>
-          <button type="submit" disabled={loading} className="px-6 py-2.5 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3] disabled:opacity-50">{loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Analyze'}</button>
+          <button type="submit" disabled={loading} className="px-3 md:px-6 py-2.5 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3] disabled:opacity-50">{loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Analyze'}</button>
         </form>
 
         {analysis && !analysis.error ? (
@@ -86,27 +86,27 @@ export default function ResearchPage() {
             <div className="col-span-2 space-y-4">
               {/* Header */}
               <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6 flex items-center justify-between">
-                <div><h2 className="text-2xl font-bold mb-1">{analysis.symbol}</h2><span className={`inline-block px-3 py-1 rounded text-sm font-medium ${analysis.trend === 'BULLISH' ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>{analysis.trend}</span></div>
+                <div><h2 className="text-xl md:text-2xl font-bold mb-1">{analysis.symbol}</h2><span className={`inline-block px-3 py-1 rounded text-sm font-medium ${analysis.trend === 'BULLISH' ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>{analysis.trend}</span></div>
                 <div className="text-3xl font-bold tabular">₹{analysis.current_price}</div>
               </div>
 
               {/* Moving Averages */}
               <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg overflow-hidden">
-                <div className="px-6 py-4 border-b border-[var(--border)] font-semibold">Moving Averages</div>
-                <table className="w-full">
-                  <thead><tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-xs uppercase"><th className="text-left px-6 py-3 font-medium">Indicator</th><th className="text-right px-6 py-3 font-medium">Value</th><th className="text-right px-6 py-3 font-medium">Signal</th></tr></thead>
+                <div className="px-3 md:px-6 py-4 border-b border-[var(--border)] font-semibold">Moving Averages</div>
+                <table className="w-full min-w-[600px]">
+                  <thead><tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-xs uppercase"><th className="text-left px-3 md:px-6 py-3 font-medium">Indicator</th><th className="text-right px-3 md:px-6 py-3 font-medium">Value</th><th className="text-right px-3 md:px-6 py-3 font-medium">Signal</th></tr></thead>
                   <tbody>
-                    <tr className="border-b border-[var(--border)]"><td className="px-6 py-3 font-medium">SMA 20</td><td className="px-6 py-3 text-right tabular">₹{analysis.sma_20}</td><td className="px-6 py-3 text-right"><span className={`inline-block px-2 py-0.5 rounded text-sm ${analysis.current_price > analysis.sma_20 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>{analysis.current_price > analysis.sma_20 ? 'Above' : 'Below'}</span></td></tr>
-                    {analysis.sma_50 && <tr className="border-b border-[var(--border)]"><td className="px-6 py-3 font-medium">SMA 50</td><td className="px-6 py-3 text-right tabular">₹{analysis.sma_50}</td><td className="px-6 py-3 text-right"><span className={`inline-block px-2 py-0.5 rounded text-sm ${analysis.current_price > analysis.sma_50 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>{analysis.current_price > analysis.sma_50 ? 'Above' : 'Below'}</span></td></tr>}
-                    {analysis.sma_200 && <tr><td className="px-6 py-3 font-medium">SMA 200</td><td className="px-6 py-3 text-right tabular">₹{analysis.sma_200}</td><td className="px-6 py-3 text-right"><span className={`inline-block px-2 py-0.5 rounded text-sm ${analysis.current_price > analysis.sma_200 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>{analysis.current_price > analysis.sma_200 ? 'Above' : 'Below'}</span></td></tr>}
+                    <tr className="border-b border-[var(--border)]"><td className="px-3 md:px-6 py-3 font-medium">SMA 20</td><td className="px-3 md:px-6 py-3 text-right tabular">₹{analysis.sma_20}</td><td className="px-3 md:px-6 py-3 text-right"><span className={`inline-block px-2 py-0.5 rounded text-sm ${analysis.current_price > analysis.sma_20 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>{analysis.current_price > analysis.sma_20 ? 'Above' : 'Below'}</span></td></tr>
+                    {analysis.sma_50 && <tr className="border-b border-[var(--border)]"><td className="px-3 md:px-6 py-3 font-medium">SMA 50</td><td className="px-3 md:px-6 py-3 text-right tabular">₹{analysis.sma_50}</td><td className="px-3 md:px-6 py-3 text-right"><span className={`inline-block px-2 py-0.5 rounded text-sm ${analysis.current_price > analysis.sma_50 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>{analysis.current_price > analysis.sma_50 ? 'Above' : 'Below'}</span></td></tr>}
+                    {analysis.sma_200 && <tr><td className="px-3 md:px-6 py-3 font-medium">SMA 200</td><td className="px-3 md:px-6 py-3 text-right tabular">₹{analysis.sma_200}</td><td className="px-3 md:px-6 py-3 text-right"><span className={`inline-block px-2 py-0.5 rounded text-sm ${analysis.current_price > analysis.sma_200 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>{analysis.current_price > analysis.sma_200 ? 'Above' : 'Below'}</span></td></tr>}
                   </tbody>
                 </table>
               </div>
 
               {/* Support/Resistance */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-[#10b981]/5 border border-[#10b981]/20 rounded-lg p-5"><div className="text-sm text-[#10b981] mb-1">Support</div><div className="text-2xl font-bold">₹{analysis.support}</div></div>
-                <div className="bg-[#ef4444]/5 border border-[#ef4444]/20 rounded-lg p-5"><div className="text-sm text-[#ef4444] mb-1">Resistance</div><div className="text-2xl font-bold">₹{analysis.resistance}</div></div>
+                <div className="bg-[#10b981]/5 border border-[#10b981]/20 rounded-lg p-5"><div className="text-sm text-[#10b981] mb-1">Support</div><div className="text-xl md:text-2xl font-bold">₹{analysis.support}</div></div>
+                <div className="bg-[#ef4444]/5 border border-[#ef4444]/20 rounded-lg p-5"><div className="text-sm text-[#ef4444] mb-1">Resistance</div><div className="text-xl md:text-2xl font-bold">₹{analysis.resistance}</div></div>
               </div>
             </div>
 

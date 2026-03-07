@@ -34,8 +34,8 @@ export default function CorporateActionsPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-6">
-        <h1 className="text-2xl font-bold mb-6">Corporate Actions</h1>
+      <main className="p-4 md:p-6">
+        <h1 className="text-xl md:text-2xl font-bold mb-6">Corporate Actions</h1>
 
         {/* Summary */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

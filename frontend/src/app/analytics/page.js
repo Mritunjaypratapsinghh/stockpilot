@@ -32,13 +32,13 @@ export default function AnalyticsPage() {
 
   const fmt = (n) => n?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0';
 
-  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-6">Loading...</div></div>;
+  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-4 md:p-6">Loading...</div></div>;
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-6">
-        <h1 className="text-2xl font-bold mb-6">Portfolio Analytics</h1>
+      <main className="p-4 md:p-6">
+        <h1 className="text-xl md:text-2xl font-bold mb-6">Portfolio Analytics</h1>
 
         {/* Key Metrics */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -166,7 +166,7 @@ export default function AnalyticsPage() {
             <h3 className="font-medium mb-4 flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-[#f59e0b]" /> Sector Risk</h3>
             <div className="space-y-2 mb-4">
               {sectorRisk?.sectors?.slice(0, 5).map((s, i) => (
-                <div key={i} className="flex items-center justify-between">
+                <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <span className="text-sm">{s.sector}</span>
                   <div className="flex items-center gap-2">
                     <div className="w-24 h-2 bg-[var(--bg-primary)] rounded-full overflow-hidden">

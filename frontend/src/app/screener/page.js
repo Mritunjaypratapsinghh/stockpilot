@@ -49,8 +49,8 @@ export default function ScreenerPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <main className="p-6">
-        <h1 className="text-2xl font-bold mb-6">Stock Screener</h1>
+      <main className="p-4 md:p-6">
+        <h1 className="text-xl md:text-2xl font-bold mb-6">Stock Screener</h1>
 
         {/* Pre-built Screens */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">

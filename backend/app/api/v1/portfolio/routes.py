@@ -190,7 +190,7 @@ async def get_sector_allocation(current_user: dict = Depends(get_current_user)) 
 )
 async def get_dashboard(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get complete dashboard with holdings, sectors, and recent transactions."""
-    from ...services.cache import cache_get, cache_set
+    from ....services.cache import cache_get, cache_set
 
     cache_key = f"dashboard:{current_user['_id']}"
     cached = await cache_get(cache_key)

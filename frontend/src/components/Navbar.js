@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Bell, Search, TrendingUp, LogOut, Briefcase, Eye, Calendar, Zap, Sun, Moon, Settings, Target, Receipt, BarChart3, Filter, RefreshCw, Scissors, ArrowRightLeft, ChevronDown, Wallet, CalendarDays, Activity, HandCoins, Calculator, Shield, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Bell, Search, TrendingUp, LogOut, Briefcase, Eye, Calendar, Zap, Sun, Moon, Settings, Target, Receipt, BarChart3, Filter, RefreshCw, Scissors, ArrowRightLeft, ChevronDown, Wallet, CalendarDays, Activity, HandCoins, Calculator, Shield, Menu, X, MessageSquare } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 
 const mainNav = [
@@ -9,6 +9,7 @@ const mainNav = [
   { href: '/portfolio', label: 'Portfolio', icon: Briefcase },
   { href: '/networth', label: 'Net Worth', icon: Wallet },
   { href: '/market', label: 'Market', icon: TrendingUp },
+  { href: '/chat', label: 'AI Chat', icon: MessageSquare },
   { href: '/calculators', label: 'Calculators', icon: Calculator },
 ];
 
@@ -17,6 +18,7 @@ const toolsMenu = [
   { href: '/screener', label: 'Screener', icon: Filter },
   { href: '/compare', label: 'Compare', icon: ArrowRightLeft },
   { href: '/mf-health', label: 'MF Health', icon: Activity },
+  { href: '/mf-overlap', label: 'MF Overlap', icon: Activity },
   { href: '/signals', label: 'Signals', icon: Zap },
   { href: '/research', label: 'Research', icon: Search },
 ];

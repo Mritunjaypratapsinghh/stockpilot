@@ -134,28 +134,66 @@ export default function TaxPage() {
               <AlertTriangle className="w-5 h-5 text-[#f59e0b] mt-0.5 shrink-0" />
               <div><div className="font-medium text-[#f59e0b]">Tax-Loss Harvesting</div><div className="text-sm text-[var(--text-secondary)]">{harvest.note}</div></div>
             </div>
+
+            {/* STCG vs LTCG Summary */}
             <div className="grid grid-cols-2 gap-3 md:gap-4">
               <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
-                <div className="text-xs md:text-sm text-[var(--text-muted)]">Harvestable Loss</div>
-                <div className="text-xl md:text-2xl font-semibold text-[#ef4444]">₹{fmt(harvest.total_harvestable_loss)}</div>
+                <div className="text-xs text-[var(--text-muted)] mb-2">STCG (Short Term @ 20%)</div>
+                <div className="flex justify-between text-sm mb-1"><span className="text-[var(--text-muted)]">Gains</span><span className="text-[#10b981]">₹{fmt(harvest.stcg?.gains)}</span></div>
+                <div className="flex justify-between text-sm mb-1"><span className="text-[var(--text-muted)]">Losses</span><span className="text-[#ef4444]">-₹{fmt(harvest.stcg?.losses)}</span></div>
+                <div className="flex justify-between text-sm font-semibold border-t border-[var(--border)] pt-1 mt-1"><span>Net</span><span className={harvest.stcg?.net >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}>₹{fmt(harvest.stcg?.net)}</span></div>
+                <div className="flex justify-between text-xs mt-1"><span className="text-[var(--text-muted)]">Tax</span><span className="text-[#ef4444]">₹{fmt(harvest.stcg?.tax)}</span></div>
               </div>
               <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
-                <div className="text-xs md:text-sm text-[var(--text-muted)]">Potential Tax Saved</div>
-                <div className="text-xl md:text-2xl font-semibold text-[#10b981]">₹{fmt(harvest.potential_tax_saved)}</div>
+                <div className="text-xs text-[var(--text-muted)] mb-2">LTCG (Long Term @ 12.5%)</div>
+                <div className="flex justify-between text-sm mb-1"><span className="text-[var(--text-muted)]">Gains</span><span className="text-[#10b981]">₹{fmt(harvest.ltcg?.gains)}</span></div>
+                <div className="flex justify-between text-sm mb-1"><span className="text-[var(--text-muted)]">Losses</span><span className="text-[#ef4444]">-₹{fmt(harvest.ltcg?.losses)}</span></div>
+                <div className="flex justify-between text-sm font-semibold border-t border-[var(--border)] pt-1 mt-1"><span>Net</span><span className={harvest.ltcg?.net >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}>₹{fmt(harvest.ltcg?.net)}</span></div>
+                <div className="flex justify-between text-xs mt-1"><span className="text-[var(--text-muted)]">Exemption</span><span>₹1,25,000</span></div>
+                <div className="flex justify-between text-xs"><span className="text-[var(--text-muted)]">Tax</span><span className="text-[#ef4444]">₹{fmt(harvest.ltcg?.tax)}</span></div>
               </div>
             </div>
-            {harvest.suggestions?.length > 0 ? (
+
+            {/* Gains Table */}
+            {harvest.gains?.length > 0 && (
               <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg overflow-hidden">
+                <div className="px-3 md:px-4 py-3 border-b border-[var(--border)]">
+                  <span className="text-sm font-medium text-[#10b981]">📈 Gains (taxable)</span>
+                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm min-w-[500px]">
                     <thead><tr className="text-[var(--text-muted)] border-b border-[var(--border)] bg-[var(--bg-primary)]">
-                      <th className="text-left px-3 md:px-4 py-3">Stock</th><th className="text-right px-3 md:px-4 py-3">Qty</th><th className="text-right px-3 md:px-4 py-3">Loss</th><th className="text-right px-3 md:px-4 py-3">Tax Saved</th>
+                      <th className="text-left px-3 md:px-4 py-3">Stock</th><th className="text-center px-3 py-3">Type</th><th className="text-right px-3 md:px-4 py-3">Gain</th><th className="text-right px-3 md:px-4 py-3">Tax Due</th>
                     </tr></thead>
-                    <tbody>{harvest.suggestions.map((s, i) => (
+                    <tbody>{harvest.gains.map((s, i) => (
                       <tr key={i} className="border-b border-[var(--border)]">
                         <td className="px-3 md:px-4 py-3 font-medium">{s.symbol}</td>
-                        <td className="px-3 md:px-4 py-3 text-right">{s.quantity}</td>
-                        <td className="px-3 md:px-4 py-3 text-right text-[#ef4444]">-₹{fmt(s.loss)}</td>
+                        <td className="px-3 py-3 text-center"><span className={`text-xs px-2 py-0.5 rounded-full ${s.type === 'LTCG' ? 'bg-blue-500/20 text-blue-400' : 'bg-orange-500/20 text-orange-400'}`}>{s.type}</span></td>
+                        <td className="px-3 md:px-4 py-3 text-right text-[#10b981]">+₹{fmt(s.pnl)}</td>
+                        <td className="px-3 md:px-4 py-3 text-right text-[#ef4444]">₹{fmt(s.tax_due)}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Losses Table */}
+            {harvest.losses?.length > 0 ? (
+              <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg overflow-hidden">
+                <div className="px-3 md:px-4 py-3 border-b border-[var(--border)]">
+                  <span className="text-sm font-medium text-[#ef4444]">📉 Losses (harvestable)</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[500px]">
+                    <thead><tr className="text-[var(--text-muted)] border-b border-[var(--border)] bg-[var(--bg-primary)]">
+                      <th className="text-left px-3 md:px-4 py-3">Stock</th><th className="text-center px-3 py-3">Type</th><th className="text-right px-3 md:px-4 py-3">Loss</th><th className="text-right px-3 md:px-4 py-3">Tax Saved</th>
+                    </tr></thead>
+                    <tbody>{harvest.losses.map((s, i) => (
+                      <tr key={i} className="border-b border-[var(--border)]">
+                        <td className="px-3 md:px-4 py-3 font-medium">{s.symbol}</td>
+                        <td className="px-3 py-3 text-center"><span className={`text-xs px-2 py-0.5 rounded-full ${s.type === 'LTCG' ? 'bg-blue-500/20 text-blue-400' : 'bg-orange-500/20 text-orange-400'}`}>{s.type}</span></td>
+                        <td className="px-3 md:px-4 py-3 text-right text-[#ef4444]">₹{fmt(s.pnl)}</td>
                         <td className="px-3 md:px-4 py-3 text-right text-[#10b981]">₹{fmt(s.tax_saved)}</td>
                       </tr>
                     ))}</tbody>

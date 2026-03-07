@@ -266,16 +266,16 @@ async def get_tax_harvest(current_user: dict = Depends(get_current_user)) -> Sta
 
     holdings = await get_user_holdings(current_user["_id"])
     if not holdings:
-        return StandardResponse.ok(
-            {"suggestions": [], "total_harvestable_loss": 0, "potential_tax_saved": 0, "note": ""}
-        )
+        return StandardResponse.ok({"losses": [], "gains": [], "stcg": {}, "ltcg": {}, "note": ""})
 
     prices = await get_prices_for_holdings(holdings) or {}
-    suggestions = []
-    total_harvestable_loss = 0
+    losses = []
+    gains = []
     one_year_ago = datetime.now() - timedelta(days=365)
     LTCG_RATE = 0.125
     STCG_RATE = 0.20
+
+    stcg_total = stcl_total = ltcg_total = ltcl_total = 0
 
     for h in holdings:
         if h.quantity <= 0:
@@ -285,7 +285,6 @@ async def get_tax_harvest(current_user: dict = Depends(get_current_user)) -> Sta
         pnl = (curr_price - h.avg_price) * h.quantity
         pnl_pct = ((curr_price - h.avg_price) / h.avg_price * 100) if h.avg_price > 0 else 0
 
-        # Check if long-term (> 1 year)
         first_buy = None
         for t in h.transactions:
             if t.type == "BUY":
@@ -294,36 +293,59 @@ async def get_tax_harvest(current_user: dict = Depends(get_current_user)) -> Sta
                     first_buy = t_date
 
         is_lt = first_buy and first_buy < one_year_ago
+        entry = {
+            "symbol": h.symbol,
+            "quantity": h.quantity,
+            "avg_price": h.avg_price,
+            "current_price": round(curr_price, 2),
+            "pnl": round(pnl, 2),
+            "pnl_pct": round(pnl_pct, 1),
+            "type": "LTCG" if is_lt else "STCG",
+        }
 
-        # Suggest harvesting if loss > 5%
-        if pnl < 0 and pnl_pct < -5:
-            loss_amt = abs(pnl)
-            tax_rate = LTCG_RATE if is_lt else STCG_RATE
-            suggestions.append(
-                {
-                    "symbol": h.symbol,
-                    "quantity": h.quantity,
-                    "avg_price": h.avg_price,
-                    "current_price": round(curr_price, 2),
-                    "loss": round(loss_amt, 2),
-                    "loss_pct": round(pnl_pct, 1),
-                    "type": "LTCG" if is_lt else "STCG",
-                    "tax_saved": round(loss_amt * tax_rate, 2),
-                    "recommendation": "Sell to book loss, can rebuy after 30 days",
-                }
-            )
-            total_harvestable_loss += loss_amt
+        if pnl < 0:
+            entry["tax_saved"] = round(abs(pnl) * (LTCG_RATE if is_lt else STCG_RATE), 2)
+            losses.append(entry)
+            if is_lt:
+                ltcl_total += abs(pnl)
+            else:
+                stcl_total += abs(pnl)
+        elif pnl > 0:
+            entry["tax_due"] = round(pnl * (LTCG_RATE if is_lt else STCG_RATE), 2)
+            gains.append(entry)
+            if is_lt:
+                ltcg_total += pnl
+            else:
+                stcg_total += pnl
 
-    # Sort by loss amount
-    suggestions.sort(key=lambda x: x["loss"], reverse=True)
+    losses.sort(key=lambda x: x["pnl"])
+    gains.sort(key=lambda x: -x["pnl"])
+
+    stcg_net = stcg_total - stcl_total
+    ltcg_net = ltcg_total - ltcl_total
 
     return StandardResponse.ok(
         {
-            "suggestions": suggestions[:10],
-            "total_harvestable_loss": round(total_harvestable_loss, 2),
-            "potential_tax_saved": round(total_harvestable_loss * STCG_RATE, 2),
+            "losses": losses[:10],
+            "gains": gains[:10],
+            "stcg": {
+                "gains": round(stcg_total, 2),
+                "losses": round(stcl_total, 2),
+                "net": round(stcg_net, 2),
+                "tax": round(max(0, stcg_net) * STCG_RATE, 2),
+            },
+            "ltcg": {
+                "gains": round(ltcg_total, 2),
+                "losses": round(ltcl_total, 2),
+                "net": round(ltcg_net, 2),
+                "tax": round(max(0, ltcg_net - 125000) * LTCG_RATE, 2),
+                "exemption": 125000,
+            },
+            "total_harvestable_loss": round(stcl_total + ltcl_total, 2),
+            "potential_tax_saved": round(stcl_total * STCG_RATE + ltcl_total * LTCG_RATE, 2),
             "note": (
                 "Sell loss-making stocks before March 31 to offset gains. "
+                "STCL offsets STCG (20%), LTCL offsets LTCG (12.5%). "
                 "Avoid wash sale - wait 30 days before rebuying."
             ),
         }
@@ -714,7 +736,6 @@ async def delete_asset(asset_id: str, current_user: dict = Depends(get_current_u
     return StandardResponse.ok({"message": "Asset deleted"})
 
 
-
 @router.get("/tax/export", summary="Export tax report to Excel")
 async def export_tax_report(current_user: dict = Depends(get_current_user)):
     """Export tax report as Excel file for CA/ITR filing."""
@@ -803,7 +824,6 @@ async def get_advance_tax_schedule(current_user: dict = Depends(get_current_user
 
     now = datetime.now()
     fy_start = datetime(now.year if now.month >= 4 else now.year - 1, 4, 1)
-    fy_end = datetime(fy_start.year + 1, 3, 31)
 
     # Advance tax due dates
     schedule = [
@@ -888,6 +908,9 @@ async def get_dividend_tax(current_user: dict = Depends(get_current_user)) -> St
             "financial_year": f"{fy_start.year}-{fy_start.year + 1}",
             "dividends": dividends,
             "total_income": round(total_income, 2),
-            "tax_note": "Dividend income is taxable at your income tax slab rate. TDS of 10% applies if dividend exceeds ₹5,000 from a company.",
+            "tax_note": (
+                "Dividend income is taxable at your income tax slab rate."
+                " TDS of 10% applies if dividend exceeds ₹5,000 from a company."
+            ),
         }
     )

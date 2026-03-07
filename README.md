@@ -1,115 +1,128 @@
 # StockPilot
 
-Personal Portfolio Intelligence Platform - Track, analyze, and optimize your stock investments with real-time data and smart insights.
+Personal Portfolio Intelligence Platform — Track, analyze, and optimize your stock & mutual fund investments with real-time data, AI insights, and smart notifications.
 
 ## 🚀 Features
 
 ### Portfolio Management
-- **Real-time Portfolio Tracking** - Live portfolio value updates with P&L tracking
-- **Transaction Management** - Record buy/sell transactions with automatic cost basis calculation
-- **Mutual Fund Support** - Track MF investments with amount-based transactions and auto unit calculation
-- **Holdings Analysis** - Detailed breakdown with dynamic All/Stocks/Mutual Funds filter
-- **Sector Allocation** - Visual sector breakdown that updates based on selected filter
-- **Import Holdings** - Bulk import from CSV/Excel files (Zerodha, Groww)
-- **Export Reports** - Download portfolio reports in CSV/PDF format
+- **Real-time Portfolio Tracking** — Live portfolio value with P&L, day change, XIRR
+- **Holdings Management** — Stocks + Mutual Funds with dynamic All/Stocks/MF filter
+- **Transaction History** — Full buy/sell history with cost basis calculation
+- **Groww Import** — Import transaction history from Groww XLSX exports (stocks + MF)
+- **Sector Allocation** — Visual sector breakdown with filter support
+- **XIRR Calculation** — Annualized returns (separate for stocks, MF, overall)
+- **Export** — Download holdings, transactions, dividends, tax reports as CSV
 
-### Market Intelligence
-- **Live Market Data** - Real-time stock prices powered by Yahoo Finance
-- **Stock Research** - Comprehensive company analysis with financials and key metrics
-- **IPO Tracking** - Track upcoming and recent IPOs with subscription details
-- **Market Overview** - Monitor indices and market trends
+### Tax Center
+- **Tax Summary** — STCG (20%) and LTCG (12.5% above ₹1.25L) breakdown
+- **Tax Harvesting** — Top losses to harvest + gains to book, with tax saved/due
+- **Advance Tax Schedule** — Quarterly advance tax calculation
+- **Dividend Tax** — Dividend income for tax filing
+- **Tax Report Export** — Excel export for CA/filing
 
-### Smart Alerts & Notifications
-- **Price Alerts** - Set target price alerts for stocks
-- **Smart Signals** - AI-powered buy/sell recommendations with detailed explanations
-- **Telegram Integration** - Receive instant notifications on Telegram
-- **Hourly Updates** - Portfolio snapshots every hour during market hours (9AM-4PM)
-- **Daily Digest** - Automated daily portfolio summary at 6 PM
+### Analytics & Intelligence
+- **Portfolio Metrics** — Beta, volatility, HHI, concentration risk, risk profile
+- **Returns Analysis** — CAGR, holding period, benchmark comparison vs Nifty 50
+- **Drawdown Analysis** — Current drawdown, recovery needed, holdings in loss
+- **Sector Risk** — Concentration risk with MF categorization
+- **Rebalance Suggestions** — Current vs target allocation with deviation alerts
+- **MF Overlap Analyzer** — Find overlapping stocks across mutual funds
+- **MF Health Check** — Fund performance vs benchmarks, expense ratio analysis
+- **PnL Calendar** — Daily buy/sell activity calendar
+- **Stock Comparison** — Side-by-side fundamentals comparison
 
-### Watchlist & Monitoring
-- **Custom Watchlists** - Create and manage multiple watchlists
-- **Dividend Tracking** - Track dividend payments and yields
-- **Performance Analytics** - Historical performance charts and metrics
+### AI Chat (Groq)
+- **Portfolio Assistant** — AI-powered chat with full portfolio context
+- **Tax Awareness** — Knows STCG/LTCG status per holding
+- **Streaming Responses** — Real-time streaming with markdown rendering
+- **Dynamic Follow-ups** — Context-aware suggestion chips
 
-## 🏗️ Architecture
+### Smart Signals & Alerts
+- **Trading Signals** — AI-powered buy/sell/hold recommendations with fundamentals
+- **Price Alerts** — Target price, % change, 52-week high/low, volume spike
+- **Notifications** — Email + Telegram + Web Push for all alert types
+- **Portfolio Advisor** — Twice-daily smart analysis (9:30 AM, 3 PM)
 
-**Tech Stack:**
-- **Backend:** FastAPI (Python 3.10+)
-- **Frontend:** Next.js 14 (React)
-- **Database:** MongoDB
-- **Styling:** Tailwind CSS
-- **Icons:** Lucide React
-- **Charts:** Recharts
-- **Notifications:** Telegram Bot API
+### Market Data
+- **Live Indices** — NIFTY 50, SENSEX, BANK NIFTY
+- **Stock Research** — Company analysis with Screener fundamentals
+- **IPO Tracking** — Upcoming IPOs with GMP, lot size, action recommendations
+- **FII/DII Activity** — Foreign & domestic institutional investor flows
+- **Screener** — Top gainers/losers, 52-week highs/lows, custom screens
+- **Corporate Actions** — Dividends and splits for portfolio stocks
 
-See [Architecture.md](./Architecture.md) for detailed system design.
+### Financial Planning
+- **Goals Tracker** — Set and track financial goals with projections
+- **SIP Management** — Track SIP investments with AMFI NAV integration
+- **Networth Tracker** — Total networth with monthly history and YTD growth
+- **8 Calculators** — Asset Allocation, SIP Step-up, Portfolio Score, Retirement, SWP, Loan Analyzer, Salary & Tax, Cashflow Planner
+
+### Family Vault
+- **Secure Storage** — Bank accounts, insurance, investments, property, legal docs
+- **Nominee Access** — Share vault with family via email invite
+- **File Uploads** — Attach PDF/JPG/PNG/DOC to vault entries
+
+### Notifications
+- **Hourly Updates** — Portfolio snapshot every hour (9 AM - 4 PM) via Email + Telegram
+- **Daily Digest** — Portfolio summary at 6 PM via Email + Telegram
+- **Price Alerts** — Instant notification when conditions are met
+- **IPO Alerts** — Notify when IPOs open for subscription
+
+### Other
+- **Watchlist** — Track stocks with live prices
+- **Ledger** — Track loans/debts with settlement history
+- **Dark/Light Theme** — System-aware theme with manual toggle
+- **Google OAuth** — One-click login with Google
+
+## 🏗️ Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Frontend | Next.js 16, React 19, Tailwind CSS 4 |
+| Backend | FastAPI, Python 3.10+, Uvicorn |
+| Database | MongoDB Atlas (Motor + Beanie ODM) |
+| Cache | Redis (Upstash) — market-aware TTL |
+| AI | Groq (Llama 3.3 70B) — streaming chat |
+| Market Data | Yahoo Finance API (yfinance, httpx) |
+| Fundamentals | Screener.in scraping |
+| Charts | Recharts, Lightweight Charts |
+| Auth | JWT + Google OAuth |
+| Notifications | Telegram Bot API, SMTP Email, Web Push |
+| Scheduling | APScheduler (IST timezone) |
+| Bot | python-telegram-bot |
+| Code Quality | black, isort, ruff, pre-commit hooks |
 
 ## 📋 Prerequisites
 
 - Python 3.10+
 - Node.js 18+
-- MongoDB (Atlas or local instance)
-- Telegram Bot Token (optional, for notifications)
+- MongoDB (Atlas or local)
+- Redis (Upstash or local)
+- Telegram Bot Token (optional)
+- Groq API Key (optional, for AI chat)
 
-## 🛠️ Installation & Setup
+## 🛠️ Setup
 
-### 1. Clone Repository
+### 1. Clone & Configure
 
 ```bash
 git clone <repository-url>
 cd stockpilot
-```
-
-### 2. Environment Configuration
-
-Create `.env` file in the project root:
-
-```bash
 cp .env.example .env
+# Edit .env with your credentials
 ```
 
-Edit `.env` with your credentials:
-
-```env
-# MongoDB
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/?appName=Cluster0
-MONGODB_DB=stockpilot
-
-# JWT Authentication
-SECRET_KEY=your-generated-secret-key-here
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=1440
-
-# Telegram Bot (Optional)
-TELEGRAM_BOT_TOKEN=your-telegram-bot-token
-
-# Email (Optional)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
-```
-
-**Generate Secret Key:**
-```bash
-python3 -c "import secrets; print(secrets.token_urlsafe(32))"
-```
-
-### 3. Backend Setup
+### 2. Backend
 
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
-
-# Start backend server
 uvicorn app.main:app --reload
 ```
 
-Backend will run on: http://127.0.0.1:8000
-
-### 4. Frontend Setup
+### 3. Frontend
 
 ```bash
 cd frontend
@@ -117,9 +130,7 @@ npm install
 npm run dev
 ```
 
-Frontend will run on: http://localhost:3000
-
-### 5. Telegram Bot (Optional)
+### 4. Telegram Bot (Optional)
 
 ```bash
 cd bot
@@ -127,152 +138,211 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## 📚 API Documentation
+## 🔑 Environment Variables
 
-Interactive API documentation available at:
-- **Swagger UI:** http://127.0.0.1:8000/docs
-- **ReDoc:** http://127.0.0.1:8000/redoc
+```env
+# MongoDB
+MONGODB_URI=mongodb+srv://...
+MONGODB_DB=stockpilot
 
-### API Endpoints
+# Auth
+SECRET_KEY=your-secret-key
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
-**Authentication:**
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `GET /api/auth/me` - Get current user
+# Redis
+REDIS_URL=rediss://...
+UPSTASH_REDIS_REST_URL=https://...
+UPSTASH_REDIS_REST_TOKEN=...
 
-**Portfolio:**
-- `GET /api/portfolio` - Get portfolio summary
-- `GET /api/portfolio/holdings` - List all holdings
-- `POST /api/portfolio/transactions` - Add transaction
-- `GET /api/portfolio/transactions` - List transactions
+# Google OAuth
+GOOGLE_CLIENT_ID=...
 
-**Market Data:**
-- `GET /api/market/search` - Search stocks
-- `GET /api/market/quote/{symbol}` - Get stock quote
-- `GET /api/market/chart/{symbol}` - Get price chart data
+# Telegram
+TELEGRAM_BOT_TOKEN=...
 
-**Alerts:**
-- `POST /api/alerts` - Create price alert
-- `GET /api/alerts` - List user alerts
-- `DELETE /api/alerts/{id}` - Delete alert
+# Email
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=...
+SMTP_PASS=...
 
-**Research:**
-- `GET /api/research/{symbol}` - Get stock research data
-- `GET /api/research/{symbol}/financials` - Get financial statements
+# AI
+GROQ_API_KEY=...
+GEMINI_API_KEY=...
+```
 
-**IPO:**
-- `GET /api/ipo/upcoming` - List upcoming IPOs
-- `GET /api/ipo/recent` - List recent IPOs
+## 📚 API Endpoints
 
-**Watchlist:**
-- `POST /api/watchlist` - Add to watchlist
-- `GET /api/watchlist` - Get watchlist
-- `DELETE /api/watchlist/{symbol}` - Remove from watchlist
+### Auth
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register |
+| POST | `/api/auth/login` | Login (JWT) |
+| POST | `/api/auth/google` | Google OAuth |
+| GET | `/api/auth/me` | Current user |
 
-**Export:**
-- `GET /api/export/portfolio/csv` - Export portfolio as CSV
-- `GET /api/export/portfolio/pdf` - Export portfolio as PDF
+### Portfolio
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/portfolio` | Portfolio summary |
+| GET | `/api/portfolio/holdings` | All holdings with live prices |
+| POST | `/api/portfolio/holdings` | Add holding |
+| GET | `/api/portfolio/sectors` | Sector allocation |
+| GET | `/api/portfolio/dashboard` | Dashboard (cached) |
+| GET | `/api/portfolio/transactions` | Transaction history |
+| POST | `/api/portfolio/transactions` | Add transaction |
+| POST | `/api/portfolio/import-transactions` | Import Groww XLSX |
+| GET | `/api/portfolio/mf/health` | MF health check |
+| GET | `/api/portfolio/mf/overlap` | MF overlap |
+| GET | `/api/portfolio/mf/expense-impact` | Expense ratio impact |
 
-## 🎨 Frontend Pages
+### Analytics
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/analytics` | Sector breakdown |
+| GET | `/api/analytics/metrics` | Portfolio metrics (beta, volatility) |
+| GET | `/api/analytics/returns` | Returns with CAGR |
+| GET | `/api/analytics/drawdown` | Drawdown analysis |
+| GET | `/api/analytics/sector-risk` | Sector concentration risk |
+| GET | `/api/analytics/mf-overlap` | MF overlap analyzer |
+| GET | `/api/analytics/rebalance` | Rebalance suggestions |
+| GET | `/api/analytics/rebalance/allocation` | Current vs target allocation |
+| GET | `/api/analytics/pnl-calendar` | PnL calendar |
+| POST | `/api/analytics/signals` | Trading signals |
+| GET | `/api/analytics/export/csv` | Export CSV |
 
-- `/` - Dashboard with portfolio overview
-- `/portfolio` - Detailed portfolio view
-- `/market` - Market overview and stock search
-- `/research` - Stock research and analysis
-- `/watchlist` - Watchlist management
-- `/alerts` - Price alerts management
-- `/ipo` - IPO tracking
-- `/signals` - Smart trading signals
-- `/login` - User authentication
+### Finance
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/finance/tax` | Tax summary (STCG/LTCG) |
+| GET | `/api/finance/tax/harvest` | Tax harvesting |
+| GET | `/api/finance/tax/advance` | Advance tax schedule |
+| GET | `/api/finance/tax/export` | Tax report Excel |
+| GET | `/api/finance/dividends` | Dividend income |
+| GET | `/api/finance/networth` | Networth breakdown |
+| GET | `/api/finance/networth/history` | Monthly networth history |
+| POST | `/api/finance/networth/snapshot` | Take snapshot |
+| GET | `/api/finance/goals` | Financial goals |
+| GET | `/api/finance/sip` | SIP investments |
+| GET | `/api/finance/sip/calculator` | SIP calculator |
 
-## 🔧 Configuration
+### Market
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/market/indices` | NIFTY, SENSEX, BANKNIFTY |
+| GET | `/api/market/quote/{symbol}` | Stock quote |
+| GET | `/api/market/search` | Search stocks |
+| GET | `/api/market/research/{symbol}` | Stock research |
+| GET | `/api/market/compare` | Compare stocks |
+| GET | `/api/market/market-summary` | Top movers |
+| GET | `/api/market/fii-dii` | FII/DII data |
+| GET | `/api/market/screener/gainers` | Top gainers/losers |
+| GET | `/api/market/corporate-actions` | Dividends & splits |
 
-### MongoDB Setup
+### Other
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/chat/ask` | AI chat (streaming) |
+| GET | `/api/ipo/upcoming` | Upcoming IPOs |
+| GET | `/api/ipo/gmp` | IPO GMP tracker |
+| GET | `/api/watchlist` | Watchlist with prices |
+| GET | `/api/alerts` | Price alerts |
+| GET | `/api/calculators/*` | 8 financial calculators |
+| GET | `/api/vault/entries` | Vault entries |
+| GET | `/api/ledger` | Ledger entries |
+| GET | `/api/export/*` | CSV exports |
 
-1. Create a free MongoDB Atlas cluster at https://cloud.mongodb.com
-2. Create a database user with read/write permissions
-3. Whitelist your IP address (or use 0.0.0.0/0 for development)
-4. Copy the connection string to `.env`
+## ⚡ Redis Caching
 
-### Telegram Bot Setup
+All heavy endpoints are cached with market-aware TTL:
 
-1. Create a bot via [@BotFather](https://t.me/botfather) on Telegram
-2. Copy the bot token to `.env`
-3. Start the bot service
-4. Send `/start` to your bot to link your account
+| Endpoint | TTL (Market Open) | TTL (Closed) |
+|----------|-------------------|--------------|
+| Dashboard, Holdings, Analytics, Metrics, Returns | 2 min | 1 hr |
+| Indices, Market Summary, Watchlist | 60s | 1 hr |
+| Tax, Dividends, Networth, Sectors, Drawdown, Sector Risk | 5 min | 1 hr |
+| MF Health, MF Overlap, Networth History | 10 min | 10 min |
+| FII/DII | 30 min | 30 min |
+| IPO | 1 hr | 1 hr |
 
-## 🚀 Deployment
+## 🤖 Background Jobs
 
-### Backend (FastAPI)
+| Job | Schedule | Description |
+|-----|----------|-------------|
+| Price Update | Every 5 min | Update cached prices for holdings |
+| Alert Check | Every 1 min | Check price alerts, send notifications |
+| Hourly Update | 9 AM - 4 PM hourly | Portfolio snapshot (Email + Telegram) |
+| Portfolio Advisor | 9:30 AM, 3:00 PM | Smart trading signals |
+| Daily Digest | 6:00 PM | Portfolio summary (Email + Telegram) |
+| Earnings Check | 9:00 AM | Upcoming earnings reminders |
+| IPO Scrape | Every 2 hours | Fetch IPO data from web |
+| IPO Alerts | 9:30 AM | Notify IPO openings |
 
-Deploy to:
-- AWS Lambda + API Gateway
-- Google Cloud Run
-- Heroku
-- DigitalOcean App Platform
-
-### Frontend (Next.js)
-
-Deploy to:
-- Vercel (recommended)
-- Netlify
-- AWS Amplify
-- Cloudflare Pages
-
-## 📝 Development
-
-### Project Structure
+## 📁 Project Structure
 
 ```
 stockpilot/
 ├── backend/
 │   ├── app/
-│   │   ├── api/          # API route handlers
-│   │   ├── models/       # Pydantic models
-│   │   ├── services/     # Business logic
-│   │   ├── tasks/        # Background tasks
-│   │   ├── middleware/   # Custom middleware
-│   │   ├── config.py     # Configuration
-│   │   ├── database.py   # MongoDB connection
-│   │   └── main.py       # FastAPI app
+│   │   ├── main.py                    # FastAPI app, lifespan, CORS
+│   │   ├── api/v1/                    # API routes (modular)
+│   │   │   ├── auth/                  # JWT + Google OAuth
+│   │   │   ├── portfolio/             # Holdings, transactions, import, MF
+│   │   │   ├── analytics/             # Metrics, returns, drawdown, signals
+│   │   │   ├── finance/               # Tax, dividends, networth, goals, SIP
+│   │   │   ├── market/                # Quotes, indices, research, screener
+│   │   │   ├── chat/                  # AI chat (Groq streaming)
+│   │   │   ├── calculators/           # 8 financial calculators
+│   │   │   ├── vault/                 # Family vault with nominees
+│   │   │   ├── ledger/                # Loan/debt tracking
+│   │   │   ├── alerts/                # Price alerts
+│   │   │   ├── watchlist/             # Watchlist
+│   │   │   ├── ipo/                   # IPO tracking
+│   │   │   └── export/                # CSV exports
+│   │   ├── services/
+│   │   │   ├── cache.py               # Redis cache + market_open/market_ttl
+│   │   │   ├── market/                # Price service, multi-source pricing
+│   │   │   ├── signals/               # AI signal engine
+│   │   │   ├── notification/          # Email + Telegram + Web Push
+│   │   │   ├── analytics/             # Screener fundamentals
+│   │   │   ├── portfolio/             # Holdings helpers
+│   │   │   └── ledger/                # Ledger service
+│   │   ├── tasks/                     # APScheduler background jobs
+│   │   ├── models/documents/          # Beanie ODM models
+│   │   ├── core/                      # Config, security, constants
+│   │   ├── middleware/                # Rate limiting
+│   │   └── utils/                     # Logger, helpers
 │   └── requirements.txt
 ├── frontend/
-│   ├── src/
-│   │   ├── app/          # Next.js pages
-│   │   ├── components/   # React components
-│   │   └── lib/          # Utilities
-│   └── package.json
-├── bot/
-│   └── main.py           # Telegram bot
-├── .env                  # Environment variables
-└── README.md
+│   └── src/
+│       ├── app/                       # 28 Next.js pages
+│       │   ├── page.js                # Dashboard
+│       │   ├── portfolio/             # Holdings + import
+│       │   ├── analytics/             # Charts + metrics
+│       │   ├── tax/                   # Tax center
+│       │   ├── chat/                  # AI chat
+│       │   ├── signals/               # Trading signals
+│       │   ├── calculators/           # 8 calculator components
+│       │   ├── vault/                 # Family vault + shared
+│       │   ├── networth/              # Networth tracker
+│       │   ├── mf-health/             # MF health check
+│       │   ├── mf-overlap/            # MF overlap analyzer
+│       │   └── ...                    # market, ipo, watchlist, etc.
+│       ├── components/                # Navbar, ChatWidget, PublicLayout
+│       └── lib/                       # API client, WebSocket hook
+├── bot/                               # Telegram bot
+└── scripts/                           # Setup, seed data, indexes
 ```
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-
-This project is licensed under the MIT License.
 
 ## 🐛 Troubleshooting
 
-**Backend won't start:**
-- Ensure `.env` file exists in project root
-- Verify MongoDB connection string is correct
-- Check Python version (3.10+ required)
+- **Backend won't start**: Check `.env`, MongoDB URI, Python 3.10+
+- **Redis errors**: Verify `REDIS_URL`, check Upstash dashboard
+- **Prices not updating**: Yahoo Finance rate limits — multi-source fallback handles this
+- **Alerts not sending**: Ensure `telegram_chat_id` is set and `settings.hourly_alerts`/`daily_digest` are enabled
+- **Frontend build errors**: Delete `node_modules` + `.next`, run `npm install`
 
-**Frontend build errors:**
-- Delete `node_modules` and `package-lock.json`
-- Run `npm install` again
-- Clear Next.js cache: `rm -rf .next`
+## 📄 License
 
-**Database connection issues:**
-- Verify MongoDB Atlas IP whitelist
-- Check database user permissions
-- Ensure connection string includes database name
-
-## 📞 Support
-
-For issues and questions, please open an issue on GitHub.
+MIT License

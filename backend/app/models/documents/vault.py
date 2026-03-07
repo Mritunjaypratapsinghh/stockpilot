@@ -23,6 +23,7 @@ class VaultEntry(BaseDocument):
     details: dict = Field(default_factory=dict)  # Flexible key-value for category-specific fields
     notes: Optional[str] = None
     nominee_visible: bool = True
+    files: list[str] = Field(default_factory=list)  # List of file paths
 
     class Settings:
         name = "vault_entries"

@@ -1,8 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Shield, Plus, Trash2, X, Pencil, Users, Building2, Heart, TrendingUp, Home, FileText, Smartphone, Phone } from 'lucide-react';
+import { Shield, Plus, Trash2, X, Pencil, Users, Building2, Heart, TrendingUp, Home, FileText, Smartphone, Phone, Upload, File, Download } from 'lucide-react';
 import Navbar from '../../components/Navbar';
-import { getVaultEntries, createVaultEntry, updateVaultEntry, deleteVaultEntry, getVaultNominees, addVaultNominee, removeVaultNominee } from '../../lib/api';
+import { getVaultEntries, createVaultEntry, updateVaultEntry, deleteVaultEntry, getVaultNominees, addVaultNominee, removeVaultNominee, uploadVaultFile, deleteVaultFile, getVaultFileUrl } from '../../lib/api';
 
 const CATEGORIES = [
   { id: 'bank', label: 'Bank Accounts', icon: Building2, fields: ['bank_name', 'account_number', 'ifsc', 'branch', 'account_type', 'balance'] },
@@ -119,6 +119,10 @@ export default function VaultPage() {
                 <div className="flex items-start justify-between mb-3">
                   <h3 className="font-semibold text-[var(--text-primary)]">{entry.title}</h3>
                   <div className="flex gap-1">
+                    <label className="p-1.5 rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] cursor-pointer">
+                      <Upload className="w-4 h-4" />
+                      <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onChange={async (e) => { if (e.target.files[0]) { await uploadVaultFile(entry.id, e.target.files[0]); load(); } }} />
+                    </label>
                     <button onClick={() => openForm(entry)} className="p-1.5 rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)]"><Pencil className="w-4 h-4" /></button>
                     <button onClick={() => handleDelete(entry.id)} className="p-1.5 rounded hover:bg-[#ef4444]/10 text-[var(--text-muted)] hover:text-[#ef4444]"><Trash2 className="w-4 h-4" /></button>
                   </div>
@@ -131,6 +135,20 @@ export default function VaultPage() {
                     </div>
                   ))}
                 </div>
+                {entry.files?.length > 0 && (
+                  <div className="mt-3 pt-2 border-t border-[var(--border)]">
+                    <div className="text-xs text-[var(--text-muted)] mb-1">Attachments</div>
+                    <div className="flex flex-wrap gap-1">
+                      {entry.files.map(f => (
+                        <div key={f} className="flex items-center gap-1 text-xs bg-[var(--bg-tertiary)] rounded px-2 py-1">
+                          <File className="w-3 h-3" />
+                          <a href={getVaultFileUrl(f)} target="_blank" className="hover:text-[var(--accent)]">{f.slice(0, 12)}...</a>
+                          <button onClick={async () => { await deleteVaultFile(entry.id, f); load(); }} className="hover:text-[#ef4444]"><X className="w-3 h-3" /></button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {entry.notes && <p className="mt-3 text-xs text-[var(--text-muted)] border-t border-[var(--border)] pt-2">{entry.notes}</p>}
                 {!entry.nominee_visible && <span className="inline-block mt-2 text-xs px-2 py-0.5 bg-[var(--bg-tertiary)] rounded text-[var(--text-muted)]">Hidden from nominees</span>}
               </div>

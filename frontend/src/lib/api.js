@@ -107,3 +107,6 @@ export const removeVaultNominee = (id) => api(`/api/v1/vault/nominees/${id}`, { 
 export const getSharedVaults = () => api('/api/v1/vault/shared');
 export const viewSharedVault = (email) => api(`/api/v1/vault/shared/${encodeURIComponent(email)}`);
 export const acceptVaultInvite = (token) => api(`/api/v1/vault/accept-invite?token=${token}`, { method: 'POST' });
+export const uploadVaultFile = (entryId, file) => uploadFile(`/api/v1/vault/entries/${entryId}/upload`, file);
+export const deleteVaultFile = (entryId, filename) => api(`/api/v1/vault/entries/${entryId}/files/${filename}`, { method: 'DELETE' });
+export const getVaultFileUrl = (filename) => `${API_BASE}/api/v1/vault/files/${filename}`;

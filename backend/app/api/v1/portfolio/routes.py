@@ -271,8 +271,17 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)) -> Stand
             "pnl_pct": round(((total_val - total_inv) / total_inv * 100) if total_inv > 0 else 0, 2),
         },
     }
-    await cache_set(cache_key, result, ttl=120)
+    await cache_set(cache_key, result, ttl=120 if _market_open() else 3600)
     return StandardResponse.ok(result)
+
+
+def _market_open() -> bool:
+    from datetime import datetime
+
+    import pytz
+
+    now = datetime.now(pytz.timezone("Asia/Kolkata"))
+    return now.weekday() < 5 and 915 <= now.hour * 100 + now.minute <= 1530
 
 
 def _calc_xirr(holdings, current_value):

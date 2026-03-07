@@ -40,6 +40,12 @@ async def search(q: str) -> StandardResponse:
 @router.get("/indices", summary="Get market indices", description="Get NIFTY, SENSEX, BANKNIFTY prices")
 async def get_indices() -> StandardResponse:
     """Get major market indices prices."""
+    from ....services.cache import cache_get, cache_set, market_ttl
+
+    cached = await cache_get("market:indices")
+    if cached:
+        return StandardResponse.ok(cached)
+
     indices = {"NIFTY50": "^NSEI", "SENSEX": "^BSESN", "BANKNIFTY": "^NSEBANK"}
     result: dict = {}
     async with httpx.AsyncClient(timeout=10) as client:
@@ -59,6 +65,7 @@ async def get_indices() -> StandardResponse:
                     }
             except (httpx.HTTPError, KeyError, ValueError):
                 pass
+    await cache_set("market:indices", result, ttl=market_ttl(60, 3600))
     return StandardResponse.ok(result)
 
 
@@ -292,6 +299,12 @@ async def get_corporate_actions(current_user: dict = Depends(get_current_user)) 
 @router.get("/market-summary", summary="Get market summary", description="Get top movers and market overview")
 async def get_market_summary() -> StandardResponse:
     """Get market summary with top movers."""
+    from ....services.cache import cache_get, cache_set, market_ttl
+
+    cached = await cache_get("market:summary")
+    if cached:
+        return StandardResponse.ok(cached)
+
     symbols = ["RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "KOTAKBANK", "SBIN", "BHARTIARTL", "ITC", "LT"]
     prices = await get_bulk_prices(symbols)
     movers = sorted(
@@ -303,12 +316,20 @@ async def get_market_summary() -> StandardResponse:
         key=lambda x: abs(x["change_pct"]),
         reverse=True,
     )
-    return StandardResponse.ok({"top_movers": movers[:10]})
+    result = {"top_movers": movers[:10]}
+    await cache_set("market:summary", result, ttl=market_ttl(60, 3600))
+    return StandardResponse.ok(result)
 
 
 @router.get("/fii-dii", summary="Get FII/DII data", description="Get FII and DII activity data")
 async def get_fii_dii() -> StandardResponse:
     """Get FII/DII activity data."""
+    from ....services.cache import cache_get, cache_set
+
+    cached = await cache_get("market:fii_dii")
+    if cached:
+        return StandardResponse.ok(cached)
+
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(
@@ -332,20 +353,20 @@ async def get_fii_dii() -> StandardResponse:
                                 except (ValueError, AttributeError):
                                     return 0
 
-                            return StandardResponse.ok(
-                                {
-                                    "fii": {
-                                        "buy": parse_val(cells[1].text),
-                                        "sell": parse_val(cells[2].text),
-                                        "net": parse_val(cells[3].text),
-                                    },
-                                    "dii": {
-                                        "buy": parse_val(cells[4].text),
-                                        "sell": parse_val(cells[5].text),
-                                        "net": parse_val(cells[6].text),
-                                    },
-                                }
-                            )
+                            result = {
+                                "fii": {
+                                    "buy": parse_val(cells[1].text),
+                                    "sell": parse_val(cells[2].text),
+                                    "net": parse_val(cells[3].text),
+                                },
+                                "dii": {
+                                    "buy": parse_val(cells[4].text),
+                                    "sell": parse_val(cells[5].text),
+                                    "net": parse_val(cells[6].text),
+                                },
+                            }
+                            await cache_set("market:fii_dii", result, ttl=1800)
+                            return StandardResponse.ok(result)
     except Exception as e:
         logger.warning(f"FII/DII fetch error: {e}")
     return StandardResponse.ok(

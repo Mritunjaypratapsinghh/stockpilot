@@ -442,6 +442,13 @@ async def get_dividends(current_user: dict = Depends(get_current_user)) -> Stand
 
     import httpx
 
+    from ....services.cache import cache_get, cache_set
+
+    cache_key = f"dividends:{current_user['_id']}"
+    cached = await cache_get(cache_key)
+    if cached:
+        return StandardResponse.ok(cached)
+
     holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
     if not holdings:
         return StandardResponse.ok({"dividends": [], "upcoming": [], "total": 0, "expected_income": 0})
@@ -485,15 +492,15 @@ async def get_dividends(current_user: dict = Depends(get_current_user)) -> Stand
     past_dividends.sort(key=lambda x: x["date"], reverse=True)
     upcoming_dividends.sort(key=lambda x: x["date"])
 
-    return StandardResponse.ok(
-        {
-            "dividends": past_dividends[:20],
-            "upcoming": upcoming_dividends,
-            "total": len(past_dividends),
-            "expected_income": round(upcoming_income, 2),
-            "past_income": round(past_income, 2),
-        }
-    )
+    result = {
+        "dividends": past_dividends[:20],
+        "upcoming": upcoming_dividends,
+        "total": len(past_dividends),
+        "expected_income": round(upcoming_income, 2),
+        "past_income": round(past_income, 2),
+    }
+    await cache_set(cache_key, result, ttl=300)
+    return StandardResponse.ok(result)
 
 
 @router.get("/networth", summary="Get networth", description="Get total networth breakdown")

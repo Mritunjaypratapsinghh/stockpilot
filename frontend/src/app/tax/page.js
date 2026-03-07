@@ -47,9 +47,9 @@ export default function TaxPage() {
   if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-4 md:p-6">Loading...</div></div>;
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)]">
+    <div className="min-h-screen bg-[var(--bg-primary)] max-w-[100vw] overflow-x-hidden">
       <Navbar />
-      <main className="p-4 md:p-6 overflow-x-hidden">
+      <main className="p-4 md:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2"><Receipt className="w-5 h-5 md:w-6 md:h-6" /> Tax Center</h1>
           <div className="flex items-center gap-3">

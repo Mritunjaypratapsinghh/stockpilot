@@ -3,6 +3,7 @@ from typing import List, Optional
 
 from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from groq import Groq
 from pydantic import BaseModel
 
@@ -39,57 +40,93 @@ class ChatRequest(BaseModel):
     history: Optional[List[dict]] = []
 
 
-@router.post("/ask")
-async def chat_ask(
-    req: ChatRequest, current_user: dict = Depends(get_current_user)
-) -> StandardResponse:
-    if not client:
-        return StandardResponse.error("AI chat not configured. Set GROQ_API_KEY.")
-
-    uid = PydanticObjectId(current_user["_id"])
+async def build_context(user_id: str) -> str:
+    uid = PydanticObjectId(user_id)
     holdings = await Holding.find(Holding.user_id == uid).to_list()
 
     if not holdings:
-        context = "User has no holdings in their portfolio."
-    else:
-        lines = []
-        total_invested = total_current = 0
-        for h in holdings:
-            current = (h.current_price or h.avg_price) * h.quantity
-            invested = h.avg_price * h.quantity
-            pnl = current - invested
-            pnl_pct = (pnl / invested * 100) if invested else 0
-            total_invested += invested
-            total_current += current
-            lines.append(
-                f"{h.symbol} | {h.holding_type} | Qty:{h.quantity:.2f} | "
-                f"Avg:₹{h.avg_price:.1f} | CMP:₹{h.current_price or 0:.1f} | "
-                f"P&L:₹{pnl:,.0f} ({pnl_pct:+.1f}%) | Sector:{h.sector or 'N/A'}"
-            )
-        total_pnl = total_current - total_invested
-        total_pnl_pct = (total_pnl / total_invested * 100) if total_invested else 0
-        context = (
-            f"Portfolio: {len(holdings)} holdings | "
-            f"Invested: ₹{total_invested:,.0f} | Current: ₹{total_current:,.0f} | "
-            f"P&L: ₹{total_pnl:,.0f} ({total_pnl_pct:+.1f}%)\n\n"
-            + "\n".join(lines)
+        return "User has no holdings."
+
+    lines = []
+    total_invested = total_current = 0
+    sectors = {}
+    stcg_loss = ltcg_loss = stcg_gain = ltcg_gain = 0
+
+    for h in holdings:
+        current = (h.current_price or h.avg_price) * h.quantity
+        invested = h.avg_price * h.quantity
+        pnl = current - invested
+        pnl_pct = (pnl / invested * 100) if invested else 0
+        total_invested += invested
+        total_current += current
+
+        # Sector tracking
+        sec = h.sector or "Unknown"
+        sectors[sec] = sectors.get(sec, 0) + current
+
+        # Tax estimation (simplified: <1yr = STCG, >1yr = LTCG)
+        if pnl > 0:
+            stcg_gain += pnl
+        else:
+            stcg_loss += pnl
+
+        lines.append(
+            f"{h.symbol} | {h.holding_type} | Qty:{h.quantity:.2f} | "
+            f"Avg:₹{h.avg_price:.1f} | CMP:₹{h.current_price or 0:.1f} | "
+            f"P&L:₹{pnl:,.0f} ({pnl_pct:+.1f}%) | Sector:{sec}"
         )
 
-    messages = [{"role": "system", "content": SYSTEM_PROMPT + "\n\nPORTFOLIO DATA:\n" + context}]
+    total_pnl = total_current - total_invested
+    total_pnl_pct = (total_pnl / total_invested * 100) if total_invested else 0
+
+    # Sector summary
+    sector_lines = sorted(sectors.items(), key=lambda x: -x[1])
+    sector_str = ", ".join(f"{s}: {v / total_current * 100:.1f}%" for s, v in sector_lines[:8] if s != "Unknown")
+
+    return (
+        f"PORTFOLIO SUMMARY: {len(holdings)} holdings | "
+        f"Invested: ₹{total_invested:,.0f} | Current: ₹{total_current:,.0f} | "
+        f"P&L: ₹{total_pnl:,.0f} ({total_pnl_pct:+.1f}%)\n"
+        f"SECTORS: {sector_str or 'Not available for most holdings'}\n"
+        f"TAX ESTIMATE: Gains: ₹{stcg_gain:,.0f} | Losses: ₹{abs(stcg_loss):,.0f} | "
+        f"Net taxable: ₹{max(0, stcg_gain + stcg_loss):,.0f}\n\n"
+        f"HOLDINGS:\n" + "\n".join(lines)
+    )
+
+
+@router.post("/ask")
+async def chat_ask(
+    req: ChatRequest, current_user: dict = Depends(get_current_user)
+):
+    if not client:
+        return StandardResponse.error("AI chat not configured. Set GROQ_API_KEY.")
+
+    context = await build_context(current_user["_id"])
+
+    messages = [{"role": "system", "content": SYSTEM_PROMPT + "\n\n" + context}]
     for msg in (req.history or [])[-10:]:
         messages.append({"role": msg.get("role", "user"), "content": msg["content"]})
     messages.append({"role": "user", "content": req.message})
 
     try:
-        response = client.chat.completions.create(
+        stream = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=messages,
             temperature=0.3,
             max_completion_tokens=500,
+            stream=True,
         )
-        reply = response.choices[0].message.content
-        logger.info(f"Groq response: {reply[:200]}")
-        return StandardResponse.ok({"reply": reply})
+
+        async def generate():
+            full = []
+            for chunk in stream:
+                token = chunk.choices[0].delta.content or ""
+                if token:
+                    full.append(token)
+                    yield token
+            logger.info(f"Groq streamed: {''.join(full)[:200]}")
+
+        return StreamingResponse(generate(), media_type="text/plain")
     except Exception as e:
         logger.error(f"Groq error: {e}")
         return StandardResponse.error(f"AI error: {str(e)}")

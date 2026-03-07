@@ -1,9 +1,10 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
-import { MessageSquare, Send, Bot, User, Loader2, TrendingUp, TrendingDown, PieChart, Wallet } from 'lucide-react';
+import { MessageSquare, Send, Bot, User, Loader2, TrendingUp, TrendingDown, PieChart, Wallet, Trash2, Copy, Check } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const SUGGESTIONS = [
   "How is my portfolio performing?",
   "Which stocks should I sell?",
@@ -15,12 +16,17 @@ const SUGGESTIONS = [
 
 const fmt = (n) => n?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0';
 
+function Markdown({ text }) {
+  return <>{text.split('**').map((part, j) => j % 2 === 1 ? <strong key={j}>{part}</strong> : part)}</>;
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [sidebarData, setSidebarData] = useState(null);
   const [sidebarLoading, setSidebarLoading] = useState(true);
+  const [copied, setCopied] = useState(null);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -31,22 +37,61 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const copyText = (text, idx) => {
+    navigator.clipboard.writeText(text);
+    setCopied(idx);
+    setTimeout(() => setCopied(null), 1500);
+  };
+
   const handleSend = async (text) => {
     const msg = (text || input).trim();
     if (!msg || loading) return;
     setInput('');
     const userMsg = { role: 'user', content: msg };
-    setMessages(prev => [...prev, userMsg]);
+    const history = [...messages, userMsg];
+    setMessages(history);
     setLoading(true);
 
     try {
-      const res = await api('/api/chat/ask', {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const res = await fetch(`${API_BASE}/api/chat/ask`, {
         method: 'POST',
-        body: JSON.stringify({ message: msg, history: [...messages, userMsg].slice(-10) }),
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ message: msg, history: history.slice(-10) }),
       });
-      setMessages(prev => [...prev, { role: 'assistant', content: res?.reply || 'Could not get a response. Please try again.' }]);
-    } catch (e) {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Something went wrong. Please try again.' }]);
+
+      if (!res.ok || !res.body) {
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Something went wrong. Please try again.' }]);
+        setLoading(false);
+        return;
+      }
+
+      // Stream response
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let assistantMsg = '';
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        assistantMsg += decoder.decode(value, { stream: true });
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content: assistantMsg };
+          return updated;
+        });
+      }
+
+      if (!assistantMsg) {
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content: 'No response received. Please try again.' };
+          return updated;
+        });
+      }
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Connection error. Please try again.' }]);
     }
     setLoading(false);
   };
@@ -62,11 +107,16 @@ export default function ChatPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Chat Area */}
         <div className="flex-1 flex flex-col">
-          <div className="px-4 md:px-6 pt-4 pb-2">
+          <div className="px-4 md:px-6 pt-4 pb-2 flex items-center justify-between">
             <h1 className="text-lg font-bold flex items-center gap-2">
               <MessageSquare className="w-5 h-5" /> Portfolio Assistant
               <span className="text-[10px] bg-[var(--accent)]/20 text-[var(--accent)] px-2 py-0.5 rounded-full">StockPilot AI</span>
             </h1>
+            {messages.length > 0 && (
+              <button onClick={() => setMessages([])} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-1">
+                <Trash2 className="w-3.5 h-3.5" /> Clear
+              </button>
+            )}
           </div>
 
           {/* Messages */}
@@ -92,10 +142,13 @@ export default function ChatPage() {
                         <Bot className="w-3.5 h-3.5 text-white" />
                       </div>
                     )}
-                    <div className={`max-w-[70%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)]'}`}>
-                      <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content.split('**').map((part, j) =>
-                        j % 2 === 1 ? <strong key={j}>{part}</strong> : part
-                      )}</div>
+                    <div className={`group relative max-w-[70%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)]'}`}>
+                      <div className="text-sm whitespace-pre-wrap leading-relaxed"><Markdown text={msg.content} /></div>
+                      {msg.role === 'assistant' && msg.content && (
+                        <button onClick={() => copyText(msg.content, i)} className="absolute -bottom-5 right-0 text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                          {copied === i ? <><Check className="w-3 h-3" /> Copied</> : <><Copy className="w-3 h-3" /> Copy</>}
+                        </button>
+                      )}
                     </div>
                     {msg.role === 'user' && (
                       <div className="w-7 h-7 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center shrink-0 mt-1">
@@ -104,7 +157,7 @@ export default function ChatPage() {
                     )}
                   </div>
                 ))}
-                {loading && (
+                {loading && messages[messages.length - 1]?.role !== 'assistant' && (
                   <div className="flex gap-3">
                     <div className="w-7 h-7 rounded-full bg-[var(--accent)] flex items-center justify-center">
                       <Bot className="w-3.5 h-3.5 text-white" />

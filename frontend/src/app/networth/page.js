@@ -141,7 +141,7 @@ export default function NetWorthPage() {
             <Wallet className="w-8 h-8" />
             <span className="text-lg opacity-90">Total Net Worth</span>
           </div>
-          <div className="text-4xl font-bold">₹{(data?.total || 0).toLocaleString('en-IN')}</div>
+          <div className="text-4xl font-bold privacy-mask">₹{(data?.total || 0).toLocaleString('en-IN')}</div>
           <div className="text-sm opacity-75 mt-1">{data?.assets_count || 0} assets tracked</div>
         </div>
 
@@ -179,7 +179,7 @@ export default function NetWorthPage() {
                     <div className="flex-1">
                       <div className="flex justify-between">
                         <span className="text-[var(--text-primary)]">{item.name}</span>
-                        <span className="font-medium text-[var(--text-primary)]">₹{item.value.toLocaleString('en-IN')}</span>
+                        <span className="font-medium text-[var(--text-primary)] privacy-mask">₹{item.value.toLocaleString('en-IN')}</span>
                       </div>
                       <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-1.5 mt-1">
                         <div className="h-1.5 rounded-full" style={{ width: `${data?.allocation?.[item.name] || 0}%`, backgroundColor: item.color }}></div>
@@ -205,7 +205,7 @@ export default function NetWorthPage() {
                     <div className="text-sm text-[var(--text-secondary)]">{a.category}</div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="font-medium text-[var(--text-primary)]">₹{(a.value || 0).toLocaleString('en-IN')}</span>
+                    <span className="font-medium text-[var(--text-primary)] privacy-mask">₹{(a.value || 0).toLocaleString('en-IN')}</span>
                     <button onClick={() => setEditAsset(a)} className="p-1 text-[var(--text-secondary)] hover:text-[var(--accent)]">
                       <Pencil className="w-4 h-4" />
                     </button>
@@ -299,7 +299,7 @@ export default function NetWorthPage() {
                       className={`p-3 rounded-lg border cursor-pointer hover:scale-105 transition-transform ${!m.has_data ? 'border-[var(--border)] bg-[var(--bg-tertiary)] opacity-50' : m.change >= 0 ? 'border-[#22c55e]/30 bg-[#22c55e]/5' : 'border-[#ef4444]/30 bg-[#ef4444]/5'}`}
                     >
                       <div className="text-sm text-[var(--text-secondary)]">{m.month_name}</div>
-                      <div className="text-sm font-medium text-[var(--text-primary)]">₹{(m.value / 100000).toFixed(1)}L</div>
+                      <div className="text-sm font-medium text-[var(--text-primary)] privacy-mask">₹{(m.value / 100000).toFixed(1)}L</div>
                       {m.has_data ? (
                         <div className={`text-xs ${m.change_pct >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
                           {m.change_pct >= 0 ? '+' : ''}{m.change_pct.toFixed(1)}%
@@ -386,7 +386,7 @@ export default function NetWorthPage() {
             <div className="bg-[var(--bg-secondary)] rounded-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
               <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">{selectedMonth.month_name} {year}</h3>
               <p className="text-sm text-[var(--text-secondary)] mb-4">{selectedMonth.date}</p>
-              <div className="text-xl md:text-2xl font-bold text-[var(--text-primary)] mb-4">₹{selectedMonth.value.toLocaleString('en-IN')}</div>
+              <div className="text-xl md:text-2xl font-bold text-[var(--text-primary)] mb-4 privacy-mask">₹{selectedMonth.value.toLocaleString('en-IN')}</div>
               <div className="space-y-2">
                 {Object.entries(selectedMonth.breakdown || {}).sort((a, b) => b[1] - a[1]).map(([name, value]) => (
                   <div key={name} className="flex justify-between items-center p-2 bg-[var(--bg-tertiary)] rounded-lg">

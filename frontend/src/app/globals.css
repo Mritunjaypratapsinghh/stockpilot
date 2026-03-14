@@ -178,3 +178,11 @@ input:focus, select:focus { outline: none; }
 [data-privacy="true"] .privacy-mask:hover {
   filter: blur(0);
 }
+[data-privacy="true"] .tabular {
+  filter: blur(8px);
+  user-select: none;
+  transition: filter 0.2s;
+}
+[data-privacy="true"] .tabular:hover {
+  filter: blur(0);
+}

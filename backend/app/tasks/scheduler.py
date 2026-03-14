@@ -23,8 +23,8 @@ def start_scheduler():
     # User-defined price alerts
     scheduler.add_job(check_alerts, "interval", minutes=1, id="alert_check")
 
-    # Hourly portfolio update (market hours: 9 AM - 4 PM IST)
-    scheduler.add_job(send_hourly_update, "cron", hour="9-16", minute=0, id="hourly_update")
+    # Hourly portfolio update (market hours: 9 AM - 4 PM IST, weekdays only)
+    scheduler.add_job(send_hourly_update, "cron", day_of_week="mon-fri", hour="9-16", minute=0, id="hourly_update")
 
     # Smart Portfolio Advisor - twice daily during market hours
     scheduler.add_job(run_portfolio_advisor, "cron", hour=9, minute=30, id="advisor_morning")

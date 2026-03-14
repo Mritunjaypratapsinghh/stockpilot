@@ -258,6 +258,127 @@ async def get_metrics(current_user: dict = Depends(get_current_user)) -> Standar
     return StandardResponse.ok(result)
 
 
+@router.get(
+    "/health-score",
+    summary="Portfolio health score",
+    description="Auto-calculated health score from actual holdings",
+)
+async def get_health_score(
+    current_user: dict = Depends(get_current_user),
+) -> StandardResponse:
+    """Calculate portfolio health score (0-100) from holdings."""
+    from ....services.cache import cache_get, cache_set, market_ttl
+
+    ck = f"health_score:{current_user['_id']}"
+    cached = await cache_get(ck)
+    if cached:
+        return StandardResponse.ok(cached)
+
+    holdings = await get_user_holdings(current_user["_id"])
+    if not holdings:
+        return StandardResponse.ok({"score": 0, "factors": []})
+
+    prices = await get_prices_for_holdings(holdings) or {}
+    equity = [h for h in holdings if h.holding_type != "MF"]
+    mf = [h for h in holdings if h.holding_type == "MF"]
+
+    factors = []
+    score = 100
+
+    # 1. Diversification — number of stocks
+    n = len(equity)
+    if n >= 10:
+        factors.append({"name": "Diversification", "score": 20, "max": 20, "note": f"{n} stocks — well diversified"})
+    elif n >= 5:
+        s = 15
+        factors.append({"name": "Diversification", "score": s, "max": 20, "note": f"{n} stocks — moderate"})
+        score -= 20 - s
+    else:
+        s = max(5, n * 3)
+        factors.append({"name": "Diversification", "score": s, "max": 20, "note": f"Only {n} stocks — concentrated"})
+        score -= 20 - s
+
+    # 2. Concentration — HHI
+    total_val = 0
+    vals = []
+    for h in equity:
+        p = prices.get(h.symbol, {}).get("current_price") or h.avg_price
+        v = h.quantity * p
+        vals.append(v)
+        total_val += v
+    weights = [v / total_val for v in vals] if total_val else []
+    hhi = sum(w * w for w in weights) * 10000 if weights else 10000
+    if hhi < 1500:
+        factors.append({"name": "Concentration", "score": 20, "max": 20, "note": f"HHI {hhi:.0f} — low concentration"})
+    elif hhi < 2500:
+        s = 12
+        factors.append({"name": "Concentration", "score": s, "max": 20, "note": f"HHI {hhi:.0f} — moderate"})
+        score -= 20 - s
+    else:
+        s = 5
+        factors.append({"name": "Concentration", "score": s, "max": 20, "note": f"HHI {hhi:.0f} — highly concentrated"})
+        score -= 20 - s
+
+    # 3. Sector spread
+    sectors = set()
+    for h in equity:
+        sectors.add(SECTOR_MAP.get(h.symbol, "Others"))
+    sec_count = len(sectors)
+    if sec_count >= 5:
+        factors.append({"name": "Sector Spread", "score": 20, "max": 20, "note": f"{sec_count} sectors"})
+    elif sec_count >= 3:
+        s = 12
+        factors.append({"name": "Sector Spread", "score": s, "max": 20, "note": f"Only {sec_count} sectors"})
+        score -= 20 - s
+    else:
+        s = 5
+        factors.append({"name": "Sector Spread", "score": s, "max": 20, "note": f"Only {sec_count} sectors — risky"})
+        score -= 20 - s
+
+    # 4. MF allocation
+    mf_val = sum(h.quantity * h.avg_price for h in mf)
+    mf_pct = (mf_val / (total_val + mf_val) * 100) if (total_val + mf_val) else 0
+    if 20 <= mf_pct <= 70:
+        factors.append({"name": "MF Allocation", "score": 20, "max": 20, "note": f"{mf_pct:.0f}% in MFs — balanced"})
+    elif mf_pct > 0:
+        s = 12
+        factors.append({"name": "MF Allocation", "score": s, "max": 20, "note": f"{mf_pct:.0f}% in MFs"})
+        score -= 20 - s
+    else:
+        s = 5
+        factors.append(
+            {"name": "MF Allocation", "score": s, "max": 20, "note": "No MFs — consider adding for stability"}
+        )
+        score -= 20 - s
+
+    # 5. P&L health
+    total_inv = sum(h.quantity * h.avg_price for h in equity)
+    pnl_pct = ((total_val - total_inv) / total_inv * 100) if total_inv else 0
+    losers = sum(1 for h in equity if (prices.get(h.symbol, {}).get("current_price") or h.avg_price) < h.avg_price)
+    loser_pct = (losers / n * 100) if n else 0
+    if pnl_pct > 0 and loser_pct < 40:
+        factors.append(
+            {"name": "P&L Health", "score": 20, "max": 20, "note": f"P&L {pnl_pct:+.1f}%, {losers}/{n} in loss"}
+        )
+    elif pnl_pct > -10:
+        s = 12
+        factors.append(
+            {"name": "P&L Health", "score": s, "max": 20, "note": f"P&L {pnl_pct:+.1f}%, {losers}/{n} in loss"}
+        )
+        score -= 20 - s
+    else:
+        s = 5
+        factors.append(
+            {"name": "P&L Health", "score": s, "max": 20, "note": f"P&L {pnl_pct:+.1f}%, {losers}/{n} in loss"}
+        )
+        score -= 20 - s
+
+    grade = "A" if score >= 80 else "B" if score >= 60 else "C" if score >= 40 else "D"
+    result = {"score": max(0, score), "grade": grade, "factors": factors}
+    await cache_set(ck, result, ttl=market_ttl())
+    return StandardResponse.ok(result)
+
+
 @router.get("/returns", summary="Get returns breakdown", description="Get returns by holding")
 async def get_returns(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get returns breakdown with proper CAGR calculation."""

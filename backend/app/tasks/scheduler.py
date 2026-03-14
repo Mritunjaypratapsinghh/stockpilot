@@ -8,6 +8,8 @@ from .hourly_update import send_hourly_update
 from .ipo_tracker import check_ipo_alerts, scrape_ipo_data
 from .portfolio_advisor import run_portfolio_advisor
 from .price_updater import update_all_prices
+from .tax_harvest_alert import check_tax_harvesting
+from .weekly_report import send_weekly_report
 from .ws_broadcaster import broadcast_prices
 
 scheduler = AsyncIOScheduler(timezone="Asia/Kolkata")
@@ -49,6 +51,26 @@ def start_scheduler():
     # IPO tracking
     scheduler.add_job(scrape_ipo_data, "interval", hours=2, id="ipo_scrape")
     scheduler.add_job(check_ipo_alerts, "cron", hour=9, minute=30, id="ipo_alerts")
+
+    # Weekly AI report - Saturday 10 AM IST
+    scheduler.add_job(
+        send_weekly_report,
+        "cron",
+        day_of_week="sat",
+        hour=10,
+        minute=0,
+        id="weekly_report",
+    )
+
+    # Tax harvesting alerts - Monday 9 AM IST
+    scheduler.add_job(
+        check_tax_harvesting,
+        "cron",
+        day_of_week="mon",
+        hour=9,
+        minute=0,
+        id="tax_harvest_alert",
+    )
 
     scheduler.start()
     logger.info("Scheduler started with all jobs (IST timezone)")

@@ -26,7 +26,9 @@ export default function MFHealthPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-4 md:p-6">Loading...</div></div>;
+  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="flex justify-center py-20"><div className="flex gap-1">{[0,1,2].map(i=><div key={i} className="w-3 h-3 bg-[var(--accent)] rounded-full animate-pulse" style={{animationDelay:`${i*150}ms`}}/>)}</div></div></div>;
+
+  if (!health?.funds?.length) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-4 md:p-6 text-center py-20"><Activity className="w-12 h-12 mx-auto mb-4 text-[var(--text-muted)]" /><p className="text-[var(--text-muted)]">No mutual funds found. Add MF holdings to check health.</p></div></div>;
 
   const getStatusColor = (status) => {
     if (status === 'Outperforming') return 'text-[#22c55e]';

@@ -74,6 +74,13 @@ export default function SimulatorPage() {
         </div>
 
         <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6 mb-6">
+          {holdings.length === 0 ? (
+            <div className="text-center py-8">
+              <ArrowRightLeft className="w-10 h-10 mx-auto mb-3 text-[var(--text-muted)]" />
+              <p className="text-[var(--text-muted)]">No equity holdings to simulate. Add stocks first.</p>
+            </div>
+          ) : (
+          <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="text-sm text-[var(--text-muted)] mb-1 block">Sell</label>
@@ -96,6 +103,8 @@ export default function SimulatorPage() {
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart3 className="w-4 h-4" />}
             Simulate
           </button>
+          </>
+          )}
         </div>
 
         {result && (

@@ -38,6 +38,7 @@ function ScoreRing({ score }) {
 export default function MFOverlapPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     api('/api/analytics/mf-overlap').then(setData).catch(() => {}).finally(() => setLoading(false));

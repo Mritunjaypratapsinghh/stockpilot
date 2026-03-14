@@ -7,6 +7,7 @@ import { getAlerts, api } from '../../lib/api';
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [symbol, setSymbol] = useState('');
   const [alertType, setAlertType] = useState('PRICE_ABOVE');

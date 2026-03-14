@@ -7,9 +7,10 @@ import { api } from '../../lib/api';
 export default function IPOPage() {
   const [ipos, setIpos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
 
-  const loadIPOs = async () => { setLoading(true); try { setIpos(await api('/api/ipo/gmp')); } catch (e) {} setLoading(false); };
+  const loadIPOs = async () => { setLoading(true); try { setIpos(await api('/api/ipo/gmp')); } catch (e) { setError(e.message);} setLoading(false); };
   useEffect(() => { loadIPOs(); }, []);
 
   const filteredIpos = filter === 'all' ? ipos : ipos.filter(i => i.type?.toUpperCase() === filter.toUpperCase());

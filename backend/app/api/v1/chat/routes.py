@@ -53,8 +53,8 @@ async def build_context(user_id: str) -> str:
     if not holdings:
         return "User has no holdings."
 
-    from ..core.constants import SECTOR_MAP
-    from ..services.market.price_service import get_bulk_prices
+    from ....core.constants import SECTOR_MAP
+    from ....services.market.price_service import get_bulk_prices
 
     symbols = [h.symbol for h in holdings if h.holding_type != "MF"]
     live_prices = await get_bulk_prices(symbols) if symbols else {}

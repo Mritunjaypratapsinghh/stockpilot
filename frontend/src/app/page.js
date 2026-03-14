@@ -83,9 +83,8 @@ export default function Dashboard() {
         {/* AI Insights + Health Score + Earnings */}
         {(insights.length > 0 || healthScore || earnings.length > 0) && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-            {/* AI Insights */}
-            {insights.length > 0 && (
-              <div key="insights" className="lg:col-span-2">
+            {insights.length > 0 ? (
+              <div className="lg:col-span-2">
                 <div className="text-sm font-medium text-[var(--text-muted)] uppercase mb-3">🤖 AI Insights</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {insights.map((ins, i) => (
@@ -101,10 +100,11 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
+            ) : (
+              <div className="lg:col-span-2" />
             )}
 
-            {/* Sidebar: Health Score + Earnings */}
-            <div key="sidebar" className="space-y-4">
+            <div className="space-y-4">
               {healthScore && (
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
                   <div className="text-sm font-medium text-[var(--text-muted)] uppercase mb-3">🏥 Portfolio Health</div>

@@ -250,7 +250,7 @@ class SignalEngine:
             warnings.append(f"⚠️ Market down {nifty_change:.1f}% today - avoid panic decisions")
 
         # === CONCENTRATION WARNING ===
-        if concentration > 25:
+        if concentration > 25 and sector != "Others":
             warnings.append(f"⚠️ High {sector} exposure ({concentration:.0f}%) - diversify")
 
         # === FUNDAMENTAL RED FLAGS ===
@@ -323,8 +323,8 @@ class SignalEngine:
             reasons.append("Consider booking 25-50% - protect your gains")
             confidence = Confidence.MEDIUM
 
-        # TRIM: Overweight position with profit
-        elif concentration > 25 and pnl_pct > 15:
+        # TRIM: Overweight position with profit (skip "Others")
+        elif concentration > 25 and pnl_pct > 15 and sector != "Others":
             action = "TRIM"
             reasons.append(f"{sector} is {concentration:.0f}% of portfolio - overweight")
             reasons.append(f"Up {pnl_pct:.0f}% - good time to rebalance")
@@ -385,8 +385,8 @@ class SignalEngine:
                 reasons = ["Market crashing - wait for dust to settle"]
                 confidence = Confidence.LOW
 
-        # Don't recommend buying if concentration too high
-        if action in ["BUY MORE", "STRONG BUY", "ADD"] and concentration > 30:
+        # Don't recommend buying if concentration too high (skip "Others" — it's unmapped stocks, not a real sector)
+        if action in ["BUY MORE", "STRONG BUY", "ADD"] and concentration > 30 and sector != "Others":
             original_action = action
             action = "HOLD"
             reasons = [f"Would be {original_action} but {sector} already at {concentration:.0f}%"]
@@ -565,7 +565,11 @@ class SignalEngine:
         for s in signals[:8]:
             news = await fetch_stock_news(s["symbol"])
             if news:
-                news_map[s["symbol"]] = [n["title"] for n in news]
+                # Filter: only keep headlines mentioning the stock or company
+                name_parts = s.get("symbol", "").lower().split()
+                relevant = [n["title"] for n in news if any(p in n["title"].lower() for p in name_parts if len(p) > 3)]
+                if relevant:
+                    news_map[s["symbol"]] = relevant
 
         if not news_map:
             return signals

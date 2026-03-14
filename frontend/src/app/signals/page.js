@@ -236,6 +236,26 @@ export default function SignalsPage() {
                                 </div>
                               )}
 
+                              {/* News Sentiment */}
+                              {r.news_sentiment && (
+                                <div className="bg-[var(--bg-primary)] rounded-lg p-3">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-sm">📰</span>
+                                    <span className="text-sm font-medium">News Sentiment</span>
+                                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${r.news_sentiment === 'bullish' ? 'bg-[#10b981]/10 text-[#10b981]' : r.news_sentiment === 'bearish' ? 'bg-[#ef4444]/10 text-[#ef4444]' : 'bg-[var(--border)] text-[var(--text-muted)]'}`}>
+                                      {r.news_sentiment === 'bullish' ? '🟢' : r.news_sentiment === 'bearish' ? '🔴' : '⚪'} {r.news_sentiment}
+                                    </span>
+                                  </div>
+                                  {r.news_headlines?.length > 0 && (
+                                    <ul className="space-y-1">
+                                      {r.news_headlines.map((h, j) => (
+                                        <li key={j} className="text-xs text-[var(--text-muted)] truncate">• {h}</li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              )}
+
                               {/* Confidence Factors */}
                               {r.confidence_factors?.length > 0 && (
                                 <div className="flex flex-wrap gap-2">

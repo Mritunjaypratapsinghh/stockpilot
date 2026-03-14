@@ -28,3 +28,9 @@ class RebalanceSuggestion(BaseModel):
     current_pct: float
     target_pct: float
     action: str
+
+
+class SimulateRequest(BaseModel):
+    sell: str
+    buy: str = ""
+    amount: float

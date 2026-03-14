@@ -12,6 +12,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
   const [insights, setInsights] = useState([]);
+  const [healthScore, setHealthScore] = useState(null);
+  const [earnings, setEarnings] = useState([]);
 
   useEffect(() => {
     const t = localStorage.getItem('token');
@@ -25,6 +27,8 @@ export default function Dashboard() {
         })
         .finally(() => setLoading(false));
       api('/api/analytics/insights').then(d => setInsights(d?.insights || [])).catch(() => {});
+      api('/api/analytics/health-score').then(d => setHealthScore(d)).catch(() => {});
+      api('/api/portfolio/earnings-calendar').then(d => setEarnings(d?.earnings || [])).catch(() => {});
     } else {
       window.location.href = '/landing';
     }
@@ -76,22 +80,58 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* AI Insights */}
-        {insights.length > 0 && (
-          <div className="mb-6">
-            <div className="text-sm font-medium text-[var(--text-muted)] uppercase mb-3">🤖 AI Insights</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {insights.map((ins, i) => (
-                <div key={i} className={`border rounded-lg p-4 ${ins.type === 'warning' ? 'bg-[#ef4444]/5 border-[#ef4444]/20' : ins.type === 'opportunity' ? 'bg-[#10b981]/5 border-[#10b981]/20' : ins.type === 'tip' ? 'bg-[#f59e0b]/5 border-[#f59e0b]/20' : 'bg-[var(--bg-secondary)] border-[var(--border)]'}`}>
-                  <div className="flex items-start gap-2">
-                    <span className="text-lg">{ins.icon}</span>
-                    <div>
-                      <div className="font-medium text-sm">{ins.title}</div>
-                      <div className="text-sm text-[var(--text-secondary)] mt-1">{ins.body}</div>
+        {/* AI Insights + Health Score + Earnings */}
+        {(insights.length > 0 || healthScore || earnings.length > 0) && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            {/* AI Insights */}
+            {insights.length > 0 && (
+              <div className="lg:col-span-2">
+                <div className="text-sm font-medium text-[var(--text-muted)] uppercase mb-3">🤖 AI Insights</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {insights.map((ins, i) => (
+                    <div key={i} className={`border rounded-lg p-4 ${ins.type === 'warning' ? 'bg-[#ef4444]/5 border-[#ef4444]/20' : ins.type === 'opportunity' ? 'bg-[#10b981]/5 border-[#10b981]/20' : ins.type === 'tip' ? 'bg-[#f59e0b]/5 border-[#f59e0b]/20' : 'bg-[var(--bg-secondary)] border-[var(--border)]'}`}>
+                      <div className="flex items-start gap-2">
+                        <span className="text-lg">{ins.icon}</span>
+                        <div>
+                          <div className="font-medium text-sm">{ins.title}</div>
+                          <div className="text-sm text-[var(--text-secondary)] mt-1">{ins.body}</div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+            )}
+
+            {/* Sidebar: Health Score + Earnings */}
+            <div className="space-y-4">
+              {healthScore && (
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
+                  <div className="text-sm font-medium text-[var(--text-muted)] uppercase mb-3">🏥 Portfolio Health</div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`text-3xl font-bold ${healthScore.score >= 80 ? 'text-[#10b981]' : healthScore.score >= 60 ? 'text-[#f59e0b]' : 'text-[#ef4444]'}`}>{healthScore.score}</div>
+                    <div className={`text-lg font-bold px-2 py-0.5 rounded ${healthScore.grade === 'A' ? 'bg-[#10b981]/10 text-[#10b981]' : healthScore.grade === 'B' ? 'bg-[#f59e0b]/10 text-[#f59e0b]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>Grade {healthScore.grade}</div>
+                  </div>
+                  {healthScore.factors?.map((f, i) => (
+                    <div key={i} className="flex justify-between text-xs py-1">
+                      <span className="text-[var(--text-muted)]">{f.name}</span>
+                      <span className={f.score >= f.max * 0.8 ? 'text-[#10b981]' : f.score >= f.max * 0.5 ? 'text-[#f59e0b]' : 'text-[#ef4444]'}>{f.score}/{f.max}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {earnings.length > 0 && (
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
+                  <div className="text-sm font-medium text-[var(--text-muted)] uppercase mb-3">📅 Upcoming Earnings</div>
+                  {earnings.slice(0, 5).map((e, i) => (
+                    <div key={i} className="flex justify-between text-sm py-1.5 border-b border-[var(--border)] last:border-0">
+                      <span className="font-medium">{e.symbol}</span>
+                      <span className="text-[var(--text-muted)]">{e.date_str}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -136,11 +176,11 @@ export default function Dashboard() {
                         </div>
                       </td>
                       <td className="px-4 md:px-6 py-3 md:py-4 text-right tabular text-sm">{parseFloat(h.quantity?.toFixed(4))}</td>
-                      <td className="px-4 md:px-6 py-3 md:py-4 text-right tabular text-sm hidden sm:table-cell">₹{h.avg_price?.toFixed(2)}</td>
-                      <td className="px-4 md:px-6 py-3 md:py-4 text-right tabular text-sm">₹{h.current_price?.toFixed(2)}</td>
-                      <td className="px-4 md:px-6 py-3 md:py-4 text-right tabular font-medium text-sm hidden md:table-cell">₹{fmt(h.current_value)}</td>
+                      <td className="px-4 md:px-6 py-3 md:py-4 text-right tabular text-sm hidden sm:table-cell"><span className="privacy-mask">₹{h.avg_price?.toFixed(2)}</span></td>
+                      <td className="px-4 md:px-6 py-3 md:py-4 text-right tabular text-sm"><span className="privacy-mask">₹{h.current_price?.toFixed(2)}</span></td>
+                      <td className="px-4 md:px-6 py-3 md:py-4 text-right tabular font-medium text-sm hidden md:table-cell"><span className="privacy-mask">₹{fmt(h.current_value)}</span></td>
                       <td className="px-4 md:px-6 py-3 md:py-4 text-right">
-                        <div className={`tabular font-medium text-sm ${h.pnl >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
+                        <div className={`tabular font-medium text-sm privacy-mask ${h.pnl >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
                           {h.pnl >= 0 ? '+' : ''}₹{fmt(h.pnl)}
                         </div>
                         <div className={`text-xs tabular ${h.pnl >= 0 ? 'text-[#10b981]/70' : 'text-[#ef4444]/70'}`}>
@@ -172,8 +212,8 @@ function SummaryCard({ label, value, sub, positive, loading }) {
         <div className="h-6 md:h-8 w-20 md:w-32 bg-[var(--border)] rounded animate-pulse" />
       ) : (
         <>
-          <div className={`text-lg md:text-2xl font-semibold tabular ${sub !== undefined ? (positive ? 'text-[#10b981]' : 'text-[#ef4444]') : ''}`}>{value}</div>
-          {sub && <div className={`text-xs md:text-sm tabular ${positive ? 'text-[#10b981]/70' : 'text-[#ef4444]/70'}`}>{sub}</div>}
+          <div className={`text-lg md:text-2xl font-semibold tabular privacy-mask ${sub !== undefined ? (positive ? 'text-[#10b981]' : 'text-[#ef4444]') : ''}`}>{value}</div>
+          {sub && <div className={`text-xs md:text-sm tabular privacy-mask ${positive ? 'text-[#10b981]/70' : 'text-[#ef4444]/70'}`}>{sub}</div>}
         </>
       )}
     </div>

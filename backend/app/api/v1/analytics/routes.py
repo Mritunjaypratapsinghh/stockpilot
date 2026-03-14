@@ -11,7 +11,7 @@ from ....core.constants import SECTOR_MAP
 from ....core.response_handler import StandardResponse
 from ....core.security import get_current_user
 from ....services.portfolio import get_prices_for_holdings, get_user_holdings
-from .schemas import AnalyticsSummary, SectorAllocation
+from .schemas import AnalyticsSummary, SectorAllocation, SimulateRequest
 
 router = APIRouter()
 
@@ -916,13 +916,13 @@ async def get_mf_overlap(current_user: dict = Depends(get_current_user)) -> Stan
     description="Simulate selling one stock and buying another",
 )
 async def simulate_trade(
-    data: dict,
+    data: SimulateRequest,
     current_user: dict = Depends(get_current_user),
 ) -> StandardResponse:
     """Simulate impact of a trade on portfolio metrics."""
-    sell_sym = data.get("sell", "")
-    buy_sym = data.get("buy", "")
-    amount = float(data.get("amount", 0))
+    sell_sym = data.sell
+    buy_sym = data.buy
+    amount = data.amount
 
     if not sell_sym or not amount:
         return StandardResponse.error("sell and amount required")

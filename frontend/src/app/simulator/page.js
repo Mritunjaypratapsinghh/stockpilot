@@ -14,7 +14,8 @@ export default function SimulatorPage() {
 
   useEffect(() => {
     api('/api/portfolio/holdings').then(d => {
-      const eq = (d?.holdings || []).filter(h => h.holding_type !== 'MF');
+      const list = Array.isArray(d) ? d : (d?.holdings || []);
+      const eq = list.filter(h => h.holding_type !== 'MF');
       setHoldings(eq);
       if (eq.length) setSell(eq[0].symbol);
     }).catch(() => {});

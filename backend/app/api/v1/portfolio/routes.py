@@ -956,3 +956,60 @@ async def mf_expense_impact(years: int = 20, current_user: dict = Depends(get_cu
             ),
         }
     )
+
+
+@router.get(
+    "/earnings-calendar",
+    summary="Earnings calendar",
+    description="Upcoming earnings for user's holdings",
+)
+async def get_earnings_calendar(
+    current_user: dict = Depends(get_current_user),
+) -> StandardResponse:
+    """Get upcoming earnings dates for user's stock holdings."""
+    import httpx
+
+    from ....services.cache import cache_get, cache_set
+
+    ck = f"earnings_cal:{current_user['_id']}"
+    cached = await cache_get(ck)
+    if cached:
+        return StandardResponse.ok(cached)
+
+    holdings = await get_user_holdings(current_user["_id"])
+    equity = [h for h in holdings if h.holding_type != "MF"]
+    if not equity:
+        return StandardResponse.ok({"earnings": []})
+
+    earnings = []
+    async with httpx.AsyncClient(timeout=8) as client:
+        for h in equity[:20]:
+            try:
+                ticker = f"{h.symbol}.NS"
+                resp = await client.get(
+                    f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}",
+                    headers={"User-Agent": "Mozilla/5.0"},
+                )
+                if resp.status_code == 200:
+                    meta = resp.json().get("chart", {}).get("result", [{}])[0].get("meta", {})
+                    earnings_ts = meta.get("earningsTimestamp")
+                    if earnings_ts:
+                        from datetime import datetime, timezone
+
+                        dt = datetime.fromtimestamp(earnings_ts, tz=timezone.utc)
+                        # Only include future earnings
+                        if dt > datetime.now(timezone.utc):
+                            earnings.append(
+                                {
+                                    "symbol": h.symbol,
+                                    "date": dt.isoformat(),
+                                    "date_str": dt.strftime("%d %b %Y"),
+                                }
+                            )
+            except Exception:
+                continue
+
+    earnings.sort(key=lambda x: x["date"])
+    result = {"earnings": earnings}
+    await cache_set(ck, result, ttl=3600)
+    return StandardResponse.ok(result)

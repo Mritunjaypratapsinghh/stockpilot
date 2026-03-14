@@ -258,6 +258,127 @@ async def get_metrics(current_user: dict = Depends(get_current_user)) -> Standar
     return StandardResponse.ok(result)
 
 
+@router.get(
+    "/health-score",
+    summary="Portfolio health score",
+    description="Auto-calculated health score from actual holdings",
+)
+async def get_health_score(
+    current_user: dict = Depends(get_current_user),
+) -> StandardResponse:
+    """Calculate portfolio health score (0-100) from holdings."""
+    from ....services.cache import cache_get, cache_set, market_ttl
+
+    ck = f"health_score:{current_user['_id']}"
+    cached = await cache_get(ck)
+    if cached:
+        return StandardResponse.ok(cached)
+
+    holdings = await get_user_holdings(current_user["_id"])
+    if not holdings:
+        return StandardResponse.ok({"score": 0, "factors": []})
+
+    prices = await get_prices_for_holdings(holdings) or {}
+    equity = [h for h in holdings if h.holding_type != "MF"]
+    mf = [h for h in holdings if h.holding_type == "MF"]
+
+    factors = []
+    score = 100
+
+    # 1. Diversification — number of stocks
+    n = len(equity)
+    if n >= 10:
+        factors.append({"name": "Diversification", "score": 20, "max": 20, "note": f"{n} stocks — well diversified"})
+    elif n >= 5:
+        s = 15
+        factors.append({"name": "Diversification", "score": s, "max": 20, "note": f"{n} stocks — moderate"})
+        score -= 20 - s
+    else:
+        s = max(5, n * 3)
+        factors.append({"name": "Diversification", "score": s, "max": 20, "note": f"Only {n} stocks — concentrated"})
+        score -= 20 - s
+
+    # 2. Concentration — HHI
+    total_val = 0
+    vals = []
+    for h in equity:
+        p = prices.get(h.symbol, {}).get("current_price") or h.avg_price
+        v = h.quantity * p
+        vals.append(v)
+        total_val += v
+    weights = [v / total_val for v in vals] if total_val else []
+    hhi = sum(w * w for w in weights) * 10000 if weights else 10000
+    if hhi < 1500:
+        factors.append({"name": "Concentration", "score": 20, "max": 20, "note": f"HHI {hhi:.0f} — low concentration"})
+    elif hhi < 2500:
+        s = 12
+        factors.append({"name": "Concentration", "score": s, "max": 20, "note": f"HHI {hhi:.0f} — moderate"})
+        score -= 20 - s
+    else:
+        s = 5
+        factors.append({"name": "Concentration", "score": s, "max": 20, "note": f"HHI {hhi:.0f} — highly concentrated"})
+        score -= 20 - s
+
+    # 3. Sector spread
+    sectors = set()
+    for h in equity:
+        sectors.add(SECTOR_MAP.get(h.symbol, "Others"))
+    sec_count = len(sectors)
+    if sec_count >= 5:
+        factors.append({"name": "Sector Spread", "score": 20, "max": 20, "note": f"{sec_count} sectors"})
+    elif sec_count >= 3:
+        s = 12
+        factors.append({"name": "Sector Spread", "score": s, "max": 20, "note": f"Only {sec_count} sectors"})
+        score -= 20 - s
+    else:
+        s = 5
+        factors.append({"name": "Sector Spread", "score": s, "max": 20, "note": f"Only {sec_count} sectors — risky"})
+        score -= 20 - s
+
+    # 4. MF allocation
+    mf_val = sum(h.quantity * h.avg_price for h in mf)
+    mf_pct = (mf_val / (total_val + mf_val) * 100) if (total_val + mf_val) else 0
+    if 20 <= mf_pct <= 70:
+        factors.append({"name": "MF Allocation", "score": 20, "max": 20, "note": f"{mf_pct:.0f}% in MFs — balanced"})
+    elif mf_pct > 0:
+        s = 12
+        factors.append({"name": "MF Allocation", "score": s, "max": 20, "note": f"{mf_pct:.0f}% in MFs"})
+        score -= 20 - s
+    else:
+        s = 5
+        factors.append(
+            {"name": "MF Allocation", "score": s, "max": 20, "note": "No MFs — consider adding for stability"}
+        )
+        score -= 20 - s
+
+    # 5. P&L health
+    total_inv = sum(h.quantity * h.avg_price for h in equity)
+    pnl_pct = ((total_val - total_inv) / total_inv * 100) if total_inv else 0
+    losers = sum(1 for h in equity if (prices.get(h.symbol, {}).get("current_price") or h.avg_price) < h.avg_price)
+    loser_pct = (losers / n * 100) if n else 0
+    if pnl_pct > 0 and loser_pct < 40:
+        factors.append(
+            {"name": "P&L Health", "score": 20, "max": 20, "note": f"P&L {pnl_pct:+.1f}%, {losers}/{n} in loss"}
+        )
+    elif pnl_pct > -10:
+        s = 12
+        factors.append(
+            {"name": "P&L Health", "score": s, "max": 20, "note": f"P&L {pnl_pct:+.1f}%, {losers}/{n} in loss"}
+        )
+        score -= 20 - s
+    else:
+        s = 5
+        factors.append(
+            {"name": "P&L Health", "score": s, "max": 20, "note": f"P&L {pnl_pct:+.1f}%, {losers}/{n} in loss"}
+        )
+        score -= 20 - s
+
+    grade = "A" if score >= 80 else "B" if score >= 60 else "C" if score >= 40 else "D"
+    result = {"score": max(0, score), "grade": grade, "factors": factors}
+    await cache_set(ck, result, ttl=market_ttl())
+    return StandardResponse.ok(result)
+
+
 @router.get("/returns", summary="Get returns breakdown", description="Get returns by holding")
 async def get_returns(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get returns breakdown with proper CAGR calculation."""
@@ -787,3 +908,208 @@ async def get_mf_overlap(current_user: dict = Depends(get_current_user)) -> Stan
     }
     await cache_set(ck, result, ttl=600)
     return StandardResponse.ok(result)
+
+
+@router.post(
+    "/simulate",
+    summary="What-If Simulator",
+    description="Simulate selling one stock and buying another",
+)
+async def simulate_trade(
+    data: dict,
+    current_user: dict = Depends(get_current_user),
+) -> StandardResponse:
+    """Simulate impact of a trade on portfolio metrics."""
+    sell_sym = data.get("sell", "")
+    buy_sym = data.get("buy", "")
+    amount = float(data.get("amount", 0))
+
+    if not sell_sym or not amount:
+        return StandardResponse.error("sell and amount required")
+
+    holdings = await get_user_holdings(current_user["_id"])
+    if not holdings:
+        return StandardResponse.error("No holdings")
+
+    equity = [h for h in holdings if h.holding_type != "MF"]
+    prices = await get_prices_for_holdings(holdings) or {}
+
+    # Current state
+    def calc_metrics(eq_list, price_map):
+        sectors = {}
+        total = 0
+        vals = []
+        for h in eq_list:
+            p = price_map.get(h["symbol"], {}).get("current_price", h["avg_price"])
+            v = h["qty"] * p
+            total += v
+            vals.append(v)
+            sec = SECTOR_MAP.get(h["symbol"], "Others")
+            sectors[sec] = sectors.get(sec, 0) + v
+        weights = [v / total for v in vals] if total else []
+        hhi = sum(w * w for w in weights) * 10000 if weights else 0
+        sec_pcts = {k: round(v / total * 100, 1) for k, v in sectors.items()} if total else {}
+        return {
+            "total": round(total, 0),
+            "stocks": len(eq_list),
+            "hhi": round(hhi, 0),
+            "sectors": sec_pcts,
+            "top_sector": max(sec_pcts, key=sec_pcts.get) if sec_pcts else "—",
+            "top_sector_pct": max(sec_pcts.values()) if sec_pcts else 0,
+        }
+
+    current = [{"symbol": h.symbol, "qty": h.quantity, "avg_price": h.avg_price} for h in equity]
+    price_map = prices
+
+    before = calc_metrics(current, price_map)
+
+    # After state — reduce sell, add buy
+    after_list = []
+    for h in current:
+        if h["symbol"] == sell_sym:
+            p = price_map.get(h["symbol"], {}).get("current_price", h["avg_price"])
+            sell_qty = min(h["qty"], amount / p) if p else 0
+            remaining = h["qty"] - sell_qty
+            if remaining > 0.01:
+                after_list.append({**h, "qty": remaining})
+        else:
+            after_list.append(h)
+
+    if buy_sym:
+        from ....services.market.price_service import get_bulk_prices
+
+        buy_prices = await get_bulk_prices([buy_sym])
+        buy_p = buy_prices.get(buy_sym, {}).get("current_price", 0)
+        if buy_p:
+            price_map[buy_sym] = buy_prices.get(buy_sym, {})
+            existing = next((h for h in after_list if h["symbol"] == buy_sym), None)
+            buy_qty = amount / buy_p
+            if existing:
+                existing["qty"] += buy_qty
+            else:
+                after_list.append(
+                    {
+                        "symbol": buy_sym,
+                        "qty": buy_qty,
+                        "avg_price": buy_p,
+                    }
+                )
+
+    after = calc_metrics(after_list, price_map)
+
+    return StandardResponse.ok(
+        {
+            "before": before,
+            "after": after,
+            "changes": {
+                "hhi": after["hhi"] - before["hhi"],
+                "stocks": after["stocks"] - before["stocks"],
+                "top_sector_pct": round(after["top_sector_pct"] - before["top_sector_pct"], 1),
+            },
+        }
+    )
+
+
+@router.get(
+    "/insights",
+    summary="AI Dashboard Insights",
+    description="Proactive AI-generated insight cards",
+)
+async def get_insights(
+    current_user: dict = Depends(get_current_user),
+) -> StandardResponse:
+    """Generate proactive AI insight cards from portfolio data."""
+    from ....core.config import settings
+    from ....services.cache import cache_get, cache_set
+
+    ck = f"insights:{current_user['_id']}"
+    cached = await cache_get(ck)
+    if cached:
+        return StandardResponse.ok(cached)
+
+    holdings = await get_user_holdings(current_user["_id"])
+    if not holdings:
+        return StandardResponse.ok({"insights": []})
+
+    equity = [h for h in holdings if h.holding_type != "MF"]
+    prices = await get_prices_for_holdings(holdings) or {}
+
+    # Build portfolio summary for Groq
+    sectors = {}
+    total_val = 0
+    losers = []
+    for h in equity:
+        p = prices.get(h.symbol, {}).get("current_price", h.avg_price)
+        v = h.quantity * p
+        total_val += v
+        sec = SECTOR_MAP.get(h.symbol, "Others")
+        sectors[sec] = sectors.get(sec, 0) + v
+        pnl_pct = ((p - h.avg_price) / h.avg_price * 100) if h.avg_price else 0
+        if pnl_pct < -10:
+            losers.append(f"{h.symbol}({pnl_pct:+.0f}%)")
+
+    sec_pcts = (
+        {k: round(v / total_val * 100, 1) for k, v in sorted(sectors.items(), key=lambda x: -x[1])} if total_val else {}
+    )
+
+    top_sec = list(sec_pcts.items())[:3]
+    sec_str = ", ".join(f"{k}:{v}%" for k, v in top_sec)
+    losers_str = ", ".join(losers[:5]) if losers else "none"
+
+    if not settings.groq_api_key:
+        return StandardResponse.ok({"insights": []})
+
+    try:
+        from groq import Groq
+
+        client = Groq(api_key=settings.groq_api_key)
+        resp = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a portfolio analyst for Indian stocks. "
+                        "Generate exactly 4 JSON insight cards. Each card: "
+                        '{"type":"warning|tip|opportunity|info",'
+                        '"title":"short title",'
+                        '"body":"1-2 sentence insight",'
+                        '"icon":"⚠️|💡|🎯|📊"}. '
+                        "Cover: sector concentration, underperformers, "
+                        "diversification tip, one actionable opportunity. "
+                        "Be specific with stock names. "
+                        "Return ONLY a JSON array, no markdown."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"{len(equity)} stocks, ₹{total_val:,.0f}. "
+                        f"Sectors: {sec_str}. "
+                        f"Underperformers: {losers_str}."
+                    ),
+                },
+            ],
+            temperature=0.3,
+            max_completion_tokens=400,
+        )
+
+        import json
+
+        text = resp.choices[0].message.content.strip()
+        # Extract JSON array
+        start = text.find("[")
+        end = text.rfind("]") + 1
+        if start >= 0 and end > start:
+            insights = json.loads(text[start:end])
+        else:
+            insights = []
+
+        result = {"insights": insights[:4]}
+        await cache_set(ck, result, ttl=1800)
+        return StandardResponse.ok(result)
+    except Exception as e:
+        from ....utils.logger import logger
+
+        logger.warning(f"Insights generation failed: {e}")
+        return StandardResponse.ok({"insights": []})

@@ -106,7 +106,7 @@ async def update_settings(data: SettingsUpdate, current_user: dict = Depends(get
     if data.email is not None:
         user.email = data.email
 
-    for field in ["daily_digest", "alerts_enabled", "email_alerts", "hourly_alerts"]:
+    for field in ["daily_digest", "alerts_enabled", "email_alerts", "hourly_alerts", "privacy_mode"]:
         val = getattr(data, field)
         if val is not None:
             user.settings[field] = val

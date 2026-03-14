@@ -32,6 +32,7 @@ class SettingsUpdate(BaseModel):
     alerts_enabled: Optional[bool] = None
     email_alerts: Optional[bool] = None
     hourly_alerts: Optional[bool] = None
+    privacy_mode: Optional[bool] = None
 
 
 class GoogleAuth(BaseModel):

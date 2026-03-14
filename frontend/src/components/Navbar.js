@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Bell, Search, TrendingUp, LogOut, Briefcase, Eye, Calendar, Zap, Sun, Moon, Settings, Target, Receipt, BarChart3, Filter, RefreshCw, Scissors, ArrowRightLeft, ChevronDown, Wallet, CalendarDays, Activity, HandCoins, Calculator, Shield, Menu, X, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Bell, Search, TrendingUp, LogOut, Briefcase, Eye, EyeOff, Calendar, Zap, Sun, Moon, Settings, Target, Receipt, BarChart3, Filter, RefreshCw, Scissors, ArrowRightLeft, ChevronDown, Wallet, CalendarDays, Activity, HandCoins, Calculator, Shield, Menu, X, MessageSquare } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 
 const mainNav = [
@@ -15,6 +15,7 @@ const mainNav = [
 
 const toolsMenu = [
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/simulator', label: 'Simulator', icon: ArrowRightLeft },
   { href: '/screener', label: 'Screener', icon: Filter },
   { href: '/compare', label: 'Compare', icon: ArrowRightLeft },
   { href: '/mf-health', label: 'MF Health', icon: Activity },
@@ -98,15 +99,19 @@ export default function Navbar() {
   const [accent, setAccent] = useState('indigo');
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [privacyMode, setPrivacyMode] = useState(false);
   const themeRef = useRef(null);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || 'dark';
     const savedAccent = localStorage.getItem('accent') || 'indigo';
+    const savedPrivacy = localStorage.getItem('privacyMode') === 'true';
     setTheme(savedTheme);
     setAccent(savedAccent);
+    setPrivacyMode(savedPrivacy);
     document.documentElement.setAttribute('data-theme', savedTheme);
     document.documentElement.setAttribute('data-accent', savedAccent);
+    if (savedPrivacy) document.documentElement.setAttribute('data-privacy', 'true');
   }, []);
 
   useEffect(() => {
@@ -121,6 +126,14 @@ export default function Navbar() {
     setAccent(a);
     localStorage.setItem('accent', a);
     document.documentElement.setAttribute('data-accent', a);
+  };
+
+  const togglePrivacy = () => {
+    const next = !privacyMode;
+    setPrivacyMode(next);
+    localStorage.setItem('privacyMode', next);
+    if (next) document.documentElement.setAttribute('data-privacy', 'true');
+    else document.documentElement.removeAttribute('data-privacy');
   };
 
   return (
@@ -155,6 +168,11 @@ export default function Navbar() {
           </div>
 
           <div className="flex-1"></div>
+
+          {/* Privacy Toggle - Desktop */}
+          <button onClick={togglePrivacy} className={`hidden lg:flex p-2 rounded-md transition-colors shrink-0 ${privacyMode ? 'text-[var(--accent)] bg-[var(--accent)]/10' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`} title={privacyMode ? 'Show values' : 'Hide values'}>
+            {privacyMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
 
           {/* Theme Toggle - Desktop */}
           <div ref={themeRef} className="relative hidden lg:block shrink-0">

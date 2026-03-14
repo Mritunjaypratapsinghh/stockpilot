@@ -168,3 +168,13 @@ input:focus, select:focus { outline: none; }
 
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Privacy Mode - blur currency values */
+[data-privacy="true"] .privacy-mask {
+  filter: blur(8px);
+  user-select: none;
+  transition: filter 0.2s;
+}
+[data-privacy="true"] .privacy-mask:hover {
+  filter: blur(0);
+}

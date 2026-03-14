@@ -10,6 +10,7 @@ import httpx
 
 from ..core.config import settings
 from ..models.documents import IPO, AdvisorHistory, Holding, User
+from ..services.cache import get_redis
 from ..services.notification.service import send_email
 from ..utils.logger import logger
 
@@ -434,6 +435,12 @@ async def analyze_ipo_opportunities() -> list:
 
 async def run_portfolio_advisor() -> None:
     """Main function - analyze all users' portfolios and send recommendations"""
+    redis = await get_redis()
+    if redis:
+        acquired = await redis.set("lock:portfolio_advisor", "1", ex=120, nx=True)
+        if not acquired:
+            return
+
     users = await User.find(User.settings.alerts_enabled != False).to_list()  # noqa: E712
 
     ipo_recs = await analyze_ipo_opportunities()

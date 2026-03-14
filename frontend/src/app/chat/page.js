@@ -6,13 +6,13 @@ import { api } from '../../lib/api';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const SUGGESTIONS = [
-  "How is my portfolio performing?",
+  "Am I over-exposed to any sector?",
+  "Compare my returns with Nifty 50",
+  "Do my mutual funds overlap?",
+  "Any tax harvesting opportunities?",
   "Which stocks should I sell?",
-  "Am I well diversified?",
-  "What's my tax liability?",
+  "What's my portfolio health score?",
   "Show me my top gainers",
-  "Any stocks in loss?",
-  "Compare my stocks vs mutual funds",
   "What should I buy next?",
 ];
 
@@ -27,6 +27,11 @@ const FOLLOW_UP_MAP = {
   gain: ["Should I book profits?", "What's my tax on these gains?", "Am I overweight in any stock?"],
   mf: ["Do my MFs overlap?", "Check MF health", "Compare stocks vs MF returns"],
   buy: ["Am I well diversified?", "What sectors am I missing?", "What's my risk level?"],
+  overlap: ["Which funds should I consolidate?", "Am I over-diversified?", "Show sector allocation"],
+  harvest: ["Which stocks to sell for tax saving?", "What's the wash sale rule?", "STCG vs LTCG breakdown"],
+  health: ["How can I improve my score?", "Am I too concentrated?", "What sectors am I missing?"],
+  nifty: ["Am I beating Nifty this year?", "Which stocks outperformed?", "Should I switch to index funds?"],
+  sector: ["Am I over-exposed to banking?", "Which sectors am I missing?", "Show sector-wise P&L"],
 };
 
 function getFollowUps(messages) {

@@ -1,7 +1,7 @@
-import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+import aiosmtplib
 import httpx
 from bson import ObjectId
 
@@ -27,11 +27,15 @@ async def send_email(to_email: str, subject: str, body: str) -> None:
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "html"))
 
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
-            server.starttls()
-            server.login(settings.smtp_user, settings.smtp_pass)
-            server.send_message(msg)
-    except (smtplib.SMTPException, OSError) as e:
+        await aiosmtplib.send(
+            msg,
+            hostname=settings.smtp_host,
+            port=settings.smtp_port,
+            start_tls=True,
+            username=settings.smtp_user,
+            password=settings.smtp_pass,
+        )
+    except (aiosmtplib.SMTPException, OSError) as e:
         logger.error(f"Email error: {e}")
 
 
@@ -61,8 +65,17 @@ async def send_alert_notification(alert: dict, current_price: float) -> None:
 
     msg = (
         f"🔔 Alert Triggered!\n\n{alert['symbol']}: ₹{current_price:.2f}\n"
-        f"Condition: {alert['alert_type'].replace('_', ' ')} ₹{alert['target_value']}"
+        f"Condition: {alert['alert_type'].replace('_', ' ')}"
     )
+    if alert["alert_type"] == "STOP_LOSS":
+        msg = (
+            f"🛑 *STOP-LOSS BREACHED*\n\n"
+            f"*{alert['symbol']}*: ₹{current_price:.2f}\n"
+            f"Stop Loss: ₹{alert['target_value']:.2f}\n"
+            f"⚠️ Consider exiting or reviewing position"
+        )
+    else:
+        msg += f" ₹{alert['target_value']}"
 
     # Telegram
     if user.get("telegram_chat_id") and settings.telegram_bot_token:
@@ -77,12 +90,28 @@ async def send_alert_notification(alert: dict, current_price: float) -> None:
 
     # Email
     if user.get("email"):
-        html = (
-            f"<h2>🔔 StockPilot Alert</h2>"
-            f"<p><strong>{alert['symbol']}</strong>: ₹{current_price:.2f}</p>"
-            f"<p>Condition: {alert['alert_type'].replace('_', ' ')} ₹{alert['target_value']}</p>"
+        if alert["alert_type"] == "STOP_LOSS":
+            html = (
+                "<h2>🛑 Stop-Loss Breached</h2>"
+                f"<p><strong>{alert['symbol']}</strong>:"
+                f" ₹{current_price:.2f}</p>"
+                f"<p>Stop Loss: ₹{alert['target_value']:.2f}</p>"
+                "<p>⚠️ Consider exiting or reviewing position</p>"
+            )
+        else:
+            html = (
+                "<h2>🔔 StockPilot Alert</h2>"
+                f"<p><strong>{alert['symbol']}</strong>:"
+                f" ₹{current_price:.2f}</p>"
+                f"<p>Condition: "
+                f"{alert['alert_type'].replace('_', ' ')}"
+                f" ₹{alert['target_value']}</p>"
+            )
+        await send_email(
+            user["email"],
+            f"StockPilot Alert: {alert['symbol']}",
+            html,
         )
-        await send_email(user["email"], f"StockPilot Alert: {alert['symbol']}", html)
 
     # Web Push
     await send_web_push(alert["user_id"], f"Alert: {alert['symbol']}", msg)

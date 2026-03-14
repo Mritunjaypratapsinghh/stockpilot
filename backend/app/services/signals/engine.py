@@ -284,7 +284,7 @@ class SignalEngine:
             target = technicals.get("sma_50")
 
         # ADD: Quality stock in loss but not oversold - average down opportunity
-        elif pnl_pct < -15 and fundamentals.is_quality and not fundamentals.is_risky and above_sma200 != False:
+        elif pnl_pct < -15 and fundamentals.is_quality and not fundamentals.is_risky and above_sma50:
             action = "ADD"
             reasons.append(f"Quality stock down {abs(pnl_pct):.0f}% - averaging opportunity")
             reasons.append("Long-term trend intact, fundamentals strong")
@@ -481,6 +481,9 @@ class SignalEngine:
         # Enhance top signals with LLM insights
         signals = await self._enhance_with_llm(signals, market_regime.value, nifty_change)
 
+        # Score news sentiment
+        signals = await self._score_news_sentiment(signals)
+
         return {
             "signals": signals,
             "market_regime": market_regime.value,
@@ -547,6 +550,62 @@ class SignalEngine:
             logger.info(f"LLM enhanced {len(insights)} signals")
         except Exception as e:
             logger.warning(f"LLM enhancement failed: {e}")
+
+        return signals
+
+    async def _score_news_sentiment(self, signals: list) -> list:
+        """Score news sentiment for top holdings using Groq."""
+        if not settings.groq_api_key:
+            return signals
+
+        # Fetch news for actionable signals
+        from ...tasks.portfolio_advisor import fetch_stock_news
+
+        news_map = {}
+        for s in signals[:8]:
+            news = await fetch_stock_news(s["symbol"])
+            if news:
+                news_map[s["symbol"]] = [n["title"] for n in news]
+
+        if not news_map:
+            return signals
+
+        news_str = "\n".join(f"{sym}: {'; '.join(titles)}" for sym, titles in news_map.items())
+
+        try:
+            from groq import Groq
+
+            client = Groq(api_key=settings.groq_api_key)
+            resp = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Score each stock's news sentiment as "
+                            "bullish/neutral/bearish. "
+                            "Format: SYMBOL:sentiment "
+                            "(one per line, nothing else)"
+                        ),
+                    },
+                    {"role": "user", "content": news_str},
+                ],
+                temperature=0.1,
+                max_completion_tokens=100,
+            )
+
+            for line in resp.choices[0].message.content.strip().split("\n"):
+                if ":" in line:
+                    sym, sent = line.split(":", 1)
+                    sym = sym.strip().upper().replace("**", "")
+                    sent = sent.strip().lower()
+                    for s in signals:
+                        if s["symbol"] == sym:
+                            s["news_sentiment"] = sent
+                            s["news_headlines"] = news_map.get(sym, [])
+                            break
+        except Exception as e:
+            logger.warning(f"News sentiment scoring failed: {e}")
 
         return signals
 

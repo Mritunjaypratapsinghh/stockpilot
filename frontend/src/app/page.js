@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, Wallet, ArrowUpRight, ArrowDownRight, ArrowRight } from 'lucide-react';
 import Navbar from '../components/Navbar';
-import { getPortfolio, getHoldings, getIndices } from '../lib/api';
+import { getPortfolio, getHoldings, getIndices, api } from '../lib/api';
 import Link from 'next/link';
 
 export default function Dashboard() {
@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [indices, setIndices] = useState({});
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
+  const [insights, setInsights] = useState([]);
 
   useEffect(() => {
     const t = localStorage.getItem('token');
@@ -23,6 +24,7 @@ export default function Dashboard() {
           setIndices(idx); 
         })
         .finally(() => setLoading(false));
+      api('/api/analytics/insights').then(d => setInsights(d?.insights || [])).catch(() => {});
     } else {
       window.location.href = '/landing';
     }
@@ -73,6 +75,26 @@ export default function Dashboard() {
             loading={loading}
           />
         </div>
+
+        {/* AI Insights */}
+        {insights.length > 0 && (
+          <div className="mb-6">
+            <div className="text-sm font-medium text-[var(--text-muted)] uppercase mb-3">🤖 AI Insights</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {insights.map((ins, i) => (
+                <div key={i} className={`border rounded-lg p-4 ${ins.type === 'warning' ? 'bg-[#ef4444]/5 border-[#ef4444]/20' : ins.type === 'opportunity' ? 'bg-[#10b981]/5 border-[#10b981]/20' : ins.type === 'tip' ? 'bg-[#f59e0b]/5 border-[#f59e0b]/20' : 'bg-[var(--bg-secondary)] border-[var(--border)]'}`}>
+                  <div className="flex items-start gap-2">
+                    <span className="text-lg">{ins.icon}</span>
+                    <div>
+                      <div className="font-medium text-sm">{ins.title}</div>
+                      <div className="text-sm text-[var(--text-secondary)] mt-1">{ins.body}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Holdings Table */}
         <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg">

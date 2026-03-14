@@ -15,6 +15,7 @@ const mainNav = [
 
 const toolsMenu = [
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/simulator', label: 'Simulator', icon: ArrowRightLeft },
   { href: '/screener', label: 'Screener', icon: Filter },
   { href: '/compare', label: 'Compare', icon: ArrowRightLeft },
   { href: '/mf-health', label: 'MF Health', icon: Activity },

@@ -2,7 +2,8 @@ from datetime import datetime, timezone
 
 import httpx
 
-from ..models.documents import Alert
+from ..models.documents import Alert, Holding, User
+from ..services.cache import cache_get, cache_set, get_redis
 from ..services.market.price_service import get_bulk_prices
 from ..services.notification.service import send_alert_notification
 from ..utils.logger import logger
@@ -31,7 +32,16 @@ async def get_52week_data(symbol: str):
 
 
 async def check_alerts():
-    alerts = await Alert.find(Alert.is_active == True, Alert.notification_sent == False).to_list()  # noqa: E712
+    redis = await get_redis()
+    if redis:
+        acquired = await redis.set("lock:check_alerts", "1", ex=50, nx=True)
+        if not acquired:
+            return
+
+    alerts = await Alert.find(
+        Alert.is_active == True,  # noqa: E712
+        Alert.notification_sent == False,  # noqa: E712
+    ).to_list()
 
     if not alerts:
         return
@@ -89,3 +99,72 @@ async def check_alerts():
                 },
                 current_price,
             )
+
+
+async def check_stop_losses():
+    """Check if any holding breached its signal engine stop_loss."""
+    redis = await get_redis()
+    if redis:
+        acquired = await redis.set("lock:check_stop_losses", "1", ex=280, nx=True)
+        if not acquired:
+            return
+
+    users = await User.find(User.settings.alerts_enabled != False).to_list()  # noqa: E712
+
+    for user in users:
+        try:
+            await _check_user_stop_losses(user)
+        except Exception as e:
+            logger.error(f"Stop-loss check failed for {user.email}: {e}")
+
+
+async def _check_user_stop_losses(user):
+    holdings = await Holding.find(Holding.user_id == user.id).to_list()
+    equity = [h for h in holdings if h.holding_type != "MF"]
+    if not equity:
+        return
+
+    # Get cached signals (from hourly update or signals page)
+    sig_map = await cache_get(f"hourly_signals:{user.id}")
+    if not sig_map:
+        sig_map = await cache_get(f"daily_signals:{user.id}")
+    if not sig_map:
+        return
+
+    symbols = [h.symbol for h in equity]
+    prices = await get_bulk_prices(symbols)
+
+    # Track which stop-losses we already alerted today
+    today = datetime.now(timezone.utc).date().isoformat()
+    alerted_key = f"sl_alerted:{user.id}:{today}"
+    alerted_raw = await cache_get(alerted_key)
+    alerted = set(alerted_raw) if alerted_raw else set()
+
+    newly_alerted = []
+    for h in equity:
+        if h.symbol in alerted:
+            continue
+        sig = sig_map.get(h.symbol, {})
+        stop_loss = sig.get("stop_loss")
+        if not stop_loss:
+            continue
+
+        curr = prices.get(h.symbol, {}).get("current_price")
+        if not curr or curr > stop_loss:
+            continue
+
+        # Breached!
+        newly_alerted.append(h.symbol)
+        await send_alert_notification(
+            {
+                "symbol": h.symbol,
+                "alert_type": "STOP_LOSS",
+                "target_value": stop_loss,
+                "user_id": str(user.id),
+            },
+            curr,
+        )
+
+    if newly_alerted:
+        alerted.update(newly_alerted)
+        await cache_set(alerted_key, list(alerted), ttl=43200)

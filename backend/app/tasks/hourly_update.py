@@ -107,14 +107,33 @@ async def _send_user_update(user, time_str: str):
 
     stocks.sort(key=lambda x: abs(x["day_pct"]), reverse=True)
 
-    ai_insight = await _get_ai_insight(stocks, day_pnl, day_pnl_pct, current_val)
+    nifty_pct = await _get_nifty_day_change()
+    ai_insight = await _get_ai_insight(stocks, day_pnl, day_pnl_pct, nifty_pct, current_val)
 
     if user.email:
-        html = _build_email(time_str, current_val, day_pnl, day_pnl_pct, total_pnl, total_pnl_pct, stocks, ai_insight)
+        html = _build_email(
+            time_str,
+            current_val,
+            day_pnl,
+            day_pnl_pct,
+            total_pnl,
+            total_pnl_pct,
+            nifty_pct,
+            stocks,
+            ai_insight,
+        )
         await send_email(user.email, f"StockPilot {time_str} Update", html)
 
     if user.telegram_chat_id and settings.telegram_bot_token:
-        msg = _build_telegram(time_str, current_val, day_pnl, day_pnl_pct, stocks, ai_insight)
+        msg = _build_telegram(
+            time_str,
+            current_val,
+            day_pnl,
+            day_pnl_pct,
+            nifty_pct,
+            stocks,
+            ai_insight,
+        )
         try:
             async with httpx.AsyncClient() as client:
                 await client.post(
@@ -125,7 +144,29 @@ async def _send_user_update(user, time_str: str):
             logger.warning(f"Hourly telegram error: {e}")
 
 
-async def _get_ai_insight(stocks: list, day_pnl: float, day_pnl_pct: float, portfolio_val: float) -> str:
+async def _get_nifty_day_change() -> float:
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(
+                "https://query1.finance.yahoo.com/v8/finance/chart/" "%5ENSEI?interval=1d&range=5d",
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
+            if resp.status_code == 200:
+                closes = [c for c in resp.json()["chart"]["result"][0]["indicators"]["quote"][0]["close"] if c]
+                if len(closes) >= 2:
+                    return round((closes[-1] - closes[-2]) / closes[-2] * 100, 2)
+    except Exception:
+        pass
+    return 0.0
+
+
+async def _get_ai_insight(
+    stocks: list,
+    day_pnl: float,
+    day_pnl_pct: float,
+    nifty_pct: float,
+    portfolio_val: float,
+) -> str:
     if not settings.groq_api_key or not stocks:
         return ""
     try:
@@ -149,6 +190,7 @@ async def _get_ai_insight(stocks: list, day_pnl: float, day_pnl_pct: float, port
                     "role": "user",
                     "content": (
                         f"Portfolio ₹{portfolio_val:,.0f}, today {day_pnl_pct:+.1f}% (₹{day_pnl:+,.0f}). "
+                        f"Nifty: {nifty_pct:+.1f}%. "
                         f"Holdings: {stock_str}"
                     ),
                 },
@@ -204,9 +246,16 @@ def _build_email(
     day_pnl_pct: float,
     total_pnl: float,
     total_pnl_pct: float,
+    nifty_pct: float,
     stocks: list,
     ai_insight: str,
 ) -> str:
+    # Benchmark comparison
+    beat = day_pnl_pct > nifty_pct
+    bench_color = "#10b981" if beat else "#ef4444"
+    diff = abs(day_pnl_pct - nifty_pct)
+    bench_label = "Outperformed" if beat else "Underperformed"
+
     rows = ""
     for s in stocks:
         dc = _color(s["day_pct"])
@@ -253,6 +302,7 @@ def _build_email(
 
     day_c = "#a7f3d0" if day_pnl >= 0 else "#fca5a5"
     tot_c = "#a7f3d0" if total_pnl >= 0 else "#fca5a5"
+    nifty_c = "#a7f3d0" if nifty_pct >= 0 else "#fca5a5"
 
     hdr_style = (
         "font-family:-apple-system,BlinkMacSystemFont,"
@@ -276,6 +326,13 @@ def _build_email(
         " &nbsp;·&nbsp; "
         f'Overall: <b style="color:{tot_c}">'
         f"₹{total_pnl:+,.0f} ({total_pnl_pct:+.1f}%)</b>"
+        "</div>"
+        '<div style="font-size:12px;margin-top:6px;opacity:0.9">'
+        f'Nifty 50: <b style="color:{nifty_c}">'
+        f"{nifty_pct:+.1f}%</b>"
+        " &nbsp;·&nbsp; "
+        f'<span style="color:{bench_color};font-weight:600">'
+        f"{bench_label} by {diff:.1f}%</span>"
         "</div></div>"
         '<div style="padding:16px 16px">'
         '<div style="font-size:11px;text-transform:uppercase;'
@@ -298,13 +355,18 @@ def _build_telegram(
     current_val: float,
     day_pnl: float,
     day_pnl_pct: float,
+    nifty_pct: float,
     stocks: list,
     ai_insight: str,
 ) -> str:
     emoji = "🟢" if day_pnl >= 0 else "🔴"
+    beat = day_pnl_pct > nifty_pct
+    bench = "✅ Beat Nifty" if beat else "❌ Trailed Nifty"
+    diff = abs(day_pnl_pct - nifty_pct)
     lines = [
         f"⏰ *{time_str} Update*",
         f"💰 ₹{current_val:,.0f}  {emoji} {day_pnl_pct:+.1f}%",
+        f"📉 Nifty: {nifty_pct:+.1f}%  {bench} by {diff:.1f}%",
         "",
         "📊 *Portfolio Analysis*",
     ]

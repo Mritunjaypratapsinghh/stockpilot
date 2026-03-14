@@ -1,7 +1,7 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from ..utils.logger import logger
-from .alert_checker import check_alerts
+from .alert_checker import check_alerts, check_stop_losses
 from .digest_generator import generate_daily_digest
 from .earnings_checker import check_earnings_alerts
 from .hourly_update import send_hourly_update
@@ -22,6 +22,16 @@ def start_scheduler():
 
     # User-defined price alerts
     scheduler.add_job(check_alerts, "interval", minutes=1, id="alert_check")
+
+    # Stop-loss breach monitoring (every 5 min during market hours)
+    scheduler.add_job(
+        check_stop_losses,
+        "cron",
+        day_of_week="mon-fri",
+        hour="9-16",
+        minute="*/5",
+        id="stop_loss_check",
+    )
 
     # Hourly portfolio update (market hours: 9 AM - 4 PM IST, weekdays only)
     scheduler.add_job(send_hourly_update, "cron", day_of_week="mon-fri", hour="9-16", minute=0, id="hourly_update")

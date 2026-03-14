@@ -1,5 +1,6 @@
 """WebSocket price broadcaster - pushes real-time updates to subscribed clients."""
 
+from ..services.cache import market_open
 from ..services.market.price_service import get_bulk_prices
 from ..services.websocket import ws_manager
 from ..utils.logger import logger
@@ -7,6 +8,9 @@ from ..utils.logger import logger
 
 async def broadcast_prices():
     """Fetch prices for subscribed symbols and broadcast to WebSocket clients."""
+    if not market_open():
+        return
+
     symbols = ws_manager.get_subscribed_symbols()
     if not symbols:
         return

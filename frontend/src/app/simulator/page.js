@@ -86,7 +86,7 @@ export default function SimulatorPage() {
               <label className="text-sm text-[var(--text-muted)] mb-1 block">Sell</label>
               <select value={sell} onChange={e => setSell(e.target.value)} className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm">
                 {holdings.map(h => (
-                  <option key={h.symbol} value={h.symbol}>{h.symbol} (₹{(h.current_price || h.avg_price).toLocaleString()})</option>
+                  <option key={h.symbol} value={h.symbol}>{h.symbol} (₹{(h.current_price || h.avg_price || 0).toLocaleString()})</option>
                 ))}
               </select>
             </div>

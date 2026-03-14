@@ -302,7 +302,7 @@ export default function NetWorthPage() {
                       <div className="text-sm font-medium text-[var(--text-primary)] privacy-mask">₹{(m.value / 100000).toFixed(1)}L</div>
                       {m.has_data ? (
                         <div className={`text-xs ${m.change_pct >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
-                          {m.change_pct >= 0 ? '+' : ''}{m.change_pct.toFixed(1)}%
+                          {(m.change_pct || 0) >= 0 ? '+' : ''}{(m.change_pct || 0).toFixed(1)}%
                         </div>
                       ) : (
                         <div className="text-xs text-[var(--text-secondary)]">No data</div>

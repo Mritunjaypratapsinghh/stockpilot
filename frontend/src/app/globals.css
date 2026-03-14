@@ -59,7 +59,7 @@
 [data-accent="pink"] { --accent: #ec4899; --accent-hover: #db2777; }
 [data-accent="orange"] { --accent: #f97316; --accent-hover: #ea580c; }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing: border-box; margin: 5px; padding: -2px; }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

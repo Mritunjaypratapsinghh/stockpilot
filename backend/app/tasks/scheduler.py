@@ -8,6 +8,7 @@ from .hourly_update import send_hourly_update
 from .ipo_tracker import check_ipo_alerts, scrape_ipo_data
 from .portfolio_advisor import run_portfolio_advisor
 from .price_updater import update_all_prices
+from .snapshot import take_daily_snapshot
 from .tax_harvest_alert import check_tax_harvesting
 from .weekly_report import send_weekly_report
 from .ws_broadcaster import broadcast_prices
@@ -70,6 +71,16 @@ def start_scheduler():
         hour=9,
         minute=0,
         id="tax_harvest_alert",
+    )
+
+    # Daily portfolio snapshot - 4 PM IST weekdays
+    scheduler.add_job(
+        take_daily_snapshot,
+        "cron",
+        day_of_week="mon-fri",
+        hour=16,
+        minute=5,
+        id="daily_snapshot",
     )
 
     scheduler.start()

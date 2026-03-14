@@ -26,12 +26,17 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#6366f1" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             var theme = localStorage.getItem('theme') || 'dark';
             var accent = localStorage.getItem('accent') || 'indigo';
             document.documentElement.setAttribute('data-theme', theme);
             document.documentElement.setAttribute('data-accent', accent);
+            if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
           })();
         `}} />
       </head>

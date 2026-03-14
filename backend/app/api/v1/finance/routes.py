@@ -8,8 +8,6 @@ from ....core.security import get_current_user
 from ....models.documents import SIP, Goal, Holding
 from ....services.portfolio import get_prices_for_holdings, get_user_holdings
 from .schemas import (
-    AssetCreate,
-    AssetUpdate,
     GoalCreate,
     ImportHistory,
     SIPCreate,
@@ -503,6 +501,106 @@ async def get_dividends(current_user: dict = Depends(get_current_user)) -> Stand
     return StandardResponse.ok(result)
 
 
+# ── Manual Assets (NPS/EPF/PPF/FD/Gold/Property/Cash) ──
+
+
+@router.get("/assets", summary="List manual assets")
+async def list_assets(
+    current_user: dict = Depends(get_current_user),
+) -> StandardResponse:
+    from ....models.documents import Asset
+
+    assets = await Asset.find(Asset.user_id == PydanticObjectId(current_user["_id"])).to_list()
+    return StandardResponse.ok(
+        [
+            {
+                "id": str(a.id),
+                "name": a.name,
+                "category": a.category,
+                "value": a.value,
+                "invested": a.invested,
+                "interest_rate": a.interest_rate,
+                "maturity_date": a.maturity_date,
+                "notes": a.notes,
+            }
+            for a in assets
+        ]
+    )
+
+
+@router.post("/assets", summary="Add manual asset")
+async def add_asset(
+    data: dict,
+    current_user: dict = Depends(get_current_user),
+) -> StandardResponse:
+    from ....models.documents import Asset
+    from ....services.cache import cache_delete
+
+    asset = Asset(
+        user_id=PydanticObjectId(current_user["_id"]),
+        name=data["name"],
+        category=data["category"],
+        value=float(data["value"]),
+        invested=float(data["invested"]) if data.get("invested") else None,
+        interest_rate=(float(data["interest_rate"]) if data.get("interest_rate") else None),
+        maturity_date=data.get("maturity_date"),
+        notes=data.get("notes"),
+    )
+    await asset.insert()
+    await cache_delete(f"networth:{current_user['_id']}")
+    return StandardResponse.ok({"id": str(asset.id)}, "Asset added")
+
+
+@router.put("/assets/{asset_id}", summary="Update manual asset")
+async def update_asset(
+    asset_id: str,
+    data: dict,
+    current_user: dict = Depends(get_current_user),
+) -> StandardResponse:
+    from ....models.documents import Asset
+    from ....services.cache import cache_delete
+
+    asset = await Asset.find_one(
+        Asset.id == PydanticObjectId(asset_id),
+        Asset.user_id == PydanticObjectId(current_user["_id"]),
+    )
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    for field in [
+        "name",
+        "category",
+        "value",
+        "invested",
+        "interest_rate",
+        "maturity_date",
+        "notes",
+    ]:
+        if field in data:
+            setattr(asset, field, data[field])
+    await asset.save()
+    await cache_delete(f"networth:{current_user['_id']}")
+    return StandardResponse.ok(message="Asset updated")
+
+
+@router.delete("/assets/{asset_id}", summary="Delete manual asset")
+async def delete_asset(
+    asset_id: str,
+    current_user: dict = Depends(get_current_user),
+) -> StandardResponse:
+    from ....models.documents import Asset
+    from ....services.cache import cache_delete
+
+    asset = await Asset.find_one(
+        Asset.id == PydanticObjectId(asset_id),
+        Asset.user_id == PydanticObjectId(current_user["_id"]),
+    )
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    await asset.delete()
+    await cache_delete(f"networth:{current_user['_id']}")
+    return StandardResponse.ok(message="Asset deleted")
+
+
 @router.get("/networth", summary="Get networth", description="Get total networth breakdown")
 async def get_networth(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Get total networth breakdown."""
@@ -721,52 +819,6 @@ async def import_networth_history(
         imported += 1
 
     return StandardResponse.ok({"message": f"Imported {imported} snapshots"})
-
-
-@router.post("/asset", summary="Add asset")
-async def add_asset(data: AssetCreate, current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Add a new asset."""
-    from ....models.documents import Asset
-
-    asset = Asset(
-        user_id=PydanticObjectId(current_user["_id"]), name=data.name, category=data.category, value=data.value
-    )
-    await asset.insert()
-
-    return StandardResponse.ok({"message": "Asset added", "id": str(asset.id)})
-
-
-@router.put("/asset/{asset_id}", summary="Update asset")
-async def update_asset(
-    asset_id: str, data: AssetUpdate, current_user: dict = Depends(get_current_user)
-) -> StandardResponse:
-    """Update an asset."""
-    from ....models.documents import Asset
-
-    asset = await Asset.get(PydanticObjectId(asset_id))
-    if not asset or str(asset.user_id) != current_user["_id"]:
-        raise HTTPException(404, "Asset not found")
-
-    asset.name = data.name
-    asset.category = data.category
-    asset.value = data.value
-    await asset.save()
-
-    return StandardResponse.ok({"message": "Asset updated"})
-
-
-@router.delete("/asset/{asset_id}", summary="Delete asset")
-async def delete_asset(asset_id: str, current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Delete an asset."""
-    from ....models.documents import Asset
-
-    asset = await Asset.get(PydanticObjectId(asset_id))
-    if not asset or str(asset.user_id) != current_user["_id"]:
-        raise HTTPException(404, "Asset not found")
-
-    await asset.delete()
-
-    return StandardResponse.ok({"message": "Asset deleted"})
 
 
 @router.get("/tax/export", summary="Export tax report to Excel")

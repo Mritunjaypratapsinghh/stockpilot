@@ -195,8 +195,8 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {holdings.slice(0, 10).map((h) => (
-                    <tr key={h._id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-hover)]">
+                  {holdings.slice(0, 10).map((h, idx) => (
+                    <tr key={h._id || h.id || idx} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-hover)]">
                       <td className="px-4 md:px-6 py-3 md:py-4">
                         <div className="flex items-center gap-2 md:gap-3">
                           <div className={`w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center text-xs md:text-sm font-semibold ${h.pnl >= 0 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>

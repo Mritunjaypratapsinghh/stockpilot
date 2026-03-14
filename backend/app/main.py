@@ -55,9 +55,31 @@ app = FastAPI(
 async def log_requests(request: Request, call_next):
     start = time.time()
     response = await call_next(request)
-    logger.info(
-        f"{request.method} {request.url.path} - {response.status_code} ({round((time.time() - start) * 1000)}ms)"
-    )
+    ms = round((time.time() - start) * 1000)
+    path = request.url.path
+    logger.info(f"{request.method} {path} - {response.status_code} ({ms}ms)")
+
+    # Track API usage in Redis for analytics
+    if path.startswith("/api/") and response.status_code < 400:
+        try:
+            from .services.cache import get_redis
+
+            redis = await get_redis()
+            if redis:
+                today = time.strftime("%Y-%m-%d")
+                # Endpoint hit count
+                await redis.hincrby(f"analytics:endpoints:{today}", path, 1)
+                # DAU tracking (from auth header)
+                auth = request.headers.get("authorization", "")
+                if auth.startswith("Bearer "):
+                    from .core.security import verify_token
+
+                    user = verify_token(auth.split(" ")[1])
+                    if user:
+                        await redis.sadd(f"analytics:dau:{today}", user["_id"])
+        except Exception:
+            pass
+
     return response
 
 

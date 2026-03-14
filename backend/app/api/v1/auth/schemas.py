@@ -23,6 +23,7 @@ class UserResponse(BaseModel):
     email: str
     settings: dict
     telegram_chat_id: str = ""
+    is_pro: bool = False
 
 
 class SettingsUpdate(BaseModel):

@@ -40,6 +40,39 @@ export default function Dashboard() {
 
   const fmt = (n) => n?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0';
 
+  // Onboarding for first-time users
+  if (!loading && holdings.length === 0) {
+    return (
+      <div className="min-h-screen bg-[var(--bg-primary)]">
+        <Navbar />
+        <main className="p-4 md:p-6 max-w-2xl mx-auto">
+          <div className="text-center py-12">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-[var(--accent)]/10 flex items-center justify-center">
+              <TrendingUp className="w-10 h-10 text-[var(--accent)]" />
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold mb-3">Welcome to StockPilot</h1>
+            <p className="text-[var(--text-muted)] mb-8 max-w-md mx-auto">Your portfolio intelligence platform. Start by adding your holdings to unlock AI signals, tax insights, and more.</p>
+          </div>
+          <div className="space-y-4">
+            <Link href="/portfolio" className="flex items-center gap-4 p-5 bg-[var(--accent)]/10 border-2 border-[var(--accent)]/30 rounded-xl hover:bg-[var(--accent)]/20 transition-colors">
+              <div className="w-12 h-12 rounded-lg bg-[var(--accent)] flex items-center justify-center shrink-0"><ArrowUpRight className="w-6 h-6 text-white" /></div>
+              <div><div className="font-semibold">Import from Groww</div><div className="text-sm text-[var(--text-muted)]">Upload your Groww XLSX export to import all holdings instantly</div></div>
+            </Link>
+            <Link href="/portfolio" className="flex items-center gap-4 p-5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors">
+              <div className="w-12 h-12 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center shrink-0"><Wallet className="w-6 h-6 text-[var(--text-muted)]" /></div>
+              <div><div className="font-semibold">Add Manually</div><div className="text-sm text-[var(--text-muted)]">Add stocks and mutual funds one by one with buy price and quantity</div></div>
+            </Link>
+          </div>
+          <div className="mt-10 grid grid-cols-3 gap-4 text-center">
+            <div className="p-4"><div className="text-2xl mb-1">🤖</div><div className="text-xs text-[var(--text-muted)]">AI Signals & Chat</div></div>
+            <div className="p-4"><div className="text-2xl mb-1">📊</div><div className="text-xs text-[var(--text-muted)]">Tax Harvesting</div></div>
+            <div className="p-4"><div className="text-2xl mb-1">🔔</div><div className="text-xs text-[var(--text-muted)]">Smart Alerts</div></div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />

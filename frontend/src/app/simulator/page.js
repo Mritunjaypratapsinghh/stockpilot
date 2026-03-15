@@ -14,7 +14,8 @@ export default function SimulatorPage() {
 
   useEffect(() => {
     api('/api/portfolio/holdings').then(d => {
-      const eq = (d?.holdings || []).filter(h => h.holding_type !== 'MF');
+      const list = Array.isArray(d) ? d : (d?.holdings || []);
+      const eq = list.filter(h => h.holding_type !== 'MF');
       setHoldings(eq);
       if (eq.length) setSell(eq[0].symbol);
     }).catch(() => {});
@@ -73,12 +74,19 @@ export default function SimulatorPage() {
         </div>
 
         <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6 mb-6">
+          {holdings.length === 0 ? (
+            <div className="text-center py-8">
+              <ArrowRightLeft className="w-10 h-10 mx-auto mb-3 text-[var(--text-muted)]" />
+              <p className="text-[var(--text-muted)]">No equity holdings to simulate. Add stocks first.</p>
+            </div>
+          ) : (
+          <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="text-sm text-[var(--text-muted)] mb-1 block">Sell</label>
               <select value={sell} onChange={e => setSell(e.target.value)} className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm">
                 {holdings.map(h => (
-                  <option key={h.symbol} value={h.symbol}>{h.symbol} (₹{(h.current_price || h.avg_price).toLocaleString()})</option>
+                  <option key={h.symbol} value={h.symbol}>{h.symbol} (₹{(h.current_price || h.avg_price || 0).toLocaleString()})</option>
                 ))}
               </select>
             </div>
@@ -95,6 +103,8 @@ export default function SimulatorPage() {
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart3 className="w-4 h-4" />}
             Simulate
           </button>
+          </>
+          )}
         </div>
 
         {result && (

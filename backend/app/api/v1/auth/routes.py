@@ -87,7 +87,11 @@ async def get_me(current_user: dict = Depends(get_current_user)) -> StandardResp
         raise HTTPException(status_code=404, detail="User not found")
     return StandardResponse.ok(
         UserResponse(
-            id=str(user.id), email=user.email, settings=user.settings, telegram_chat_id=user.telegram_chat_id or ""
+            id=str(user.id),
+            email=user.email,
+            settings=user.settings,
+            telegram_chat_id=user.telegram_chat_id or "",
+            is_pro=user.is_pro,
         )
     )
 

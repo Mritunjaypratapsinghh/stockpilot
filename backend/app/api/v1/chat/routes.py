@@ -53,6 +53,12 @@ async def build_context(user_id: str) -> str:
     if not holdings:
         return "User has no holdings."
 
+    from ....core.constants import SECTOR_MAP
+    from ....services.market.price_service import get_bulk_prices
+
+    symbols = [h.symbol for h in holdings if h.holding_type != "MF"]
+    live_prices = await get_bulk_prices(symbols) if symbols else {}
+
     lines = []
     total_invested = total_current = 0
     sectors = {}
@@ -61,14 +67,16 @@ async def build_context(user_id: str) -> str:
     one_year_ago = now - timedelta(days=365)
 
     for h in holdings:
-        current = (h.current_price or h.avg_price) * h.quantity
+        p = live_prices.get(h.symbol, {})
+        curr_price = p.get("current_price") or h.current_price or h.avg_price
+        current = curr_price * h.quantity
         invested = h.avg_price * h.quantity
         pnl = current - invested
         pnl_pct = (pnl / invested * 100) if invested else 0
         total_invested += invested
         total_current += current
 
-        sec = h.sector or "Unknown"
+        sec = SECTOR_MAP.get(h.symbol, h.sector or "Others")
         sectors[sec] = sectors.get(sec, 0) + current
 
         # First buy date and holding period
@@ -101,7 +109,7 @@ async def build_context(user_id: str) -> str:
         buy_str = first_buy.strftime("%Y-%m-%d") if first_buy else "?"
         lines.append(
             f"{h.symbol} | {h.holding_type} | Qty:{h.quantity:.2f} | "
-            f"Avg:₹{h.avg_price:.1f} | CMP:₹{h.current_price or 0:.1f} | "
+            f"Avg:₹{h.avg_price:.1f} | CMP:₹{curr_price:.1f} | "
             f"P&L:₹{pnl:,.0f} ({pnl_pct:+.1f}%) | {tax_type} | "
             f"Held:{period_str} | Since:{buy_str} | Sector:{sec}"
         )
@@ -110,7 +118,7 @@ async def build_context(user_id: str) -> str:
     total_pnl_pct = (total_pnl / total_invested * 100) if total_invested else 0
 
     sector_lines = sorted(sectors.items(), key=lambda x: -x[1])
-    sector_str = ", ".join(f"{s}: {v / total_current * 100:.1f}%" for s, v in sector_lines[:8] if s != "Unknown")
+    sector_str = ", ".join(f"{s}: {v / total_current * 100:.1f}%" for s, v in sector_lines[:8] if s != "Others")
 
     return (
         f"PORTFOLIO SUMMARY: {len(holdings)} holdings | "

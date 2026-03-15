@@ -11,7 +11,7 @@ from ....core.constants import SECTOR_MAP
 from ....core.response_handler import StandardResponse
 from ....core.security import get_current_user
 from ....services.portfolio import get_prices_for_holdings, get_user_holdings
-from .schemas import AnalyticsSummary, SectorAllocation
+from .schemas import AnalyticsSummary, SectorAllocation, SimulateRequest
 
 router = APIRouter()
 
@@ -107,14 +107,16 @@ async def get_rebalance_suggestions(current_user: dict = Depends(get_current_use
                 "deviation_pct": round(current.get(cat, 0) - target[cat], 1),
             }
 
-            # Add fund suggestions for BUY actions
+            # Suggest category-appropriate instruments (generic, not specific funds)
             if s["action"] == "BUY":
                 if cat == "Debt":
-                    s["suggested_funds"] = ["Axis Liquid Fund", "HDFC Money Market", "SBI Overnight"]
+                    s["suggestion"] = "Consider liquid/short-duration debt funds or FDs"
                 elif cat == "Gold":
-                    s["suggested_funds"] = ["Nippon Gold BeES", "SBI Gold ETF"]
+                    s["suggestion"] = "Consider Gold ETFs (GOLDBEES) or Sovereign Gold Bonds"
                 elif cat == "Equity":
-                    s["suggested_funds"] = ["UTI Nifty 50 Index", "Motilal Oswal S&P 500"]
+                    s["suggestion"] = "Consider Nifty 50 index funds or flexi-cap funds"
+                elif cat == "Cash":
+                    s["suggestion"] = "Keep in savings account or overnight funds"
 
             suggestions.append(s)
 
@@ -225,9 +227,13 @@ async def get_metrics(current_user: dict = Depends(get_current_user)) -> Standar
         h["weight"] = h["value"] / total_value
 
     portfolio_beta = sum(h["weight"] * h.get("beta", 1.0) for h in holdings_data)
-    daily_returns = [h["day_change_pct"] * h["weight"] for h in holdings_data]
-    portfolio_daily_return = sum(daily_returns)
-    volatility = abs(portfolio_daily_return) * math.sqrt(252) if portfolio_daily_return != 0 else 15
+    # Volatility: std deviation of weighted daily returns, annualized
+    weighted_returns = [h["day_change_pct"] * h["weight"] for h in holdings_data]
+    portfolio_daily_return = sum(weighted_returns)
+    mean = portfolio_daily_return
+    variance = sum(h["weight"] * (h["day_change_pct"] - mean) ** 2 for h in holdings_data)
+    daily_vol = math.sqrt(variance) if variance > 0 else 0
+    volatility = daily_vol * math.sqrt(252) if daily_vol > 0 else 15.0
 
     sorted_holdings = sorted(holdings_data, key=lambda x: x["value"], reverse=True)
     top_5_concentration = sum(h["weight"] for h in sorted_holdings[:5]) * 100
@@ -336,7 +342,7 @@ async def get_health_score(
         score -= 20 - s
 
     # 4. MF allocation
-    mf_val = sum(h.quantity * h.avg_price for h in mf)
+    mf_val = sum(h.quantity * (prices.get(h.symbol, {}).get("current_price") or h.avg_price) for h in mf)
     mf_pct = (mf_val / (total_val + mf_val) * 100) if (total_val + mf_val) else 0
     if 20 <= mf_pct <= 70:
         factors.append({"name": "MF Allocation", "score": 20, "max": 20, "note": f"{mf_pct:.0f}% in MFs — balanced"})
@@ -430,8 +436,23 @@ async def get_returns(current_user: dict = Depends(get_current_user)) -> Standar
     else:
         cagr = 0
 
-    # Nifty 50 average CAGR ~12%
-    nifty_benchmark = 12.0
+    # Fetch Nifty CAGR from Yahoo Finance
+    nifty_benchmark = 12.0  # fallback
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(
+                "https://query1.finance.yahoo.com/v8/finance/chart/" "%5ENSEI?interval=1mo&range=5y",
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
+            if resp.status_code == 200:
+                closes = [c for c in resp.json()["chart"]["result"][0]["indicators"]["quote"][0]["close"] if c]
+                if len(closes) >= 12:
+                    nifty_cagr = ((closes[-1] / closes[0]) ** (1 / 5) - 1) * 100
+                    nifty_benchmark = round(nifty_cagr, 1)
+    except Exception:
+        pass
 
     result = {
         "invested": round(invested, 2),
@@ -468,13 +489,11 @@ async def get_drawdown(current_user: dict = Depends(get_current_user)) -> Standa
         h.quantity * (prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price) for h in holdings
     )
 
-    # Estimate peak
-    if total_current < total_invested:
-        estimated_peak = total_invested * 1.1
-        current_drawdown = ((estimated_peak - total_current) / estimated_peak) * 100
-    else:
-        estimated_peak = total_current
-        current_drawdown = 0
+    # Peak = max of invested amount and current value (conservative floor)
+    estimated_peak = max(total_invested, total_current)
+    current_drawdown = (
+        ((estimated_peak - total_current) / estimated_peak) * 100 if total_current < estimated_peak else 0
+    )
 
     holdings_in_drawdown = []
     for h in holdings:
@@ -916,13 +935,13 @@ async def get_mf_overlap(current_user: dict = Depends(get_current_user)) -> Stan
     description="Simulate selling one stock and buying another",
 )
 async def simulate_trade(
-    data: dict,
+    data: SimulateRequest,
     current_user: dict = Depends(get_current_user),
 ) -> StandardResponse:
     """Simulate impact of a trade on portfolio metrics."""
-    sell_sym = data.get("sell", "")
-    buy_sym = data.get("buy", "")
-    amount = float(data.get("amount", 0))
+    sell_sym = data.sell
+    buy_sym = data.buy
+    amount = data.amount
 
     if not sell_sym or not amount:
         return StandardResponse.error("sell and amount required")

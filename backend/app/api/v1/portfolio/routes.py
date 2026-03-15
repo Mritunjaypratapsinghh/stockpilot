@@ -982,32 +982,31 @@ async def get_earnings_calendar(
         return StandardResponse.ok({"earnings": []})
 
     earnings = []
-    async with httpx.AsyncClient(timeout=8) as client:
-        for h in equity[:20]:
-            try:
-                ticker = f"{h.symbol}.NS"
-                resp = await client.get(
-                    f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}",
+
+    import asyncio
+
+    async def _fetch_earnings(symbol):
+        try:
+            async with httpx.AsyncClient(timeout=8) as c:
+                resp = await c.get(
+                    f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.NS",
                     headers={"User-Agent": "Mozilla/5.0"},
                 )
                 if resp.status_code == 200:
                     meta = resp.json().get("chart", {}).get("result", [{}])[0].get("meta", {})
-                    earnings_ts = meta.get("earningsTimestamp")
-                    if earnings_ts:
+                    ts = meta.get("earningsTimestamp")
+                    if ts:
                         from datetime import datetime, timezone
 
-                        dt = datetime.fromtimestamp(earnings_ts, tz=timezone.utc)
-                        # Only include future earnings
+                        dt = datetime.fromtimestamp(ts, tz=timezone.utc)
                         if dt > datetime.now(timezone.utc):
-                            earnings.append(
-                                {
-                                    "symbol": h.symbol,
-                                    "date": dt.isoformat(),
-                                    "date_str": dt.strftime("%d %b %Y"),
-                                }
-                            )
-            except Exception:
-                continue
+                            return {"symbol": symbol, "date": dt.isoformat(), "date_str": dt.strftime("%d %b %Y")}
+        except Exception:
+            pass
+        return None
+
+    results = await asyncio.gather(*[_fetch_earnings(h.symbol) for h in equity[:20]])
+    earnings = [r for r in results if r]
 
     earnings.sort(key=lambda x: x["date"])
     result = {"earnings": earnings}

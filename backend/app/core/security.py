@@ -53,3 +53,21 @@ def verify_token(token: str) -> dict | None:
         return {"_id": user_id, "email": payload.get("email", "")}
     except JWTError:
         return None
+
+
+async def require_pro(current_user: dict = Depends(get_current_user)) -> dict:
+    """Dependency that checks if user has Pro subscription."""
+    from ..models.documents import User
+
+    user = await User.get(PydanticObjectId(current_user["_id"]))
+    if not user or not user.is_pro:
+        raise HTTPException(
+            status_code=403,
+            detail="Pro subscription required for this feature",
+        )
+    if user.pro_expires_at and user.pro_expires_at < datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=403,
+            detail="Pro subscription expired",
+        )
+    return current_user

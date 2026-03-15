@@ -9,6 +9,7 @@ export default function MarketPage() {
   const [summary, setSummary] = useState(null);
   const [fiiDii, setFiiDii] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const loadData = async () => {
     setLoading(true);

@@ -36,9 +36,13 @@ export default function VaultPage() {
 
   const load = async () => {
     setLoading(true);
-    const [e, n] = await Promise.all([getVaultEntries(activeTab), getVaultNominees()]);
-    setEntries(e);
-    setNominees(n);
+    try {
+      const [e, n] = await Promise.all([getVaultEntries(activeTab), getVaultNominees()]);
+      setEntries(e);
+      setNominees(n);
+    } catch (e) {
+      console.error(e);
+    }
     setLoading(false);
   };
 

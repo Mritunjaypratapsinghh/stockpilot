@@ -19,9 +19,13 @@ export default function LedgerPage() {
 
   const load = async () => {
     setLoading(true);
-    const [e, s] = await Promise.all([getLedger(filter !== 'all' ? { type: filter } : {}), getLedgerSummary()]);
-    setEntries(e.map(x => ({ ...x, paid: x.settlements?.reduce((sum, s) => sum + s.amount, 0) || 0 })));
-    setSummary(s);
+    try {
+      const [e, s] = await Promise.all([getLedger(filter !== 'all' ? { type: filter } : {}), getLedgerSummary()]);
+      setEntries(e.map(x => ({ ...x, paid: x.settlements?.reduce((sum, s) => sum + s.amount, 0) || 0 })));
+      setSummary(s);
+    } catch (e) {
+      console.error(e);
+    }
     setLoading(false);
   };
 

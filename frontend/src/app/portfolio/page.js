@@ -213,15 +213,15 @@ export default function PortfolioPage() {
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
             <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Invested</div>
-            <div className="text-base md:text-xl font-semibold tabular">₹{fmt(dynamicSummary.invested)}</div>
+            <div className="text-base md:text-xl font-semibold tabular privacy-mask">₹{fmt(dynamicSummary.invested)}</div>
           </div>
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
             <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Current Value</div>
-            <div className="text-base md:text-xl font-semibold tabular">₹{fmt(dynamicSummary.current)}</div>
+            <div className="text-base md:text-xl font-semibold tabular privacy-mask">₹{fmt(dynamicSummary.current)}</div>
           </div>
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
             <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Total P&L</div>
-            <div className={`text-base md:text-xl font-semibold tabular ${dynamicSummary.pnl >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
+            <div className={`text-base md:text-xl font-semibold tabular privacy-mask ${dynamicSummary.pnl >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
               {dynamicSummary.pnl >= 0 ? '+' : ''}₹{fmt(dynamicSummary.pnl)} <span className="text-xs md:text-sm">({dynamicSummary.pnl_pct?.toFixed(2) || 0}%)</span>
             </div>
           </div>

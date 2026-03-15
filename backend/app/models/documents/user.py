@@ -13,6 +13,8 @@ class User(Document):
     name: Optional[str] = None
     telegram_chat_id: Optional[str] = None
     push_subscription: Optional[Dict[str, Any]] = None
+    is_pro: bool = False
+    pro_expires_at: Optional[datetime] = None
     settings: Dict[str, Any] = Field(default_factory=lambda: {"alerts_enabled": True, "daily_digest": True})
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

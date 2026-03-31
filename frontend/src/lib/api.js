@@ -46,6 +46,7 @@ export async function uploadFile(endpoint, file) {
 }
 
 export const getPortfolio = () => api('/api/portfolio');
+export const getSnapshots = (range = '3M') => api('/api/portfolio/snapshots?range=' + range);
 export const getHoldings = () => api('/api/portfolio/holdings');
 export const getPerformance = () => api('/api/portfolio/performance');
 export const getSectors = () => api('/api/portfolio/sectors');

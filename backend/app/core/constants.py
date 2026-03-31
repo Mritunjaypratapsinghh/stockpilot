@@ -254,3 +254,46 @@ YAHOO_FINANCE_BASE = "https://query1.finance.yahoo.com"
 YAHOO_CHART_URL = f"{YAHOO_FINANCE_BASE}/v8/finance/chart"
 YAHOO_SEARCH_URL = f"{YAHOO_FINANCE_BASE}/v1/finance/search"
 YAHOO_QUOTE_URL = f"{YAHOO_FINANCE_BASE}/v10/finance/quoteSummary"
+
+# Company name mapping for news search (symbol -> readable name)
+COMPANY_NAMES = {
+    "RELIANCE": "Reliance Industries",
+    "TCS": "TCS Tata Consultancy",
+    "INFY": "Infosys",
+    "HDFCBANK": "HDFC Bank",
+    "ICICIBANK": "ICICI Bank",
+    "SBIN": "State Bank India",
+    "BHARTIARTL": "Bharti Airtel",
+    "ITC": "ITC Limited",
+    "KOTAKBANK": "Kotak Mahindra Bank",
+    "LT": "Larsen Toubro",
+    "AXISBANK": "Axis Bank",
+    "HINDUNILVR": "Hindustan Unilever",
+    "BAJFINANCE": "Bajaj Finance",
+    "MARUTI": "Maruti Suzuki",
+    "TATAMOTORS": "Tata Motors",
+    "TATASTEEL": "Tata Steel",
+    "WIPRO": "Wipro",
+    "HCLTECH": "HCL Technologies",
+    "SUNPHARMA": "Sun Pharma",
+    "ADANIENT": "Adani Enterprises",
+    "ADANIPORTS": "Adani Ports",
+    "TECHM": "Tech Mahindra",
+    "POWERGRID": "Power Grid",
+    "NTPC": "NTPC",
+    "ULTRACEMCO": "UltraTech Cement",
+    "TITAN": "Titan Company",
+    "ASIANPAINT": "Asian Paints",
+    "BAJAJFINSV": "Bajaj Finserv",
+    "NESTLEIND": "Nestle India",
+    "JSWSTEEL": "JSW Steel",
+    "ONGC": "ONGC",
+    "COALINDIA": "Coal India",
+    "KOTAKALPHA": "Kotak Nifty Alpha 50 ETF",
+}
+
+
+# Rebalance constants
+REBALANCE_MAX_SELL_PCT = 0.3  # Max 30% of position to sell in one rebalance
+REBALANCE_MIN_ACTION_AMOUNT = 1000  # Min ₹1000 for any buy/sell action
+REBALANCE_DEVIATION_THRESHOLD = 5  # Min % deviation to trigger rebalance suggestion

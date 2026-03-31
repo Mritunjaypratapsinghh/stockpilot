@@ -988,6 +988,7 @@ async def get_earnings_calendar(
     async def _fetch_earnings(symbol):
         try:
             async with httpx.AsyncClient(timeout=8) as c:
+                # Try Yahoo Finance first
                 resp = await c.get(
                     f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.NS",
                     headers={"User-Agent": "Mozilla/5.0"},
@@ -1000,7 +1001,43 @@ async def get_earnings_calendar(
 
                         dt = datetime.fromtimestamp(ts, tz=timezone.utc)
                         if dt > datetime.now(timezone.utc):
-                            return {"symbol": symbol, "date": dt.isoformat(), "date_str": dt.strftime("%d %b %Y")}
+                            return {
+                                "symbol": symbol,
+                                "date": dt.isoformat(),
+                                "date_str": dt.strftime("%d %b %Y"),
+                                "source": "yahoo",
+                            }
+
+                # Fallback to Screener.in
+                screener_resp = await c.get(
+                    f"https://www.screener.in/company/{symbol}/",
+                    headers={"User-Agent": "Mozilla/5.0"},
+                    follow_redirects=True,
+                )
+                if screener_resp.status_code == 200:
+                    import re
+
+                    text = screener_resp.text
+                    # Look for "Results" or "Earnings" date patterns
+                    date_pattern = (
+                        r"(?:Results|Earnings|Board Meeting).*?"
+                        r"(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4})"
+                    )
+                    match = re.search(date_pattern, text, re.IGNORECASE)
+                    if match:
+                        from datetime import datetime, timezone
+
+                        try:
+                            dt = datetime.strptime(match.group(1), "%d %b %Y").replace(tzinfo=timezone.utc)
+                            if dt > datetime.now(timezone.utc):
+                                return {
+                                    "symbol": symbol,
+                                    "date": dt.isoformat(),
+                                    "date_str": dt.strftime("%d %b %Y"),
+                                    "source": "screener",
+                                }
+                        except ValueError:
+                            pass
         except Exception:
             pass
         return None
@@ -1010,5 +1047,42 @@ async def get_earnings_calendar(
 
     earnings.sort(key=lambda x: x["date"])
     result = {"earnings": earnings}
+    await cache_set(ck, result, ttl=3600)
+    return StandardResponse.ok(result)
+
+
+@router.get("/snapshots", summary="Portfolio growth over time")
+async def get_snapshots(range: str = "3M", current_user: dict = Depends(get_current_user)) -> StandardResponse:
+    from datetime import datetime, timedelta
+
+    from ....models.documents.portfolio_snapshot import PortfolioSnapshot
+    from ....services.cache import cache_get, cache_set
+
+    ck = f"snapshots:{current_user['_id']}:{range}"
+    cached = await cache_get(ck)
+    if cached:
+        return StandardResponse.ok(cached)
+
+    uid = PydanticObjectId(current_user["_id"])
+    days = {"1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365, "ALL": 3650}.get(range, 90)
+    since = datetime.utcnow() - timedelta(days=days)
+
+    snaps = (
+        await PortfolioSnapshot.find(PortfolioSnapshot.user_id == uid, PortfolioSnapshot.date >= since)
+        .sort("+date")
+        .to_list()
+    )
+
+    data = [
+        {
+            "date": s.date.strftime("%Y-%m-%d"),
+            "value": round(s.value),
+            "invested": round(s.invested),
+            "pnl": round(s.pnl),
+            "pnl_pct": round(s.pnl_pct, 1),
+        }
+        for s in snaps
+    ]
+    result = {"snapshots": data, "range": range, "count": len(data)}
     await cache_set(ck, result, ttl=3600)
     return StandardResponse.ok(result)

@@ -54,10 +54,17 @@ async def _rate_limited_get(client: httpx.AsyncClient, url: str) -> httpx.Respon
     return await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
 
 
+# Symbols where NSE trading symbol differs from Yahoo ticker
+YAHOO_SYMBOL_MAP = {
+    "KOTAKALPHA": "ALPHA",
+}
+
+
 async def _fetch_yahoo(symbol: str, exchange: str) -> Optional[Dict]:
     try:
         async with httpx.AsyncClient(timeout=8) as client:
-            ticker = f"{symbol}.NS" if exchange == "NSE" else f"{symbol}.BO"
+            yahoo_sym = YAHOO_SYMBOL_MAP.get(symbol, symbol)
+            ticker = f"{yahoo_sym}.NS" if exchange == "NSE" else f"{yahoo_sym}.BO"
             resp = await _rate_limited_get(client, f"{YAHOO_CHART_URL}/{ticker}")
             if resp.status_code == 200:
                 meta = resp.json().get("chart", {}).get("result", [{}])[0].get("meta", {})
@@ -151,8 +158,9 @@ async def _fetch_moneycontrol(symbol: str) -> Optional[Dict]:
 async def _fetch_google(symbol: str) -> Optional[Dict]:
     try:
         async with httpx.AsyncClient(timeout=8) as client:
+            google_sym = YAHOO_SYMBOL_MAP.get(symbol, symbol)
             resp = await client.get(
-                f"https://www.google.com/finance/quote/{symbol}:NSE",
+                f"https://www.google.com/finance/quote/{google_sym}:NSE",
                 headers={"User-Agent": "Mozilla/5.0"},
             )
             if resp.status_code == 200:

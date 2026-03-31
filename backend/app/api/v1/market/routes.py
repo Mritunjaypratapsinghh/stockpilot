@@ -184,21 +184,27 @@ async def compare_stocks(symbols: str) -> StandardResponse:
     import asyncio
 
     from ....services.analytics.service import get_screener_fundamentals
+    from ....services.cache import cache_get, cache_set
 
     symbol_list = [s.strip().upper() for s in symbols.split(",")][:5]
 
-    # Fetch prices in parallel, fundamentals sequentially (Screener rate limits)
-    prices = await get_bulk_prices(symbol_list)
-
-    fundamentals_list = []
-    for s in symbol_list:
+    # Check cache for each symbol's fundamentals
+    async def get_cached_fundamentals(s):
+        ck = f"screener_fund:{s}"
+        cached = await cache_get(ck)
+        if cached:
+            return cached
         try:
             fund = await get_screener_fundamentals(s)
-            fundamentals_list.append(fund or {})
+            if fund:
+                await cache_set(ck, fund, ttl=3600)  # 1hr cache
+            return fund or {}
         except Exception:
-            fundamentals_list.append({})
-        if len(symbol_list) > 1:
-            await asyncio.sleep(0.3)  # Small delay to avoid rate limiting
+            return {}
+
+    # Fetch prices and fundamentals in parallel
+    prices = await get_bulk_prices(symbol_list)
+    fundamentals_list = await asyncio.gather(*[get_cached_fundamentals(s) for s in symbol_list])
 
     def parse_num(val):
         if not val:

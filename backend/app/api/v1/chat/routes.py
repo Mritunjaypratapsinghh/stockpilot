@@ -28,7 +28,9 @@ SYSTEM_PROMPT = (
     "- Use markdown: **bold** for emphasis, bullet points with - for lists.\n"
     "- Keep responses focused but thorough (5-15 lines).\n\n"
     "Rules:\n"
-    "- Answer ONLY from the portfolio data below. Never fabricate.\n"
+    "- Answer from the portfolio data and news below. Never fabricate.\n"
+    "- When user asks why a stock is falling/rising, use RECENT NEWS section.\n"
+    "- If no relevant news, say 'I don't have specific news on that'.\n"
     "- When suggesting action, explain WHY briefly.\n"
     "- Reference StockPilot features when relevant "
     "(Tax Center, MF Overlap Analyzer, Signals, MF Health Check).\n"
@@ -42,6 +44,27 @@ SYSTEM_PROMPT = (
 class ChatRequest(BaseModel):
     message: str
     history: Optional[List[dict]] = []
+
+
+async def fetch_news_for_holdings(symbols: List[str], limit: int = 5) -> str:
+    """Fetch recent news for top holdings via shared news service."""
+    import asyncio
+
+    import httpx
+
+    from ....services.news import fetch_stock_news
+
+    top_symbols = symbols[:limit]
+    async with httpx.AsyncClient(timeout=10, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True) as client:
+        results = await asyncio.gather(*[fetch_stock_news(s, client=client) for s in top_symbols])
+
+    news_lines = []
+    for sym, news in zip(top_symbols, results):
+        if news:
+            titles = [n["title"] for n in news[:3]]
+            news_lines.append(f"{sym}: {' | '.join(titles)}")
+
+    return "\n".join(news_lines) if news_lines else ""
 
 
 async def build_context(user_id: str) -> str:
@@ -120,7 +143,11 @@ async def build_context(user_id: str) -> str:
     sector_lines = sorted(sectors.items(), key=lambda x: -x[1])
     sector_str = ", ".join(f"{s}: {v / total_current * 100:.1f}%" for s, v in sector_lines[:8] if s != "Others")
 
-    return (
+    # Fetch news for top 5 stock holdings (by value)
+    stock_symbols = [h.symbol for h in holdings if h.holding_type != "MF"]
+    news_context = await fetch_news_for_holdings(stock_symbols[:5]) if stock_symbols else ""
+
+    context = (
         f"PORTFOLIO SUMMARY: {len(holdings)} holdings | "
         f"Invested: ₹{total_invested:,.0f} | Current: ₹{total_current:,.0f} | "
         f"P&L: ₹{total_pnl:,.0f} ({total_pnl_pct:+.1f}%)\n"
@@ -130,6 +157,11 @@ async def build_context(user_id: str) -> str:
         f"DATE: {now.strftime('%d %b %Y, %A')}\n\n"
         f"HOLDINGS:\n" + "\n".join(lines)
     )
+
+    if news_context:
+        context += f"\n\nRECENT NEWS:\n{news_context}"
+
+    return context
 
 
 @router.post("/ask")

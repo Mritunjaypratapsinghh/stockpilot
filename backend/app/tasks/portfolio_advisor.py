@@ -72,19 +72,10 @@ async def get_stock_data(symbol: str) -> dict | None:
 
 
 async def fetch_stock_news(symbol: str) -> list:
-    """Fetch recent news for a stock"""
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(
-                f"https://query1.finance.yahoo.com/v1/finance/search?q={symbol}&newsCount=3",
-                headers={"User-Agent": "Mozilla/5.0"},
-            )
-            if resp.status_code == 200:
-                news = resp.json().get("news", [])
-                return [{"title": n.get("title", ""), "publisher": n.get("publisher", "")} for n in news[:2]]
-    except (httpx.HTTPError, KeyError, ValueError):
-        pass
-    return []
+    """Fetch recent news for a stock via shared news service."""
+    from ..services.news import fetch_stock_news as _fetch_news
+
+    return await _fetch_news(symbol)
 
 
 async def get_bulk_stock_data(symbols: list) -> dict:

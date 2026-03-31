@@ -117,15 +117,25 @@ export default function ChatPage() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let assistantMsg = '';
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: '', suggestions: [] }]);
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         assistantMsg += decoder.decode(value, { stream: true });
+        
+        // Parse suggestions from response
+        let displayMsg = assistantMsg;
+        let suggestions = [];
+        const sugMatch = assistantMsg.match(/<!--SUGGESTIONS:(.+?)-->/);
+        if (sugMatch) {
+          suggestions = sugMatch[1].split(',').filter(Boolean);
+          displayMsg = assistantMsg.replace(/<!--SUGGESTIONS:.+?-->/, '').trim();
+        }
+        
         setMessages(prev => {
           const updated = [...prev];
-          updated[updated.length - 1] = { role: 'assistant', content: assistantMsg };
+          updated[updated.length - 1] = { role: 'assistant', content: displayMsg, suggestions };
           return updated;
         });
       }
@@ -147,6 +157,10 @@ export default function ChatPage() {
   const holdings = sidebarData?.holdings || [];
   const topGainers = [...holdings].filter(h => h.pnl > 0).sort((a, b) => b.pnl_pct - a.pnl_pct).slice(0, 3);
   const topLosers = [...holdings].filter(h => h.pnl < 0).sort((a, b) => a.pnl_pct - b.pnl_pct).slice(0, 3);
+  
+  // Get suggestions from last assistant message or use defaults
+  const lastAssistantMsg = messages.filter(m => m.role === 'assistant').pop();
+  const dynamicSuggestions = lastAssistantMsg?.suggestions?.length > 0 ? lastAssistantMsg.suggestions : getFollowUps(messages);
 
   return (
     <div className="h-screen flex flex-col bg-[var(--bg-primary)]">
@@ -227,7 +241,7 @@ export default function ChatPage() {
           <div className="px-4 md:px-6 py-3 border-t border-[var(--border)]">
             {messages.length > 0 && (
               <div className="flex gap-2 mb-2 overflow-x-auto pb-1 scrollbar-hide">
-                {getFollowUps(messages).map((s, i) => (
+                {dynamicSuggestions.map((s, i) => (
                   <button key={i} onClick={() => handleSend(s)} className="px-3 py-1 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-full text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]/50 whitespace-nowrap transition-colors">
                     {s}
                   </button>

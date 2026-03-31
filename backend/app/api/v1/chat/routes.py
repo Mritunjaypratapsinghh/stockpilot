@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import List, Optional
 
 from beanie import PydanticObjectId
@@ -10,7 +11,7 @@ from pydantic import BaseModel
 from ....core.config import settings
 from ....core.response_handler import StandardResponse
 from ....core.security import get_current_user
-from ....models.documents import Holding
+from ....models.documents import ChatMessage, ChatSession, Holding
 
 logger = logging.getLogger("stockpilot")
 
@@ -32,6 +33,9 @@ SYSTEM_PROMPT = (
     "- For general finance/investing questions, use your knowledge to explain.\n"
     "- When user asks why a stock is falling/rising, use RECENT NEWS section.\n"
     "- For external companies/stocks, use WEB SEARCH RESULTS if available.\n"
+    "- For comparison queries, compare the FUNDAMENTALS data provided.\n"
+    "- For what-if queries, use the SIMULATION data provided.\n"
+    "- If SENTIMENT data is available, mention the overall sentiment.\n"
     "- If no relevant data, say 'I don't have specific information on that'.\n"
     "- When suggesting action, explain WHY briefly.\n"
     "- Reference StockPilot features when relevant "
@@ -42,10 +46,22 @@ SYSTEM_PROMPT = (
     "- End with a relevant follow-up question to keep conversation going.\n"
 )
 
+SUPPORTED_LANGUAGES = {
+    "en": "",
+    "hi": "Respond in Hindi (Devanagari script). ",
+    "hinglish": "Respond in Hinglish (Hindi written in English). ",
+    "ta": "Respond in Tamil. ",
+    "te": "Respond in Telugu. ",
+    "bn": "Respond in Bengali. ",
+    "mr": "Respond in Marathi. ",
+}
+
 
 class ChatRequest(BaseModel):
     message: str
     history: Optional[List[dict]] = []
+    session_id: Optional[str] = None
+    language: Optional[str] = "en"
 
 
 async def fetch_news_for_holdings(symbols: List[str], limit: int = 5) -> str:
@@ -265,13 +281,247 @@ def detect_tax_query(message: str) -> dict | None:
     return None
 
 
+def detect_comparison(message: str) -> list | None:
+    """Detect comparison queries like 'Compare TCS vs Infosys'."""
+    msg_lower = message.lower()
+    if not any(kw in msg_lower for kw in ["compare", "vs", "versus", "or"]):
+        return None
+    symbols = re.findall(r"\b([A-Z]{2,15})\b", message)
+    return symbols[:2] if len(symbols) >= 2 else None
+
+
+def detect_whatif(message: str, holding_symbols: set) -> dict | None:
+    """Detect what-if queries like 'What if I sell RELIANCE'."""
+    msg_lower = message.lower()
+    if "what if" not in msg_lower and "what happens" not in msg_lower:
+        return None
+    match = re.search(r"(?:sell|buy|add)\s+(\d+)?\s*([A-Z]{2,15})", message)
+    if match:
+        qty = int(match.group(1)) if match.group(1) else None
+        sym = match.group(2).upper()
+        action = "sell" if "sell" in msg_lower else "buy"
+        return {"symbol": sym, "action": action, "quantity": qty}
+    return None
+
+
+async def get_comparison_data(symbols: list) -> str:
+    """Fetch fundamentals for both stocks for comparison."""
+    import asyncio
+
+    results = await asyncio.gather(*[get_stock_fundamentals(s) for s in symbols])
+    parts = [r for r in results if r]
+    if len(parts) < 2:
+        return ""
+    return "COMPARISON DATA:\n" + "\n".join(parts)
+
+
+async def get_whatif_simulation(symbol: str, action: str, quantity: int | None, holdings: list) -> str:
+    """Simulate what-if scenario."""
+    holding = next((h for h in holdings if h.symbol.upper() == symbol), None)
+    if not holding:
+        return f"SIMULATION: {symbol} not found in portfolio."
+
+    price = holding.current_price or holding.avg_price
+    qty = quantity or holding.quantity
+    value = qty * price
+    invested = qty * holding.avg_price
+    pnl = value - invested
+
+    if action == "sell":
+        remaining_qty = holding.quantity - qty
+        remaining_val = remaining_qty * price
+        return (
+            f"WHAT-IF SIMULATION: Selling {qty} shares of {symbol}\n"
+            f"Sale Value: ₹{value:,.0f} | P&L: ₹{pnl:,.0f}\n"
+            f"Remaining: {remaining_qty:.2f} shares worth ₹{remaining_val:,.0f}"
+        )
+    else:
+        new_qty = holding.quantity + qty
+        new_avg = (holding.quantity * holding.avg_price + qty * price) / new_qty
+        return (
+            f"WHAT-IF SIMULATION: Buying {qty} shares of {symbol} at ₹{price:.2f}\n"
+            f"New Qty: {new_qty:.2f} | New Avg: ₹{new_avg:.2f}\n"
+            f"Total Investment: ₹{new_qty * new_avg:,.0f}"
+        )
+
+
+async def get_sentiment(symbol: str) -> str:
+    """Analyze news sentiment for a stock."""
+    from ....services.news import fetch_stock_news
+
+    news = await fetch_stock_news(symbol, limit=5)
+    if not news:
+        return ""
+
+    positive_words = {
+        "surge",
+        "rally",
+        "gain",
+        "rise",
+        "up",
+        "high",
+        "profit",
+        "beat",
+        "strong",
+        "growth",
+        "buy",
+        "bull",
+    }
+    negative_words = {"fall", "drop", "loss", "down", "low", "crash", "sell", "weak", "bear", "slump", "decline", "cut"}
+
+    pos = neg = 0
+    for n in news:
+        title_lower = n["title"].lower()
+        pos += sum(1 for w in positive_words if w in title_lower)
+        neg += sum(1 for w in negative_words if w in title_lower)
+
+    total = pos + neg
+    if total == 0:
+        sentiment = "Neutral"
+    elif pos > neg:
+        sentiment = f"Positive ({pos}/{total} signals)"
+    else:
+        sentiment = f"Negative ({neg}/{total} signals)"
+
+    headlines = " | ".join(n["title"][:60] for n in news[:3])
+    return f"SENTIMENT for {symbol}: {sentiment}\nHeadlines: {headlines}"
+
+
+async def get_sparkline_data(symbol: str) -> list:
+    """Fetch 30-day price data for sparkline chart."""
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=8) as c:
+            resp = await c.get(
+                f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.NS?interval=1d&range=1mo",
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
+            if resp.status_code == 200:
+                result = resp.json()["chart"]["result"][0]
+                closes = result["indicators"]["quote"][0]["close"]
+                timestamps = result["timestamp"]
+                from datetime import datetime
+
+                return [
+                    {"date": datetime.fromtimestamp(t).strftime("%m/%d"), "price": round(c, 2)}
+                    for t, c in zip(timestamps, closes)
+                    if c is not None
+                ]
+    except Exception:
+        pass
+    return []
+
+
+# ─── Chat History Endpoints ───
+
+
+@router.get("/sessions")
+async def list_sessions(
+    current_user: dict = Depends(get_current_user),
+) -> StandardResponse:
+    """List all chat sessions for the user."""
+    uid = PydanticObjectId(current_user["_id"])
+    sessions = await ChatSession.find(ChatSession.user_id == uid).sort("-updated_at").to_list(50)
+    return StandardResponse.ok(
+        [
+            {
+                "id": str(s.id),
+                "title": s.title,
+                "last_message": s.last_message[:80],
+                "message_count": s.message_count,
+                "updated_at": s.updated_at.isoformat(),
+            }
+            for s in sessions
+        ]
+    )
+
+
+@router.get("/sessions/{session_id}")
+async def get_session_messages(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+) -> StandardResponse:
+    """Load messages for a chat session."""
+    uid = PydanticObjectId(current_user["_id"])
+    messages = (
+        await ChatMessage.find(
+            ChatMessage.user_id == uid,
+            ChatMessage.session_id == session_id,
+        )
+        .sort("+created_at")
+        .to_list(100)
+    )
+    return StandardResponse.ok([{"role": m.role, "content": m.content, "suggestions": m.suggestions} for m in messages])
+
+
+@router.delete("/sessions/{session_id}")
+async def delete_session(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+) -> StandardResponse:
+    """Delete a chat session and its messages."""
+    uid = PydanticObjectId(current_user["_id"])
+    await ChatMessage.find(ChatMessage.user_id == uid, ChatMessage.session_id == session_id).delete()
+    await ChatSession.find_one(ChatSession.id == PydanticObjectId(session_id), ChatSession.user_id == uid).delete()
+    return StandardResponse.ok({"deleted": True})
+
+
+@router.get("/export/{session_id}")
+async def export_chat(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Export chat session as text file."""
+    import io
+
+    uid = PydanticObjectId(current_user["_id"])
+    messages = (
+        await ChatMessage.find(
+            ChatMessage.user_id == uid,
+            ChatMessage.session_id == session_id,
+        )
+        .sort("+created_at")
+        .to_list(100)
+    )
+
+    lines = ["StockPilot AI Chat Export", "=" * 40, ""]
+    for m in messages:
+        role = "You" if m.role == "user" else "StockPilot AI"
+        lines.append(f"[{m.created_at.strftime('%H:%M')}] {role}:")
+        lines.append(m.content)
+        lines.append("")
+
+    content = "\n".join(lines)
+    buffer = io.BytesIO(content.encode("utf-8"))
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="text/plain",
+        headers={"Content-Disposition": "attachment; filename=chat_export.txt"},
+    )
+
+
+# ─── Main Chat Endpoint ───
+
+
 @router.post("/ask")
 async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_user)):
     if not client:
         return StandardResponse.error("AI chat not configured. Set GROQ_API_KEY.")
 
+    import asyncio
+
     context = await build_context(current_user["_id"])
     user_id = PydanticObjectId(current_user["_id"])
+
+    # Create or load session
+    session_id = req.session_id
+    if not session_id:
+        session = ChatSession(user_id=user_id, title=req.message[:50])
+        await session.insert()
+        session_id = str(session.id)
 
     # Get user's holdings for context
     holdings = await Holding.find(Holding.user_id == user_id).to_list()
@@ -281,6 +531,7 @@ async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_us
     # Detect if user is asking about external company/stock not in portfolio
     extra_context = []
     msg_lower = req.message.lower()
+    sparkline_data = []
     detected_symbol = None
 
     # Check if message contains company-like patterns
@@ -340,6 +591,33 @@ async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_us
                     if web_results:
                         extra_context.append(web_results)
                 break
+
+    # Detect comparison query
+    comparison = detect_comparison(req.message)
+    if comparison:
+        comp_data = await get_comparison_data(comparison)
+        if comp_data:
+            extra_context.append(comp_data)
+        sparkline_data = await get_sparkline_data(comparison[0])
+
+    # Detect what-if simulation
+    whatif = detect_whatif(req.message, holding_symbols)
+    if whatif:
+        sim = await get_whatif_simulation(whatif["symbol"], whatif["action"], whatif["quantity"], holdings)
+        extra_context.append(sim)
+
+    # Detect sentiment query
+    if any(kw in msg_lower for kw in ["sentiment", "feeling", "mood", "outlook"]):
+        # Find symbol in message
+        sym_match = re.search(r"\b([A-Z]{2,15})\b", req.message)
+        if sym_match:
+            sentiment = await get_sentiment(sym_match.group(1))
+            if sentiment:
+                extra_context.append(sentiment)
+
+    # Fetch sparkline for any detected symbol
+    if not sparkline_data and detected_symbol:
+        sparkline_data = await get_sparkline_data(detected_symbol)
 
     # Detect alert creation intent
     alert_intent = detect_alert_intent(req.message)
@@ -409,10 +687,17 @@ async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_us
     if extra_context:
         full_context += "\n\n" + "\n\n".join(extra_context)
 
-    messages = [{"role": "system", "content": SYSTEM_PROMPT + "\n\n" + full_context}]
+    # Multi-language support
+    lang_prefix = SUPPORTED_LANGUAGES.get(req.language or "en", "")
+    system_content = lang_prefix + SYSTEM_PROMPT + "\n\n" + full_context
+
+    messages = [{"role": "system", "content": system_content}]
     for msg in (req.history or [])[-10:]:
         messages.append({"role": msg.get("role", "user"), "content": msg["content"]})
     messages.append({"role": "user", "content": req.message})
+
+    # Save user message to DB
+    await ChatMessage(user_id=user_id, session_id=session_id, role="user", content=req.message).insert()
 
     # Generate suggestions
     suggestions = generate_suggestions(req.message, len(holdings) > 0)
@@ -434,12 +719,41 @@ async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_us
                     full.append(token)
                     yield token
 
-            # Append suggestions as JSON at the end (frontend can parse)
-            yield f"\n\n<!--SUGGESTIONS:{','.join(suggestions)}-->"
-            if alert_created:
-                yield f"\n\n{alert_created}"
+            # Metadata for frontend
+            import json
 
-            logger.info(f"Groq streamed: {''.join(full)[:200]}")
+            meta = {"suggestions": suggestions, "session_id": session_id}
+            if sparkline_data:
+                meta["sparkline"] = sparkline_data
+            if alert_created:
+                meta["alert"] = alert_created
+
+            yield f"\n\n<!--META:{json.dumps(meta)}-->"
+
+            # Save assistant message to DB
+            full_text = "".join(full)
+            try:
+                await ChatMessage(
+                    user_id=user_id,
+                    session_id=session_id,
+                    role="assistant",
+                    content=full_text,
+                    suggestions=suggestions,
+                ).insert()
+                # Update session
+                await ChatSession.find_one(ChatSession.id == PydanticObjectId(session_id)).update(
+                    {
+                        "$set": {
+                            "last_message": full_text[:80],
+                            "updated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc),
+                        },
+                        "$inc": {"message_count": 2},
+                    }
+                )
+            except Exception as e:
+                logger.error(f"Save chat failed: {e}")
+
+            logger.info(f"Groq streamed: {full_text[:200]}")
 
         return StreamingResponse(generate(), media_type="text/plain")
     except Exception as e:

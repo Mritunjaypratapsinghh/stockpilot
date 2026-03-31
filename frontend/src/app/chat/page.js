@@ -1,10 +1,11 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
-import { MessageSquare, Send, Bot, User, Loader2, TrendingUp, TrendingDown, PieChart, Wallet, Trash2, Copy, Check } from 'lucide-react';
+import { MessageSquare, Send, Bot, User, Loader2, TrendingUp, TrendingDown, PieChart, Wallet, Trash2, Copy, Check, Download, Mic, MicOff, Globe, History, Plus } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const LANGUAGES = { en: 'English', hi: 'हिंदी', hinglish: 'Hinglish', ta: 'தமிழ்', te: 'తెలుగు', bn: 'বাংলা', mr: 'मराठी' };
 const SUGGESTIONS = [
   "Am I over-exposed to any sector?",
   "Compare my returns with Nifty 50",
@@ -74,10 +75,17 @@ export default function ChatPage() {
   const [sidebarData, setSidebarData] = useState(null);
   const [sidebarLoading, setSidebarLoading] = useState(true);
   const [copied, setCopied] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
+  const [sessions, setSessions] = useState([]);
+  const [showSessions, setShowSessions] = useState(false);
+  const [language, setLanguage] = useState('en');
+  const [listening, setListening] = useState(false);
   const messagesEndRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   useEffect(() => {
     api('/api/portfolio/dashboard').then(setSidebarData).catch(() => {}).finally(() => setSidebarLoading(false));
+    api('/api/chat/sessions').then(d => setSessions(d || [])).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -88,6 +96,53 @@ export default function ChatPage() {
     navigator.clipboard.writeText(text);
     setCopied(idx);
     setTimeout(() => setCopied(null), 1500);
+  };
+
+  const loadSession = async (sid) => {
+    const msgs = await api(`/api/chat/sessions/${sid}`);
+    setMessages(msgs || []);
+    setSessionId(sid);
+    setShowSessions(false);
+  };
+
+  const newChat = () => {
+    setMessages([]);
+    setSessionId(null);
+    setShowSessions(false);
+  };
+
+  const deleteSession = async (sid, e) => {
+    e.stopPropagation();
+    await api(`/api/chat/sessions/${sid}`, { method: 'DELETE' });
+    setSessions(prev => prev.filter(s => s.id !== sid));
+    if (sessionId === sid) newChat();
+  };
+
+  const exportChat = () => {
+    if (sessionId) window.open(`${API_BASE}/api/chat/export/${sessionId}`, '_blank');
+  };
+
+  // Voice input
+  const toggleVoice = () => {
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      alert('Speech recognition not supported in this browser');
+      return;
+    }
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = language === 'hi' ? 'hi-IN' : language === 'ta' ? 'ta-IN' : language === 'te' ? 'te-IN' : language === 'bn' ? 'bn-IN' : language === 'mr' ? 'mr-IN' : 'en-IN';
+    recognition.interimResults = false;
+    recognition.onresult = (e) => { setInput(e.results[0][0].transcript); setListening(false); };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
   };
 
   const handleSend = async (text) => {
@@ -104,7 +159,7 @@ export default function ChatPage() {
       const res = await fetch(`${API_BASE}/api/chat/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ message: msg, history: history.slice(-10) }),
+        body: JSON.stringify({ message: msg, history: history.slice(-10), session_id: sessionId, language }),
       });
 
       if (!res.ok || !res.body) {
@@ -124,13 +179,33 @@ export default function ChatPage() {
         if (done) break;
         assistantMsg += decoder.decode(value, { stream: true });
         
-        // Parse suggestions from response
+        // Parse metadata from response
         let displayMsg = assistantMsg;
         let suggestions = [];
-        const sugMatch = assistantMsg.match(/<!--SUGGESTIONS:(.+?)-->/);
+        const metaMatch = assistantMsg.match(/<!--META:(.+?)-->/);
+        if (metaMatch) {
+          try {
+            const meta = JSON.parse(metaMatch[1]);
+            suggestions = meta.suggestions || [];
+            if (meta.session_id && !sessionId) setSessionId(meta.session_id);
+            if (meta.sparkline) {
+              // Store sparkline data on the message
+              displayMsg = assistantMsg.replace(/<!--META:.+?-->/, '').trim();
+              setMessages(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1] = { role: 'assistant', content: displayMsg, suggestions, sparkline: meta.sparkline, alert: meta.alert };
+                return updated;
+              });
+              continue;
+            }
+          } catch {}
+          displayMsg = assistantMsg.replace(/<!--META:.+?-->/, '').trim();
+        }
+        // Also handle old SUGGESTIONS format
+        const sugMatch = displayMsg.match(/<!--SUGGESTIONS:(.+?)-->/);
         if (sugMatch) {
           suggestions = sugMatch[1].split(',').filter(Boolean);
-          displayMsg = assistantMsg.replace(/<!--SUGGESTIONS:.+?-->/, '').trim();
+          displayMsg = displayMsg.replace(/<!--SUGGESTIONS:.+?-->/, '').trim();
         }
         
         setMessages(prev => {
@@ -139,6 +214,9 @@ export default function ChatPage() {
           return updated;
         });
       }
+
+      // Refresh sessions list
+      api('/api/chat/sessions').then(d => setSessions(d || [])).catch(() => {});
 
       if (!assistantMsg) {
         setMessages(prev => {
@@ -173,12 +251,45 @@ export default function ChatPage() {
               <MessageSquare className="w-5 h-5" /> Portfolio Assistant
               <span className="text-[10px] bg-[var(--accent)]/20 text-[var(--accent)] px-2 py-0.5 rounded-full">StockPilot AI</span>
             </h1>
-            {messages.length > 0 && (
-              <button onClick={() => setMessages([])} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-1">
-                <Trash2 className="w-3.5 h-3.5" /> Clear
+            <div className="flex items-center gap-2">
+              <select value={language} onChange={e => setLanguage(e.target.value)} className="text-xs bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-2 py-1 text-[var(--text-muted)]">
+                {Object.entries(LANGUAGES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+              <button onClick={() => setShowSessions(!showSessions)} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-1" title="Chat History">
+                <History className="w-3.5 h-3.5" />
               </button>
-            )}
+              {sessionId && (
+                <button onClick={exportChat} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-1" title="Export Chat">
+                  <Download className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button onClick={newChat} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-1" title="New Chat">
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+              {messages.length > 0 && (
+                <button onClick={() => { setMessages([]); setSessionId(null); }} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-1">
+                  <Trash2 className="w-3.5 h-3.5" /> Clear
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Session History Dropdown */}
+          {showSessions && (
+            <div className="mx-4 mb-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg max-h-48 overflow-y-auto">
+              {sessions.length === 0 ? (
+                <div className="p-3 text-xs text-[var(--text-muted)] text-center">No previous chats</div>
+              ) : sessions.map(s => (
+                <div key={s.id} onClick={() => loadSession(s.id)} className={`flex items-center justify-between px-3 py-2 hover:bg-[var(--bg-tertiary)] cursor-pointer text-xs ${sessionId === s.id ? 'bg-[var(--accent)]/10' : ''}`}>
+                  <div className="truncate flex-1">
+                    <div className="font-medium text-[var(--text-primary)]">{s.title}</div>
+                    <div className="text-[var(--text-muted)] truncate">{s.last_message}</div>
+                  </div>
+                  <button onClick={(e) => deleteSession(s.id, e)} className="ml-2 p-1 text-[var(--text-muted)] hover:text-[#ef4444]"><Trash2 className="w-3 h-3" /></button>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 md:px-6 pb-2">
@@ -205,6 +316,21 @@ export default function ChatPage() {
                     )}
                     <div className={`group relative max-w-[70%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)]'}`}>
                       <div className="text-sm whitespace-pre-wrap leading-relaxed"><Markdown text={msg.content} /></div>
+                      {/* Sparkline Chart */}
+                      {msg.sparkline?.length > 0 && (
+                        <div className="mt-2 flex items-end gap-[2px] h-10 border-t border-[var(--border)] pt-2">
+                          {msg.sparkline.map((d, j) => {
+                            const prices = msg.sparkline.map(p => p.price);
+                            const min = Math.min(...prices);
+                            const max = Math.max(...prices);
+                            const range = max - min || 1;
+                            const height = ((d.price - min) / range) * 100;
+                            const isUp = msg.sparkline[msg.sparkline.length - 1].price >= msg.sparkline[0].price;
+                            return <div key={j} title={`${d.date}: ₹${d.price}`} className={`w-1 rounded-sm ${isUp ? 'bg-[#10b981]' : 'bg-[#ef4444]'}`} style={{ height: `${Math.max(height, 5)}%` }} />;
+                          })}
+                        </div>
+                      )}
+                      {msg.alert && <div className="mt-2 text-xs text-[#10b981] font-medium">{msg.alert}</div>}
                       {msg.role === 'assistant' && msg.content && (
                         <button onClick={() => copyText(msg.content, i)} className="absolute -bottom-5 right-0 text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
                           {copied === i ? <><Check className="w-3 h-3" /> Copied</> : <><Copy className="w-3 h-3" /> Copy</>}
@@ -249,6 +375,9 @@ export default function ChatPage() {
               </div>
             )}
             <div className="flex gap-2">
+              <button onClick={toggleVoice} className={`px-3 py-2.5 rounded-lg border ${listening ? 'bg-[#ef4444] text-white border-[#ef4444] animate-pulse' : 'bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
+                {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
               <input
                 type="text"
                 value={input}

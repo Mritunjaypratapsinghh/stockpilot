@@ -2,6 +2,7 @@ from .advisor_history import AdvisorHistory
 from .alert import Alert
 from .asset import Asset
 from .base import BaseDocument
+from .chat import ChatMessage, ChatSession
 from .daily_digest import DailyDigest
 from .dividend import Dividend
 from .goal import Goal
@@ -40,4 +41,6 @@ ALL_DOCUMENTS = [
     Ledger,
     VaultEntry,
     VaultNominee,
+    ChatSession,
+    ChatMessage,
 ]

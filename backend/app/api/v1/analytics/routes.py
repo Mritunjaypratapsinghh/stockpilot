@@ -80,7 +80,11 @@ async def get_pnl_calendar(
 
 @router.get("/rebalance", summary="Get rebalance suggestions", description="Get portfolio rebalancing recommendations")
 async def get_rebalance_suggestions(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Get asset class rebalancing suggestions."""
+    """Get asset class rebalancing suggestions with specific holding actions."""
+    from beanie import PydanticObjectId
+
+    from ....models.documents import Holding
+
     # Get allocation data
     alloc_response = await get_allocation(current_user)
     alloc = alloc_response.data
@@ -89,6 +93,12 @@ async def get_rebalance_suggestions(current_user: dict = Depends(get_current_use
     target = alloc["target"]
     current = alloc["current"]
     categories = alloc["categories"]
+
+    # Get holdings for specific actions
+    holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
+    prices = await get_prices_for_holdings(holdings)
+
+    from ....core.constants import REBALANCE_MAX_SELL_PCT, REBALANCE_MIN_ACTION_AMOUNT
 
     suggestions = []
     for cat in target:
@@ -105,22 +115,74 @@ async def get_rebalance_suggestions(current_user: dict = Depends(get_current_use
                 "current_pct": current.get(cat, 0),
                 "target_pct": target[cat],
                 "deviation_pct": round(current.get(cat, 0) - target[cat], 1),
+                "specific_actions": [],
             }
 
-            # Suggest category-appropriate instruments (generic, not specific funds)
+            # Generate specific holding-level actions
+            cat_holdings = [
+                h
+                for h in holdings
+                if (h.holding_type == "MF" and cat == "Equity")
+                or (h.holding_type == "STOCK" and cat == "Equity")
+                or (h.holding_type == "GOLD" and cat == "Gold")
+            ]
+
+            if s["action"] == "SELL" and cat_holdings:
+                # Suggest selling from largest positions first
+                sorted_h = sorted(
+                    cat_holdings,
+                    key=lambda h: h.quantity * (prices.get(h.symbol, {}).get("current_price") or h.avg_price),
+                    reverse=True,
+                )
+                remaining = abs(diff)
+                for h in sorted_h[:3]:
+                    price = prices.get(h.symbol, {}).get("current_price") or h.avg_price
+                    val = h.quantity * price
+                    sell_amt = min(remaining, val * REBALANCE_MAX_SELL_PCT)
+                    if sell_amt > REBALANCE_MIN_ACTION_AMOUNT:
+                        s["specific_actions"].append(
+                            {
+                                "symbol": h.symbol,
+                                "action": "SELL",
+                                "amount": round(sell_amt),
+                                "reason": f"Reduce {cat} exposure",
+                            }
+                        )
+                        remaining -= sell_amt
+                    if remaining < REBALANCE_MIN_ACTION_AMOUNT:
+                        break
+
             if s["action"] == "BUY":
                 if cat == "Debt":
                     s["suggestion"] = "Consider liquid/short-duration debt funds or FDs"
+                    s["specific_actions"].append(
+                        {
+                            "symbol": "LIQUIDBEES",
+                            "action": "BUY",
+                            "amount": round(abs(diff)),
+                            "reason": "Low-risk debt allocation",
+                        }
+                    )
                 elif cat == "Gold":
-                    s["suggestion"] = "Consider Gold ETFs (GOLDBEES) or Sovereign Gold Bonds"
+                    s["suggestion"] = "Consider Gold ETFs or Sovereign Gold Bonds"
+                    s["specific_actions"].append(
+                        {"symbol": "GOLDBEES", "action": "BUY", "amount": round(abs(diff)), "reason": "Gold allocation"}
+                    )
                 elif cat == "Equity":
                     s["suggestion"] = "Consider Nifty 50 index funds or flexi-cap funds"
+                    s["specific_actions"].append(
+                        {
+                            "symbol": "NIFTYBEES",
+                            "action": "BUY",
+                            "amount": round(abs(diff) * 0.5),
+                            "reason": "Index exposure",
+                        }
+                    )
                 elif cat == "Cash":
                     s["suggestion"] = "Keep in savings account or overnight funds"
 
             suggestions.append(s)
 
-    # Sort by absolute deviation
     suggestions.sort(key=lambda x: abs(x["deviation_pct"]), reverse=True)
 
     return StandardResponse.ok(
@@ -713,10 +775,13 @@ async def get_signals(current_user: dict = Depends(get_current_user)) -> Standar
 async def get_mf_overlap(current_user: dict = Depends(get_current_user)) -> StandardResponse:
     """Analyze stock overlap across mutual fund holdings."""
 
+    import asyncio
+
     from beanie import PydanticObjectId
 
     from ....models.documents import Holding
     from ....services.cache import cache_get, cache_set
+    from ....services.mf import fetch_mf_holdings
 
     ck = f"mf_overlap:{current_user['_id']}"
     cached = await cache_get(ck)
@@ -829,19 +894,25 @@ async def get_mf_overlap(current_user: dict = Depends(get_current_user)) -> Stan
     }
 
     funds = []
-    for h in holdings[:10]:
+    holdings_list = holdings[:10]
+
+    # Fetch real holdings in parallel
+    async def get_fund_data(h):
         name = h.name or h.symbol
         category = classify_fund(name)
-        stocks = CATEGORY_STOCKS.get(category, [])
-        funds.append(
-            {
-                "symbol": h.symbol,
-                "name": name,
-                "value": round(h.quantity * h.avg_price, 2),
-                "category": category,
-                "stocks": [{"symbol": s, "weight": w} for s, w in stocks],
-            }
-        )
+        # Try to fetch real holdings first
+        real_holdings = await fetch_mf_holdings(name)
+        stocks = real_holdings if real_holdings else CATEGORY_STOCKS.get(category, [])
+        return {
+            "symbol": h.symbol,
+            "name": name,
+            "value": round(h.quantity * h.avg_price, 2),
+            "category": category,
+            "stocks": [{"symbol": s, "weight": w} for s, w in stocks],
+            "real_data": bool(real_holdings),
+        }
+
+    funds = await asyncio.gather(*[get_fund_data(h) for h in holdings_list])
 
     # Only equity funds participate in overlap
     equity_funds = [f for f in funds if f["category"] != "debt"]

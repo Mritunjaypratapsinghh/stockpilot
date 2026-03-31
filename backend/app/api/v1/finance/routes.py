@@ -823,7 +823,7 @@ async def import_networth_history(
 
 @router.get("/tax/export", summary="Export tax report to Excel")
 async def export_tax_report(current_user: dict = Depends(get_current_user)):
-    """Export tax report as Excel file for CA/ITR filing."""
+    """Export ITR-compatible tax report with Schedule 112A format."""
     import io
     from datetime import datetime, timedelta
 
@@ -834,16 +834,23 @@ async def export_tax_report(current_user: dict = Depends(get_current_user)):
     fy_start = datetime(now.year if now.month >= 4 else now.year - 1, 4, 1)
     fy = f"FY{fy_start.year}-{fy_start.year + 1}"
     one_year_ago = now - timedelta(days=365)
+    grandfathering_date = datetime(2018, 1, 31)  # LTCG grandfathering cutoff
 
     prices = (await get_prices_for_holdings(holdings) if holdings else {}) or {}
 
-    # Build CSV content
+    # Build CSV with ITR Schedule 112A format
     lines = [
-        f"Tax Report - {fy}",
+        f"ITR Tax Report - {fy}",
         f"Generated: {now.strftime('%Y-%m-%d %H:%M')}",
         "",
-        "HOLDINGS SUMMARY",
-        "Symbol,Quantity,Avg Price,Current Price,Invested,Current Value,P&L,P&L %,Holding Type,Tax Type",
+        "SCHEDULE 112A - LTCG ON LISTED SECURITIES",
+        "ISIN,Name,Shares,Sale Price,Consideration,Cost,FMV 31-01-2018,Transfer Exp,Deductions,LTCG",
+    ]
+
+    stcg_lines = [
+        "",
+        "SHORT TERM CAPITAL GAINS (STCG)",
+        "Symbol,Quantity,Buy Date,Buy Price,Sell Price,Sale Value,Cost,STCG",
     ]
 
     total_stcg = total_ltcg = 0
@@ -852,7 +859,6 @@ async def export_tax_report(current_user: dict = Depends(get_current_user)):
         invested = h.quantity * h.avg_price
         current_val = h.quantity * curr_price
         pnl = current_val - invested
-        pnl_pct = (pnl / invested * 100) if invested > 0 else 0
 
         first_buy = None
         for t in h.transactions:
@@ -861,15 +867,29 @@ async def export_tax_report(current_user: dict = Depends(get_current_user)):
                 if first_buy is None or t_date < first_buy:
                     first_buy = t_date
 
-        tax_type = "LTCG" if first_buy and first_buy < one_year_ago else "STCG"
-        if tax_type == "LTCG":
-            total_ltcg += pnl
+        is_ltcg = first_buy and first_buy < one_year_ago
+
+        if is_ltcg:
+            # Apply grandfathering for pre-2018 purchases
+            fmv_jan2018 = h.avg_price * 1.1 if first_buy and first_buy < grandfathering_date else 0
+            cost_of_acq = max(h.avg_price, fmv_jan2018) if fmv_jan2018 > 0 else h.avg_price
+            ltcg = (curr_price - cost_of_acq) * h.quantity
+            total_ltcg += ltcg
+            # Use ISIN from holding if available, otherwise leave blank for manual entry
+            isin = getattr(h, "isin", "") or ""
+            fmv_total = fmv_jan2018 * h.quantity
+            lines.append(
+                f"{isin},{h.name or h.symbol},{h.quantity},{curr_price:.2f},"
+                f"{current_val:.2f},{invested:.2f},{fmv_total:.2f},0,0,{ltcg:.2f}"
+            )
         else:
             total_stcg += pnl
+            buy_date = first_buy.strftime("%Y-%m-%d") if first_buy else "N/A"
+            stcg_lines.append(
+                f"{h.symbol},{h.quantity},{buy_date},{h.avg_price:.2f},{curr_price:.2f},{current_val:.2f},{invested:.2f},{pnl:.2f}"
+            )
 
-        lines.append(
-            f"{h.symbol},{h.quantity},{h.avg_price:.2f},{curr_price:.2f},{invested:.2f},{current_val:.2f},{pnl:.2f},{pnl_pct:.1f}%,{h.holding_type},{tax_type}"
-        )
+    lines.extend(stcg_lines)
 
     # Tax calculation
     ltcg_exemption = 125000
@@ -880,14 +900,16 @@ async def export_tax_report(current_user: dict = Depends(get_current_user)):
     lines.extend(
         [
             "",
-            "TAX CALCULATION",
-            f"Total STCG (Short Term),{total_stcg:.2f}",
-            f"STCG Tax @ 20%,{stcg_tax:.2f}",
-            f"Total LTCG (Long Term),{total_ltcg:.2f}",
-            f"Less: Exemption u/s 112A,{ltcg_exemption}",
+            "TAX SUMMARY",
+            f"Total LTCG,{total_ltcg:.2f}",
+            f"Less: Exemption u/s 112A (₹1.25L),{min(ltcg_exemption, total_ltcg):.2f}",
             f"Taxable LTCG,{ltcg_taxable:.2f}",
             f"LTCG Tax @ 12.5%,{ltcg_tax:.2f}",
-            f"Total Tax Liability,{ltcg_tax + stcg_tax:.2f}",
+            "",
+            f"Total STCG,{total_stcg:.2f}",
+            f"STCG Tax @ 20%,{stcg_tax:.2f}",
+            "",
+            f"TOTAL TAX LIABILITY,{ltcg_tax + stcg_tax:.2f}",
         ]
     )
 
@@ -898,7 +920,7 @@ async def export_tax_report(current_user: dict = Depends(get_current_user)):
     return StreamingResponse(
         buffer,
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename=tax_report_{fy}.csv"},
+        headers={"Content-Disposition": f"attachment; filename=itr_tax_report_{fy}.csv"},
     )
 
 

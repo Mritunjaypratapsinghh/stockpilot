@@ -9,22 +9,10 @@ from ..utils.logger import logger
 
 
 async def fetch_stock_news(symbol: str, client: httpx.AsyncClient) -> list:
-    """Fetch recent news for a stock from Yahoo Finance"""
-    try:
-        resp = await client.get(
-            f"https://query1.finance.yahoo.com/v1/finance/search?q={symbol}&newsCount=5",
-            headers={"User-Agent": "Mozilla/5.0"},
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            news = data.get("news", [])
-            return [
-                {"title": n.get("title", ""), "publisher": n.get("publisher", ""), "link": n.get("link", "")}
-                for n in news[:3]
-            ]
-    except (httpx.HTTPError, KeyError, ValueError):
-        pass
-    return []
+    """Fetch recent news for a stock via shared news service."""
+    from ..services.news import fetch_stock_news as _fetch_news
+
+    return await _fetch_news(symbol, client=client)
 
 
 async def analyze_stock(symbol: str) -> dict | None:

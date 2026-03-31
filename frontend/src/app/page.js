@@ -1,9 +1,10 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { TrendingUp, Wallet, ArrowUpRight, ArrowDownRight, ArrowRight } from 'lucide-react';
 import Navbar from '../components/Navbar';
-import { getPortfolio, getHoldings, getIndices, api } from '../lib/api';
+import { getPortfolio, getHoldings, getIndices, getSnapshots, api } from '../lib/api';
 import Link from 'next/link';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
   const [portfolio, setPortfolio] = useState(null);
@@ -14,6 +15,22 @@ export default function Dashboard() {
   const [insights, setInsights] = useState([]);
   const [healthScore, setHealthScore] = useState(null);
   const [earnings, setEarnings] = useState([]);
+  const [snapshots, setSnapshots] = useState([]);
+  const [chartRange, setChartRange] = useState('3M');
+  const [chartLoading, setChartLoading] = useState(false);
+  const chartAbortRef = useRef(null);
+
+  const handleRangeChange = useCallback((range) => {
+    if (range === chartRange || chartLoading) return;
+    if (chartAbortRef.current) chartAbortRef.current.abort();
+    chartAbortRef.current = new AbortController();
+    setChartRange(range);
+    setChartLoading(true);
+    getSnapshots(range)
+      .then(d => setSnapshots(d?.snapshots || []))
+      .catch(() => {})
+      .finally(() => setChartLoading(false));
+  }, [chartRange, chartLoading]);
 
   useEffect(() => {
     const t = localStorage.getItem('token');
@@ -29,6 +46,7 @@ export default function Dashboard() {
       api('/api/analytics/insights').then(d => setInsights(d?.insights || [])).catch(() => {});
       api('/api/analytics/health-score').then(d => setHealthScore(d)).catch(() => {});
       api('/api/portfolio/earnings-calendar').then(d => setEarnings(d?.earnings || [])).catch(() => {});
+      getSnapshots('3M').then(d => setSnapshots(d?.snapshots || [])).catch(() => {});
     } else {
       window.location.href = '/landing';
     }
@@ -112,6 +130,42 @@ export default function Dashboard() {
             loading={loading}
           />
         </div>
+
+        {/* Portfolio Growth Chart */}
+        {snapshots.length > 1 && (
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm font-medium text-[var(--text-muted)] uppercase">📈 Portfolio Growth</div>
+              <div className="flex gap-1">
+                {['1W', '1M', '3M', '6M', '1Y', 'ALL'].map(r => (
+                  <button key={r} onClick={() => handleRangeChange(r)} disabled={chartLoading}
+                    className={`px-2 py-1 text-xs rounded ${chartRange === r ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-primary)] text-[var(--text-muted)] hover:bg-[var(--border)]'} ${chartLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>{r}</button>
+                ))}
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={snapshots}>
+                <defs>
+                  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={snapshots[snapshots.length-1]?.pnl >= 0 ? '#10b981' : '#ef4444'} stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor={snapshots[snapshots.length-1]?.pnl >= 0 ? '#10b981' : '#ef4444'} stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="date" tick={{fontSize: 10}} tickFormatter={d => d?.slice(5)} stroke="var(--text-muted)" />
+                <YAxis tick={{fontSize: 10}} tickFormatter={v => `₹${(v/100000).toFixed(1)}L`} stroke="var(--text-muted)" width={50} />
+                <Tooltip content={({active, payload}) => active && payload?.[0] ? (
+                  <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded p-2 text-xs">
+                    <div className="font-medium">{payload[0].payload.date}</div>
+                    <div>Value: ₹{payload[0].payload.value?.toLocaleString('en-IN')}</div>
+                    <div>Invested: ₹{payload[0].payload.invested?.toLocaleString('en-IN')}</div>
+                    <div className={payload[0].payload.pnl >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}>P&L: {payload[0].payload.pnl >= 0 ? '+' : ''}₹{payload[0].payload.pnl?.toLocaleString('en-IN')} ({payload[0].payload.pnl_pct}%)</div>
+                  </div>
+                ) : null} />
+                <Area type="monotone" dataKey="value" stroke={snapshots[snapshots.length-1]?.pnl >= 0 ? '#10b981' : '#ef4444'} fill="url(#colorValue)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
 
         {/* AI Insights + Health Score + Earnings */}
         {(insights.length > 0 || healthScore || earnings.length > 0) && (

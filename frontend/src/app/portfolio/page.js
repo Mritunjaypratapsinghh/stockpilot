@@ -1,8 +1,9 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Plus, Trash2, Edit2, X, TrendingUp, BarChart3, Search, Upload, PieChart, Percent, ArrowDownLeft, ArrowUpRight, Calendar, Download, DollarSign } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { getDashboard, addTransaction, importHoldings, api, addDividend, getDividends, deleteDividend, downloadExport, deleteTransaction } from '../../lib/api';
+import { useDebounce } from '../../lib/useDebounce';
 
 export default function PortfolioPage() {
   const [holdings, setHoldings] = useState([]);
@@ -28,6 +29,7 @@ export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState('holdings');
   const [holdingFilter, setHoldingFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [symbolSearch, setSymbolSearch] = useState('');
   const [symbolResults, setSymbolResults] = useState([]);
   const [showSymbolDropdown, setShowSymbolDropdown] = useState(false);
@@ -150,27 +152,28 @@ export default function PortfolioPage() {
   const fmt = (n) => n?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0';
   
   // Filter holdings and calculate dynamic summary
-  const getFilteredHoldings = () => {
+  const filteredHoldingsBase = useMemo(() => {
     return holdings.filter(h => {
       if (holdingFilter === 'stocks') return h.holding_type !== 'MF';
       if (holdingFilter === 'mf') return h.holding_type === 'MF';
       return true;
     });
-  };
+  }, [holdings, holdingFilter]);
   
-  const filteredHoldingsBase = getFilteredHoldings();
-  const filteredHoldings = filteredHoldingsBase.filter(h => h.symbol.toLowerCase().includes(search.toLowerCase()) || h.name?.toLowerCase().includes(search.toLowerCase()));
+  const filteredHoldings = useMemo(() => {
+    return filteredHoldingsBase.filter(h => h.symbol.toLowerCase().includes(debouncedSearch.toLowerCase()) || h.name?.toLowerCase().includes(debouncedSearch.toLowerCase()));
+  }, [filteredHoldingsBase, debouncedSearch]);
   
-  const dynamicSummary = (() => {
+  const dynamicSummary = useMemo(() => {
     const fh = filteredHoldingsBase;
     const invested = fh.reduce((sum, h) => sum + h.quantity * h.avg_price, 0);
     const current = fh.reduce((sum, h) => sum + h.quantity * (h.current_price || h.avg_price), 0);
     const pnl = current - invested;
     const pnl_pct = invested > 0 ? (pnl / invested * 100) : 0;
     return { invested, current, pnl, pnl_pct };
-  })();
+  }, [filteredHoldingsBase]);
   
-  const dynamicSectors = (() => {
+  const dynamicSectors = useMemo(() => {
     const fh = filteredHoldingsBase;
     const total = fh.reduce((sum, h) => sum + h.quantity * (h.current_price || h.avg_price), 0);
     const bySector = {};
@@ -179,7 +182,7 @@ export default function PortfolioPage() {
       bySector[sector] = (bySector[sector] || 0) + h.quantity * (h.current_price || h.avg_price);
     });
     return Object.entries(bySector).map(([sector, value]) => ({ sector, percentage: total > 0 ? Math.round(value / total * 1000) / 10 : 0 })).sort((a, b) => b.percentage - a.percentage);
-  })();
+  }, [filteredHoldingsBase]);
 
   const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'];
 

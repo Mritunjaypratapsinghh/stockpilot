@@ -1,8 +1,9 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, Eye, X, Search } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
+import { useDebounce } from '../../lib/useDebounce';
 
 export default function WatchlistPage() {
   const [watchlist, setWatchlist] = useState([]);
@@ -11,12 +12,13 @@ export default function WatchlistPage() {
   const [symbol, setSymbol] = useState('');
   const [notes, setNotes] = useState('');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
 
   useEffect(() => { loadWatchlist(); }, []);
   const loadWatchlist = () => { api('/api/watchlist').then(setWatchlist).catch(console.error).finally(() => setLoading(false)); };
   const addToWatchlist = async (e) => { e.preventDefault(); try { await api('/api/watchlist', { method: 'POST', body: JSON.stringify({ symbol: symbol.toUpperCase(), notes }) }); setSymbol(''); setNotes(''); setShowForm(false); loadWatchlist(); } catch (err) { alert(err.message); } };
   const removeFromWatchlist = async (id) => { await api(`/api/watchlist/${id}`, { method: 'DELETE' }); loadWatchlist(); };
-  const filtered = watchlist.filter(w => w.symbol.toLowerCase().includes(search.toLowerCase()));
+  const filtered = useMemo(() => watchlist.filter(w => w.symbol.toLowerCase().includes(debouncedSearch.toLowerCase())), [watchlist, debouncedSearch]);
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">

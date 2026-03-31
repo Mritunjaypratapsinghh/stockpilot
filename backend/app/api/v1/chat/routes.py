@@ -189,16 +189,24 @@ async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_us
         holding_symbols = {h.symbol.lower() for h in holdings}
         holding_names = {(h.name or "").lower() for h in holdings}
 
+        # Skip common words that start sentences
+        skip_words = {"tell", "what", "how", "why", "when", "where", "should", "can", "is", "are", "the", "about", "me"}
+
         # Check if query is about something NOT in portfolio
         words = req.message.split()
         potential_company = None
         for i, word in enumerate(words):
-            # Look for capitalized words or quoted terms
-            if word[0].isupper() and word.lower() not in holding_symbols and len(word) > 2:
+            # Look for capitalized words, skip common sentence starters
+            if (
+                len(word) > 2
+                and word[0].isupper()
+                and word.lower() not in skip_words
+                and word.lower() not in holding_symbols
+            ):
                 # Combine consecutive capitalized words
                 company_parts = [word]
-                for j in range(i + 1, min(i + 4, len(words))):
-                    if words[j][0].isupper() or words[j].lower() in ["ltd", "limited", "pvt", "private"]:
+                for j in range(i + 1, min(i + 5, len(words))):
+                    if words[j][0].isupper() or words[j].lower() in ["ltd", "limited", "pvt", "private", "inc"]:
                         company_parts.append(words[j])
                     else:
                         break

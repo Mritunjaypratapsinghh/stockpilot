@@ -31,7 +31,8 @@ SYSTEM_PROMPT = (
     "- For portfolio-specific questions, use the data below. Never fabricate holdings.\n"
     "- For general finance/investing questions, use your knowledge to explain.\n"
     "- When user asks why a stock is falling/rising, use RECENT NEWS section.\n"
-    "- If no relevant news, say 'I don't have specific news on that'.\n"
+    "- For external companies/stocks, use WEB SEARCH RESULTS if available.\n"
+    "- If no relevant data, say 'I don't have specific information on that'.\n"
     "- When suggesting action, explain WHY briefly.\n"
     "- Reference StockPilot features when relevant "
     "(Tax Center, MF Overlap Analyzer, Signals, MF Health Check).\n"
@@ -172,7 +173,46 @@ async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_us
 
     context = await build_context(current_user["_id"])
 
-    messages = [{"role": "system", "content": SYSTEM_PROMPT + "\n\n" + context}]
+    # Detect if user is asking about external company/stock not in portfolio
+    web_context = ""
+    msg_lower = req.message.lower()
+    # Check if message contains company-like patterns not in portfolio
+    if any(
+        kw in msg_lower
+        for kw in ["about", "what is", "tell me", "company", "stock", "share", "invest in", "should i buy"]
+    ):
+        # Extract potential company name (simple heuristic)
+        from ....services.search import search_company_info
+
+        # Get user's holding symbols
+        holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
+        holding_symbols = {h.symbol.lower() for h in holdings}
+        holding_names = {(h.name or "").lower() for h in holdings}
+
+        # Check if query is about something NOT in portfolio
+        words = req.message.split()
+        potential_company = None
+        for i, word in enumerate(words):
+            # Look for capitalized words or quoted terms
+            if word[0].isupper() and word.lower() not in holding_symbols and len(word) > 2:
+                # Combine consecutive capitalized words
+                company_parts = [word]
+                for j in range(i + 1, min(i + 4, len(words))):
+                    if words[j][0].isupper() or words[j].lower() in ["ltd", "limited", "pvt", "private"]:
+                        company_parts.append(words[j])
+                    else:
+                        break
+                potential_company = " ".join(company_parts)
+                break
+
+        if potential_company and potential_company.lower() not in holding_names:
+            web_context = await search_company_info(potential_company)
+
+    full_context = context
+    if web_context:
+        full_context += f"\n\n{web_context}"
+
+    messages = [{"role": "system", "content": SYSTEM_PROMPT + "\n\n" + full_context}]
     for msg in (req.history or [])[-10:]:
         messages.append({"role": msg.get("role", "user"), "content": msg["content"]})
     messages.append({"role": "user", "content": req.message})

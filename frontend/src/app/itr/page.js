@@ -71,15 +71,20 @@ export default function ITRWizard() {
     setLoading(false);
   };
 
+  const [pdfPasswords, setPdfPasswords] = useState({ form16: '', ais: '', form26as: '' });
+
   const handleUpload = async (endpoint, file) => {
     if (!file) return;
     setLoading(true); setError('');
     try {
       const formData = new FormData();
       formData.append('file', file);
+      const pw = pdfPasswords[endpoint];
       const token = localStorage.getItem('token');
+      const params = new URLSearchParams({ fy: FY });
+      if (pw) params.append('password', pw);
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/itr/upload/${endpoint}?fy=${FY}`,
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/itr/upload/${endpoint}?${params}`,
         { method: 'POST', body: formData, headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
       const data = await res.json();
@@ -180,9 +185,9 @@ export default function ITRWizard() {
         <div className="space-y-4">
           <p className="text-[var(--text-secondary)]">Upload your tax documents. All data is parsed locally and shown for your confirmation.</p>
           {[
-            { name: 'Form 16', hint: 'PDF from employer', endpoint: 'form16' },
-            { name: 'AIS (Annual Information Statement)', hint: 'Password: PAN(lowercase) + DOB(DDMMYYYY)', endpoint: 'ais' },
-            { name: 'Form 26AS', hint: 'Download from TRACES portal', endpoint: 'form26as' },
+            { name: 'Form 16', hint: 'PDF from employer', endpoint: 'form16', needsPassword: false },
+            { name: 'AIS (Annual Information Statement)', hint: 'Password: PAN(lowercase) + DOB(DDMMYYYY)', endpoint: 'ais', needsPassword: true },
+            { name: 'Form 26AS', hint: 'Download from TRACES portal', endpoint: 'form26as', needsPassword: true },
           ].map((doc) => (
             <div key={doc.endpoint} className="p-4 border border-[var(--border)] rounded-lg">
               <div className="flex items-center justify-between">
@@ -200,6 +205,14 @@ export default function ITRWizard() {
                   </label>
                 </div>
               </div>
+              {doc.needsPassword && (
+                <div className="mt-3">
+                  <label className="text-xs text-[var(--text-muted)] mb-1 block">PDF Password (if protected)</label>
+                  <input type="text" value={pdfPasswords[doc.endpoint]} onChange={e => setPdfPasswords(p => ({ ...p, [doc.endpoint]: e.target.value }))}
+                    placeholder={doc.endpoint === 'ais' ? 'e.g. abcde1234f01011990' : 'Enter password'}
+                    className="w-full sm:w-80 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm" />
+                </div>
+              )}
               {uploadResults[doc.endpoint] && (
                 <div className="mt-3 p-3 bg-[var(--bg-tertiary)] rounded-lg text-sm">
                   {doc.endpoint === 'form16' && uploadResults[doc.endpoint].part_b && (

@@ -371,7 +371,7 @@ export default function ITRWizard() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <main className="p-4 md:p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-1">
           <h1 className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">ITR Filing Assistant</h1>
@@ -423,7 +423,7 @@ export default function ITRWizard() {
             Next <ChevronRight size={16} />
           </button>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

@@ -46,18 +46,26 @@ export default function ITRWizard() {
   const toast = useToast();
 
   const saveProfile = async () => {
+    // Only send fields the user actually filled in (non-empty) to avoid overwriting AIS data
+    const toNum = (obj) => {
+      const result = {};
+      for (const [k, v] of Object.entries(obj)) {
+        if (v !== '' && v !== null && v !== undefined) result[k] = Number(v) || 0;
+      }
+      return Object.keys(result).length ? result : null;
+    };
+    const body = {};
+    const sal = toNum(salary);
+    if (sal) body.salary = sal;
+    if (hra.rent_paid || hra.city_name) body.hra = { rent_paid: Number(hra.rent_paid) || 0, city_name: hra.city_name };
+    const oth = toNum(otherIncome);
+    if (oth) body.other_income = oth;
+    const ded = toNum(deductions);
+    if (ded) body.deductions = ded;
+    if (!Object.keys(body).length) return;
     try {
-      await api(`/api/v1/itr/profile/${FY}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          salary: Object.fromEntries(Object.entries(salary).map(([k, v]) => [k, Number(v) || 0])),
-          hra: { rent_paid: Number(hra.rent_paid) || 0, city_name: hra.city_name },
-          other_income: Object.fromEntries(Object.entries(otherIncome).map(([k, v]) => [k, Number(v) || 0])),
-          deductions: Object.fromEntries(Object.entries(deductions).map(([k, v]) => [k, Number(v) || 0])),
-        }),
-      });
-      toast?.success('Profile saved');
-    } catch { toast?.error('Failed to save profile'); }
+      await api(`/api/v1/itr/profile/${FY}`, { method: 'PUT', body: JSON.stringify(body) });
+    } catch {}
   };
 
   const loadCG = async () => {
@@ -97,6 +105,13 @@ export default function ITRWizard() {
       }
     }
     setLoading(false);
+  };
+
+  const goToStep = (target) => {
+    // Auto-save if leaving a data entry step
+    if ([3, 4, 6].includes(step)) saveProfile();
+    setStep(target);
+    setError('');
   };
 
   const handleUpload = async (endpoint, file) => {
@@ -600,7 +615,7 @@ export default function ITRWizard() {
             const active = i === step;
             const done = i < step;
             return (
-              <button key={i} onClick={() => setStep(i)}
+              <button key={i} onClick={() => goToStep(i)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all
                   ${active ? 'bg-[var(--accent)] text-white' : done ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border)] hover:text-[var(--text-secondary)]'}`}>
                 {done ? <CheckCircle size={12} /> : <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[9px]">{i + 1}</span>}
@@ -621,11 +636,11 @@ export default function ITRWizard() {
         {/* Navigation */}
         <div className="flex justify-between">
           {step > 0 ? (
-            <button onClick={() => { setStep(step - 1); setError(''); }} className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] flex items-center gap-2 text-sm">
+            <button onClick={() => goToStep(step - 1)} className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] flex items-center gap-2 text-sm">
               <ChevronLeft size={16} /> Previous
             </button>
           ) : <div />}
-          <button onClick={() => { setStep(Math.min(STEPS.length - 1, step + 1)); setError(''); }}
+          <button onClick={() => goToStep(Math.min(STEPS.length - 1, step + 1))}
             disabled={step === STEPS.length - 1 || !canGoNext()}
             className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 disabled:opacity-30 flex items-center gap-2 text-sm font-medium">
             Next <ChevronRight size={16} />

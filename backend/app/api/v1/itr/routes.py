@@ -84,6 +84,44 @@ async def get_profile(fy: str, user: dict = Depends(get_current_user)):
     return _doc(await _get_or_create_profile(_uid(user), fy))
 
 
+@router.post("/profile/{fy}/autofill")
+async def autofill_from_ais(fy: str, user: dict = Depends(get_current_user)):
+    """Auto-populate profile salary/income from accepted AIS items."""
+    uid = _uid(user)
+    profile = await _get_or_create_profile(uid, fy)
+    items = await AISLineItem.find(AISLineItem.user_id == uid, AISLineItem.financial_year == fy).to_list()
+
+    salary_total = 0
+    interest_total = 0
+    dividend_total = 0
+    mf_purchase = 0
+
+    for item in items:
+        val = item.user_value if item.user_value is not None else item.reported_value
+        code = item.info_code.upper()
+
+        if "192" in code:  # Salary
+            salary_total += val
+        elif "194A" in code:  # FD / other interest
+            interest_total += val
+        elif code == "194" or "DIVIDEND" in item.description.upper():
+            dividend_total += val
+        elif "SFT" in code and "INTEREST" in item.description.upper():
+            interest_total += val
+        elif "SFT" in code and "MUTUAL" in item.description.upper():
+            mf_purchase += val
+
+    if salary_total and not profile.salary.gross:
+        profile.salary.gross = salary_total
+    if interest_total:
+        profile.other_income.savings_interest = interest_total
+    if dividend_total:
+        profile.other_income.dividend_income_gross = dividend_total
+
+    await profile.save()
+    return _doc(profile)
+
+
 @router.put("/profile/{fy}")
 async def update_profile(fy: str, data: TaxProfileUpdate, user: dict = Depends(get_current_user)):
     profile = await _get_or_create_profile(_uid(user), fy)

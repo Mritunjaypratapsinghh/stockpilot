@@ -130,9 +130,48 @@ export default function ITRWizard() {
   };
 
   useEffect(() => { loadCalendar(); }, []);
+  useEffect(() => { if (step === 3 || step === 4 || step === 6) loadProfileData(); }, [step]);
 
   const loadCalendar = async () => {
     try { setCalendar(await api(`/api/v1/itr/tax-calendar?fy=${FY}`)); } catch {}
+  };
+
+  const loadProfileData = async () => {
+    try {
+      // Auto-fill from AIS first
+      const profile = await api(`/api/v1/itr/profile/${FY}/autofill`, { method: 'POST' });
+      if (profile.salary?.gross) setSalary(prev => ({
+        ...prev,
+        gross: String(profile.salary.gross || ''),
+        basic: String(profile.salary.basic || ''),
+        hra_received: String(profile.salary.hra_received || ''),
+        professional_tax: String(profile.salary.professional_tax || ''),
+        employer_pf: String(profile.salary.employer_pf || ''),
+      }));
+      if (profile.hra?.rent_paid) setHra(prev => ({
+        ...prev,
+        rent_paid: String(profile.hra.rent_paid || ''),
+        city_name: profile.hra.city_name || '',
+      }));
+      setOtherIncome(prev => ({
+        ...prev,
+        savings_interest: String(profile.other_income?.savings_interest || prev.savings_interest || ''),
+        fd_interest: String(profile.other_income?.fd_interest || prev.fd_interest || ''),
+        dividend_income_gross: String(profile.other_income?.dividend_income_gross || prev.dividend_income_gross || ''),
+        interest_on_it_refund: String(profile.other_income?.interest_on_it_refund || prev.interest_on_it_refund || ''),
+        other: String(profile.other_income?.other || prev.other || ''),
+      }));
+      setDeductions(prev => ({
+        ...prev,
+        sec_80c: String(profile.deductions?.sec_80c || prev.sec_80c || ''),
+        sec_80ccd_1b: String(profile.deductions?.sec_80ccd_1b || prev.sec_80ccd_1b || ''),
+        sec_80d_self: String(profile.deductions?.sec_80d_self || prev.sec_80d_self || ''),
+        sec_80d_parents: String(profile.deductions?.sec_80d_parents || prev.sec_80d_parents || ''),
+        sec_80e: String(profile.deductions?.sec_80e || prev.sec_80e || ''),
+        sec_80g: String(profile.deductions?.sec_80g || prev.sec_80g || ''),
+        sec_80tta: String(profile.deductions?.sec_80tta || prev.sec_80tta || ''),
+      }));
+    } catch {}
   };
 
   const runScopeCheck = async () => {
@@ -341,7 +380,8 @@ export default function ITRWizard() {
 
       case 'salary': return (
         <div className="space-y-4">
-          <p className="text-[var(--text-secondary)]">Confirm your salary details. Standard deduction (₹75K new / ₹50K old) applied automatically.</p>
+          <p className="text-[var(--text-secondary)]">Salary auto-filled from AIS. Standard deduction (₹75K new / ₹50K old) applied automatically.</p>
+          {salary.gross && <div className="p-2 bg-green-500/10 border border-green-500/20 rounded-lg text-xs text-green-400">✓ Auto-filled from AIS (TDS-192). Verify and edit if needed.</div>}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[['Gross Salary', 'gross'], ['Basic + DA', 'basic'], ['HRA Received', 'hra_received'], ['Professional Tax', 'professional_tax'], ['Employer PF', 'employer_pf']].map(([label, key]) => (
               <div key={key}>
@@ -372,7 +412,8 @@ export default function ITRWizard() {
 
       case 'other': return (
         <div className="space-y-4">
-          <p className="text-[var(--text-secondary)]">Declare all other income. AIS amounts shown for reference.</p>
+          <p className="text-[var(--text-secondary)]">Auto-filled from AIS. Verify amounts — AIS is the reference.</p>
+          {(otherIncome.savings_interest || otherIncome.dividend_income_gross) && <div className="p-2 bg-green-500/10 border border-green-500/20 rounded-lg text-xs text-green-400">✓ Auto-filled from AIS. Edit if your actual amounts differ (e.g. joint account share).</div>}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[['Savings Interest', 'savings_interest'], ['FD Interest', 'fd_interest'], ['Dividend (Gross)', 'dividend_income_gross'], ['Interest on IT Refund', 'interest_on_it_refund'], ['Other Income', 'other']].map(([label, key]) => (
               <div key={key}>

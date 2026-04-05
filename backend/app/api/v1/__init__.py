@@ -6,14 +6,15 @@ from .alerts import router as alerts_router
 from .analytics import router as analytics_router
 from .auth import router as auth_router
 from .calculators import router as calculators_router
+from .chat import router as chat_router
 from .export import router as export_router
 from .finance import router as finance_router
 from .ipo import router as ipo_router
+from .itr import router as itr_router
 from .ledger import router as ledger_router
 from .market import router as market_router
 from .portfolio import router as portfolio_router
 from .vault import router as vault_router
-from .chat import router as chat_router
 from .watchlist import router as watchlist_router
 
 # Create v1 router
@@ -33,5 +34,6 @@ router.include_router(export_router, prefix="/export", tags=["Export"])
 router.include_router(calculators_router, prefix="/calculators", tags=["Calculators"])
 router.include_router(vault_router, prefix="/vault", tags=["Vault"])
 router.include_router(chat_router, prefix="/chat", tags=["Chat"])
+router.include_router(itr_router, prefix="/itr", tags=["ITR"])
 
 __all__ = ["router"]

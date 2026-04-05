@@ -93,7 +93,7 @@ export default function ITRWizard() {
     setLoading(true);
     for (const item of (checklist?.items || [])) {
       if (item.status === 'pending') {
-        await resolveAISItem(item._id || item.id, 'accepted');
+        await resolveAISItem(item.id, 'accepted');
       }
     }
     setLoading(false);
@@ -314,7 +314,7 @@ export default function ITRWizard() {
                 </div>
               )}
               {checklist.items?.map((item, i) => (
-                <div key={item._id || item.id || i} className={`p-3 mb-2 rounded-lg border ${item.status === 'pending' ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-green-500/30 bg-green-500/5'}`}>
+                <div key={item.id || i} className={`p-3 mb-2 rounded-lg border ${item.status === 'pending' ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-green-500/30 bg-green-500/5'}`}>
                   <div className="flex justify-between items-start gap-2">
                     <div className="flex-1 min-w-0">
                       <span className="text-sm font-medium text-[var(--text-primary)]">{item.info_code}</span>
@@ -324,8 +324,8 @@ export default function ITRWizard() {
                       <span className="text-sm font-medium">{fmt(item.reported_value)}</span>
                       {item.status === 'pending' ? (
                         <div className="flex gap-1">
-                          <button onClick={() => resolveAISItem(item._id || item.id, 'accepted')} className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">✓ Accept</button>
-                          <button onClick={() => resolveAISItem(item._id || item.id, 'disputed')} className="px-2 py-1 bg-red-600/20 text-red-400 border border-red-500/30 rounded text-xs hover:bg-red-600/30">✗ Dispute</button>
+                          <button onClick={() => resolveAISItem(item.id, 'accepted')} className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">✓ Accept</button>
+                          <button onClick={() => resolveAISItem(item.id, 'disputed')} className="px-2 py-1 bg-red-600/20 text-red-400 border border-red-500/30 rounded text-xs hover:bg-red-600/30">✗ Dispute</button>
                         </div>
                       ) : (
                         <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-300">{item.status}</span>

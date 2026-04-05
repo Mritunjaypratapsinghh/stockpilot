@@ -45,6 +45,18 @@ def _uid(user: dict) -> PydanticObjectId:
     return PydanticObjectId(user["_id"])
 
 
+def _doc(doc) -> dict:
+    """Convert Beanie document to JSON-safe dict with string IDs."""
+    d = doc.dict()
+    if "id" in d:
+        d["id"] = str(d["id"]) if d["id"] else None
+    if "user_id" in d:
+        d["user_id"] = str(d["user_id"]) if d["user_id"] else None
+    if "revision_id" in d:
+        del d["revision_id"]
+    return d
+
+
 async def _get_or_create_profile(uid: PydanticObjectId, fy: str) -> TaxProfile:
     profile = await TaxProfile.find_one(TaxProfile.user_id == uid, TaxProfile.financial_year == fy)
     if not profile:
@@ -64,12 +76,12 @@ async def create_or_update_profile(data: TaxProfileCreate, user: dict = Depends(
     profile.age_category = data.age_category
     profile.residency = data.residency
     await profile.save()
-    return profile.dict()
+    return _doc(profile)
 
 
 @router.get("/profile/{fy}")
 async def get_profile(fy: str, user: dict = Depends(get_current_user)):
-    return (await _get_or_create_profile(_uid(user), fy)).dict()
+    return _doc(await _get_or_create_profile(_uid(user), fy))
 
 
 @router.put("/profile/{fy}")
@@ -86,7 +98,7 @@ async def update_profile(fy: str, data: TaxProfileUpdate, user: dict = Depends(g
         else:
             setattr(profile, key, value)
     await profile.save()
-    return profile.dict()
+    return _doc(profile)
 
 
 # ── Upload ──
@@ -203,7 +215,7 @@ async def get_checklist(fy: str, user: dict = Depends(get_current_user)):
     total = len(items)
     resolved = sum(1 for i in items if i.status != AISStatus.PENDING)
     return {
-        "items": [i.dict() for i in items],
+        "items": [_doc(i) for i in items],
         "total": total,
         "resolved": resolved,
         "pending": total - resolved,
@@ -222,7 +234,7 @@ async def resolve_ais_item(item_id: str, data: AISItemResolve, user: dict = Depe
     item.dispute_reason = data.dispute_reason
     item.is_exempt = data.is_exempt
     await item.save()
-    return item.dict()
+    return _doc(item)
 
 
 # ── Capital Gains ──
@@ -284,7 +296,7 @@ async def validate_profile(fy: str, user: dict = Depends(get_current_user)):
     tds_26as = await TDSEntry.find(
         TDSEntry.user_id == uid, TDSEntry.financial_year == fy, TDSEntry.source == "form26as"
     ).to_list()
-    result = validate(profile=profile.dict(), pending_ais_count=pending, tds_in_26as=sum(t.amount for t in tds_26as))
+    result = validate(profile=_doc(profile), pending_ais_count=pending, tds_in_26as=sum(t.amount for t in tds_26as))
     return {
         "can_proceed": result.can_proceed,
         "hard_blocks": [asdict(b) for b in result.hard_blocks],
@@ -298,7 +310,7 @@ async def validate_profile(fy: str, user: dict = Depends(get_current_user)):
 @router.get("/form-recommendation/{fy}")
 async def form_recommendation(fy: str, user: dict = Depends(get_current_user)):
     profile = await _get_or_create_profile(_uid(user), fy)
-    result = validate(profile=profile.dict())
+    result = validate(profile=_doc(profile))
     return {"itr_form": result.itr_form, "reasons": result.itr_form_reasons}
 
 
@@ -318,11 +330,11 @@ async def export_itr(fy: str, user: dict = Depends(get_current_user)):
     ).count()
     if pending > 0:
         raise HTTPException(400, f"{pending} AIS items still pending.")
-    val = validate(profile=profile.dict(), pending_ais_count=pending)
+    val = validate(profile=_doc(profile), pending_ais_count=pending)
     if not val.can_proceed:
         raise HTTPException(400, f"Validation failed: {'; '.join(b.message for b in val.hard_blocks)}")
     computation = profile.computation_result or {}
-    itr_data = generate_itr_json(profile.dict(), computation, itr_form=val.itr_form)
+    itr_data = generate_itr_json(_doc(profile), computation, itr_form=val.itr_form)
     return {"json": itr_data, "json_string": export_json(itr_data)}
 
 
@@ -334,7 +346,7 @@ async def get_audit_trail(fy: str, user: dict = Depends(get_current_user)):
         .sort("+timestamp")
         .to_list()
     )
-    return [e.dict() for e in entries]
+    return [_doc(e) for e in entries]
 
 
 # ── Optimization ──

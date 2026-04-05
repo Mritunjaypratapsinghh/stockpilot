@@ -63,6 +63,9 @@ export default function TaxPage() {
           <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2"><Receipt className="w-5 h-5 md:w-6 md:h-6" /> Tax Center</h1>
           <div className="flex items-center gap-3">
             <span className="text-sm text-[var(--text-muted)]">FY {summary?.financial_year}</span>
+            <a href="/itr" className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">
+              <FileText className="w-4 h-4" /> File ITR
+            </a>
             <button onClick={exportReport} className="flex items-center gap-2 px-3 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:opacity-90">
               <Download className="w-4 h-4" /> Export
             </button>

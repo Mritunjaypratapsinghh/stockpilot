@@ -27,6 +27,7 @@ const toolsMenu = [
 const planningMenu = [
   { href: '/goals', label: 'Goals', icon: Target },
   { href: '/tax', label: 'Tax Center', icon: Receipt },
+  { href: '/itr', label: 'ITR Filing', icon: Shield },
   { href: '/sip', label: 'SIP Tracker', icon: RefreshCw },
   { href: '/rebalance', label: 'Rebalance', icon: BarChart3 },
   { href: '/pnl', label: 'P&L Calendar', icon: CalendarDays },

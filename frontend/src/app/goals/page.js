@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Target, Plus, Trash2, TrendingUp, Calendar, X, PiggyBank } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
+import { useAsyncAction } from '../../lib/useAsyncAction';
 
 const CATEGORIES = [
   { value: 'retirement', label: 'Retirement', icon: '🏖️' },
@@ -35,15 +36,23 @@ export default function GoalsPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
+    await createGoal();
+  };
+
+  const [createGoal, creating] = useAsyncAction(
+    async () => {
       await api('/api/finance/goals', { method: 'POST', body: JSON.stringify({ ...form, target_amount: parseFloat(form.target_amount), monthly_sip: form.monthly_sip ? parseFloat(form.monthly_sip) : null }) });
       setShowForm(false);
       setForm({ name: '', target_amount: '', target_date: '', category: 'general', monthly_sip: '' });
       loadData();
-    } catch (e) { alert(e.message); }
-  };
+    },
+    { successMsg: 'Goal created' }
+  );
 
-  const deleteGoal = async (id) => { if (confirm('Delete goal?')) { await api(`/api/finance/goals/${id}`, { method: 'DELETE' }); loadData(); } };
+  const [deleteGoal, deleting] = useAsyncAction(
+    async (id) => { await api(`/api/finance/goals/${id}`, { method: 'DELETE' }); loadData(); },
+    { successMsg: 'Goal deleted' }
+  );
   const fmt = (n) => n?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0';
 
   return (
@@ -101,7 +110,7 @@ export default function GoalsPage() {
                         <div className="text-sm text-[var(--text-muted)]">{cat.label} • {g.months_left} months left</div>
                       </div>
                     </div>
-                    <button onClick={() => deleteGoal(g._id)} className="p-2 text-[var(--text-muted)] hover:text-[#ef4444]"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => deleteGoal(g._id)} disabled={deleting} className={`p-2 text-[var(--text-muted)] hover:text-[#ef4444] ${deleting ? 'opacity-50' : ''}`}><Trash2 className="w-4 h-4" /></button>
                   </div>
                   
                   <div className="mb-3">
@@ -162,7 +171,7 @@ export default function GoalsPage() {
                   <label className="block text-sm text-[var(--text-secondary)] mb-2">Monthly SIP (₹) <span className="text-[var(--text-muted)]">optional</span></label>
                   <input type="number" value={form.monthly_sip} onChange={e => setForm({...form, monthly_sip: e.target.value})} placeholder="10000" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg" />
                 </div>
-                <button type="submit" className="w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3]">Create Goal</button>
+                <button type="submit" disabled={creating} className={`w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3] ${creating ? 'opacity-50' : ''}`}>{creating ? 'Creating...' : 'Create Goal'}</button>
               </form>
             </div>
           </div>

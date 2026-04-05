@@ -1,5 +1,6 @@
 import './globals.css';
 import ChatWidgetWrapper from '../components/ChatWidgetWrapper';
+import Providers from '../components/Providers';
 
 export const metadata = {
   title: 'StockPilot — AI-Powered Portfolio Intelligence for Indian Investors',
@@ -40,7 +41,7 @@ export default function RootLayout({ children }) {
           })();
         `}} />
       </head>
-      <body>{children}<ChatWidgetWrapper /></body>
+      <body><Providers>{children}</Providers><ChatWidgetWrapper /></body>
     </html>
   );
 }

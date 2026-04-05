@@ -4,6 +4,7 @@ import { Plus, Trash2, Eye, X, Search } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
 import { useDebounce } from '../../lib/useDebounce';
+import { useAsyncAction } from '../../lib/useAsyncAction';
 
 export default function WatchlistPage() {
   const [watchlist, setWatchlist] = useState([]);
@@ -14,10 +15,27 @@ export default function WatchlistPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
 
-  useEffect(() => { loadWatchlist(); }, []);
-  const loadWatchlist = () => { api('/api/watchlist').then(setWatchlist).catch(console.error).finally(() => setLoading(false)); };
-  const addToWatchlist = async (e) => { e.preventDefault(); try { await api('/api/watchlist', { method: 'POST', body: JSON.stringify({ symbol: symbol.toUpperCase(), notes }) }); setSymbol(''); setNotes(''); setShowForm(false); loadWatchlist(); } catch (err) { alert(err.message); } };
-  const removeFromWatchlist = async (id) => { await api(`/api/watchlist/${id}`, { method: 'DELETE' }); loadWatchlist(); };
+  const loadWatchlist = () => api('/api/watchlist').then(setWatchlist).catch(console.error);
+  useEffect(() => { loadWatchlist().finally(() => setLoading(false)); }, []);
+
+  const [addToWatchlist, adding] = useAsyncAction(
+    async (e) => {
+      e.preventDefault();
+      await api('/api/watchlist', { method: 'POST', body: JSON.stringify({ symbol: symbol.toUpperCase(), notes }) });
+      setSymbol(''); setNotes(''); setShowForm(false);
+      loadWatchlist();
+    },
+    { successMsg: 'Added to watchlist' }
+  );
+
+  const [removeFromWatchlist, removing] = useAsyncAction(
+    async (id) => {
+      await api(`/api/watchlist/${id}`, { method: 'DELETE' });
+      loadWatchlist();
+    },
+    { successMsg: 'Removed from watchlist' }
+  );
+
   const filtered = useMemo(() => watchlist.filter(w => w.symbol.toLowerCase().includes(debouncedSearch.toLowerCase())), [watchlist, debouncedSearch]);
 
   return (
@@ -46,7 +64,7 @@ export default function WatchlistPage() {
               <form onSubmit={addToWatchlist} className="space-y-4">
                 <div><label className="block text-sm text-[var(--text-secondary)] mb-2">Symbol</label><input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder="RELIANCE" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-white focus:border-[var(--accent)]" required /></div>
                 <div><label className="block text-sm text-[var(--text-secondary)] mb-2">Notes (optional)</label><input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Why watching?" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-white focus:border-[var(--accent)]" /></div>
-                <button type="submit" className="w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3]">Add</button>
+                <button type="submit" disabled={adding} className={`w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3] ${adding ? 'opacity-50' : ''}`}>{adding ? 'Adding...' : 'Add'}</button>
               </form>
             </div>
           </div>
@@ -67,7 +85,7 @@ export default function WatchlistPage() {
                     <td className="px-3 md:px-6 py-4 text-[var(--text-muted)]">{w.notes || '-'}</td>
                     <td className="px-3 md:px-6 py-4 text-right tabular font-medium">{w.current_price ? `₹${w.current_price.toFixed(2)}` : '-'}</td>
                     <td className="px-3 md:px-6 py-4 text-right">{w.day_change_pct !== undefined ? <span className={`inline-block px-2 py-1 rounded text-sm tabular font-medium ${w.day_change_pct >= 0 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>{w.day_change_pct >= 0 ? '+' : ''}{w.day_change_pct.toFixed(2)}%</span> : '-'}</td>
-                    <td className="px-3 md:px-6 py-4 text-right"><button onClick={() => removeFromWatchlist(w._id)} className="p-2 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg"><Trash2 className="w-4 h-4" /></button></td>
+                    <td className="px-3 md:px-6 py-4 text-right"><button onClick={() => removeFromWatchlist(w._id)} disabled={removing} className={`p-2 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg ${removing ? 'opacity-50' : ''}`}><Trash2 className="w-4 h-4" /></button></td>
                   </tr>
                 ))}
               </tbody>

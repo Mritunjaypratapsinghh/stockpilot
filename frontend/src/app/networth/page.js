@@ -4,6 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAx
 import { Wallet, Plus, Trash2, TrendingUp, Building, Landmark, PiggyBank, Coins, Pencil, ChevronLeft, ChevronRight, CheckCircle, XCircle, Upload, Camera } from 'lucide-react';
 import { api } from '../../lib/api';
 import Navbar from '../../components/Navbar';
+import { useAsyncAction } from '../../lib/useAsyncAction';
 
 const COLORS = ['#6366f1', '#22c55e', '#eab308', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899'];
 const ICONS = { 'Stocks': TrendingUp, 'Mutual Funds': Landmark, 'Fixed Deposits': Building, 'PPF': PiggyBank, 'Gold': Coins, 'Real Estate': Building };
@@ -23,8 +24,6 @@ export default function NetWorthPage() {
   const [editAsset, setEditAsset] = useState(null);
   const [newAsset, setNewAsset] = useState({ name: '', category: 'Fixed Deposits', value: '' });
   const [loading, setLoading] = useState(true);
-  const [snapshotLoading, setSnapshotLoading] = useState(false);
-  const [toast, setToast] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -47,72 +46,61 @@ export default function NetWorthPage() {
 
   useEffect(() => { fetchData(); }, [year, view]);
 
-  const addAsset = async () => {
-    if (!newAsset.name || !newAsset.value) return;
-    try {
+  const [addAsset, addingAsset] = useAsyncAction(
+    async () => {
+      if (!newAsset.name || !newAsset.value) return;
       await api('/api/finance/assets', { method: 'POST', body: JSON.stringify({ ...newAsset, value: parseFloat(newAsset.value) }) });
       setShowAdd(false);
       setNewAsset({ name: '', category: 'Fixed Deposits', value: '' });
       fetchData();
-    } catch (e) { console.error(e); }
-  };
+    },
+    { successMsg: 'Asset added' }
+  );
 
-  const deleteAsset = async (id) => {
-    try {
+  const [deleteAsset, deletingAsset] = useAsyncAction(
+    async (id) => {
       await api(`/api/finance/assets/${id}`, { method: 'DELETE' });
       fetchData();
-    } catch (e) { console.error(e); }
-  };
+    },
+    { successMsg: 'Asset deleted' }
+  );
 
-  const updateAsset = async () => {
-    if (!editAsset) return;
-    try {
+  const [updateAsset, updatingAsset] = useAsyncAction(
+    async () => {
+      if (!editAsset) return;
       await api(`/api/finance/assets/${editAsset.id}`, { method: 'PUT', body: JSON.stringify({ name: editAsset.name, category: editAsset.category, value: parseFloat(editAsset.value) }) });
       setEditAsset(null);
       fetchData();
-    } catch (e) { console.error(e); }
-  };
+    },
+    { successMsg: 'Asset updated' }
+  );
 
-  const importHistory = async () => {
-    try {
-      // Parse detailed format: date, total, then breakdown items
-      // Example: "2025-01-01, 274422, Union:143352, Mutual:80461, Stocks:26609"
+  const [importHistory, importingHistory] = useAsyncAction(
+    async () => {
       const lines = importText.trim().split('\n').filter(l => l.trim());
       const snapshots = lines.map(line => {
         const parts = line.split(',').map(s => s.trim());
         const date = parts[0];
         const total = parseFloat(parts[1]?.replace(/[₹,]/g, '') || 0);
         const breakdown = {};
-        
         for (let i = 2; i < parts.length; i++) {
           const [key, val] = parts[i].split(':').map(s => s.trim());
           if (key && val) breakdown[key] = parseFloat(val.replace(/[₹,]/g, ''));
         }
-        
         return { date, total, breakdown };
       }).filter(s => s.date && s.total);
-      
       await api('/api/finance/networth/import-history', { method: 'POST', body: JSON.stringify({ snapshots }) });
       setShowImport(false);
       setImportText('');
       fetchData();
-    } catch (e) { console.error(e); }
-  };
+    },
+    { successMsg: 'History imported' }
+  );
 
-  const takeSnapshot = async () => {
-    if (snapshotLoading) return;
-    setSnapshotLoading(true);
-    try {
-      await api('/api/finance/networth/snapshot', { method: 'POST' });
-      setToast({ type: 'success', message: 'Snapshot saved!' });
-      fetchData();
-    } catch (e) {
-      setToast({ type: 'error', message: 'Failed to save snapshot' });
-    } finally {
-      setSnapshotLoading(false);
-      setTimeout(() => setToast(null), 3000);
-    }
-  };
+  const [takeSnapshot, snapshotLoading] = useAsyncAction(
+    () => api('/api/finance/networth/snapshot', { method: 'POST' }).then(fetchData),
+    { successMsg: 'Snapshot saved!' }
+  );
 
   // Convert API response to chart format
   const chartData = data?.categories ? Object.entries(data.categories).map(([name, value], i) => ({ 
@@ -126,11 +114,6 @@ export default function NetWorthPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
-      {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-white text-sm ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
-          {toast.message}
-        </div>
-      )}
       <main className="p-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -360,7 +343,7 @@ export default function NetWorthPage() {
               </div>
               <div className="flex gap-3 mt-6">
                 <button onClick={() => setShowAdd(false)} className="flex-1 px-4 py-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-lg">Cancel</button>
-                <button onClick={addAsset} className="flex-1 px-4 py-2 bg-[var(--accent)] text-white rounded-lg">Add Asset</button>
+                <button onClick={addAsset} disabled={addingAsset} className={`flex-1 px-4 py-2 bg-[var(--accent)] text-white rounded-lg ${addingAsset ? 'opacity-50' : ''}`}>{addingAsset ? 'Adding...' : 'Add Asset'}</button>
               </div>
             </div>
           </div>
@@ -389,7 +372,7 @@ export default function NetWorthPage() {
               </div>
               <div className="flex gap-3 mt-6">
                 <button onClick={() => setEditAsset(null)} className="flex-1 px-4 py-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-lg">Cancel</button>
-                <button onClick={updateAsset} className="flex-1 px-4 py-2 bg-[var(--accent)] text-white rounded-lg">Save</button>
+                <button onClick={updateAsset} disabled={updatingAsset} className={`flex-1 px-4 py-2 bg-[var(--accent)] text-white rounded-lg ${updatingAsset ? 'opacity-50' : ''}`}>{updatingAsset ? 'Saving...' : 'Save'}</button>
               </div>
             </div>
           </div>
@@ -435,7 +418,7 @@ export default function NetWorthPage() {
               />
               <div className="flex gap-3 mt-4">
                 <button onClick={() => { setShowImport(false); setImportText(''); }} className="flex-1 px-4 py-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-lg">Cancel</button>
-                <button onClick={importHistory} className="flex-1 px-4 py-2 bg-[var(--accent)] text-white rounded-lg">Import</button>
+                <button onClick={importHistory} disabled={importingHistory} className={`flex-1 px-4 py-2 bg-[var(--accent)] text-white rounded-lg ${importingHistory ? 'opacity-50' : ''}`}>{importingHistory ? 'Importing...' : 'Import'}</button>
               </div>
             </div>
           </div>

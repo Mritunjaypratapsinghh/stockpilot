@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Plus, Pause, Play, Trash2, X, Calculator } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
+import { useAsyncAction } from '../../lib/useAsyncAction';
 
 export default function SIPPage() {
   const [sips, setSips] = useState([]);
@@ -53,16 +54,28 @@ export default function SIPPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
+    await createSIP();
+  };
+
+  const [createSIP, creating] = useAsyncAction(
+    async () => {
       await api('/api/finance/sip', { method: 'POST', body: JSON.stringify({ ...form, amount: parseFloat(form.amount), sip_date: parseInt(form.sip_date) }) });
       setShowForm(false);
       setForm({ symbol: '', amount: '', frequency: 'monthly', sip_date: '1', start_date: new Date().toISOString().split('T')[0] });
       loadData();
-    } catch (e) { alert(e.message); }
-  };
+    },
+    { successMsg: 'SIP created' }
+  );
 
-  const toggleSIP = async (id) => { await api(`/api/finance/sip/${id}/toggle`, { method: 'PUT' }); loadData(); };
-  const deleteSIP = async (id) => { if (confirm('Delete SIP?')) { await api(`/api/finance/sip/${id}`, { method: 'DELETE' }); loadData(); } };
+  const [toggleSIP, toggling] = useAsyncAction(
+    async (id) => { await api(`/api/finance/sip/${id}/toggle`, { method: 'PUT' }); loadData(); },
+    { successMsg: 'SIP updated' }
+  );
+
+  const [deleteSIP, deleting] = useAsyncAction(
+    async (id) => { await api(`/api/finance/sip/${id}`, { method: 'DELETE' }); loadData(); },
+    { successMsg: 'SIP deleted' }
+  );
 
   const runCalculator = async () => {
     try {
@@ -153,10 +166,10 @@ export default function SIPPage() {
                       </div>
                     )}
                     <div className="flex gap-1">
-                      <button onClick={() => toggleSIP(sip._id)} className="p-2 hover:bg-[var(--border)] rounded">
+                      <button onClick={() => toggleSIP(sip._id)} disabled={toggling} className={`p-2 hover:bg-[var(--border)] rounded ${toggling ? 'opacity-50' : ''}`}>
                         {sip.is_active ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                       </button>
-                      <button onClick={() => deleteSIP(sip._id)} className="p-2 hover:bg-[#ef4444]/10 hover:text-[#ef4444] rounded">
+                      <button onClick={() => deleteSIP(sip._id)} disabled={deleting} className={`p-2 hover:bg-[#ef4444]/10 hover:text-[#ef4444] rounded ${deleting ? 'opacity-50' : ''}`}>
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -215,7 +228,7 @@ export default function SIPPage() {
                   <label className="block text-sm text-[var(--text-secondary)] mb-2">Start Date</label>
                   <input type="date" value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg" required />
                 </div>
-                <button type="submit" className="w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium">Create SIP</button>
+                <button type="submit" disabled={creating} className={`w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium ${creating ? 'opacity-50' : ''}`}>{creating ? 'Creating...' : 'Create SIP'}</button>
               </form>
             </div>
           </div>

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Zap, TrendingUp, TrendingDown, RefreshCw, Target, ChevronDown, ChevronUp, AlertTriangle, Shield, Activity } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
+import { useAsyncAction } from '../../lib/useAsyncAction';
 
 const ConfidenceBadge = ({ level }) => {
   const styles = {
@@ -37,19 +38,20 @@ export default function SignalsPage() {
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState({});
 
-  const loadSignals = async () => {
-    setLoading(true);
-    setError(null);
-    try {
+  const [loadSignals, refreshing] = useAsyncAction(
+    async () => {
+      setError(null);
       const result = await api('/api/analytics/signals', { method: 'POST' });
       setData(result);
-    } catch (e) {
-      setError(e.message || 'Failed to load signals');
-    }
-    setLoading(false);
-  };
+      return result;
+    },
+    { successMsg: 'Signals refreshed' }
+  );
 
-  useEffect(() => { loadSignals(); }, []);
+  useEffect(() => { 
+    setLoading(true);
+    loadSignals().finally(() => setLoading(false)); 
+  }, []);
 
   const toggleExpand = (i) => setExpanded(prev => ({ ...prev, [i]: !prev[i] }));
 
@@ -72,8 +74,8 @@ export default function SignalsPage() {
             <div className="w-12 h-12 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center"><Zap className="w-6 h-6 text-[var(--accent)]" /></div>
             <div><h1 className="text-xl md:text-2xl font-bold">Smart Signals</h1><p className="text-[var(--text-muted)]">Fundamentals + Technicals + Portfolio Context</p></div>
           </div>
-          <button onClick={loadSignals} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3] disabled:opacity-50">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Analyze
+          <button onClick={loadSignals} disabled={loading || refreshing} className={`flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3] ${loading || refreshing ? 'opacity-50' : ''}`}>
+            <RefreshCw className={`w-4 h-4 ${loading || refreshing ? 'animate-spin' : ''}`} /> {refreshing ? 'Analyzing...' : 'Analyze'}
           </button>
         </div>
 

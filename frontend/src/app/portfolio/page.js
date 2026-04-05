@@ -4,6 +4,7 @@ import { Plus, Trash2, Edit2, X, TrendingUp, BarChart3, Search, Upload, PieChart
 import Navbar from '../../components/Navbar';
 import { getDashboard, addTransaction, importHoldings, api, addDividend, getDividends, deleteDividend, downloadExport, deleteTransaction } from '../../lib/api';
 import { useDebounce } from '../../lib/useDebounce';
+import { useAsyncAction } from '../../lib/useAsyncAction';
 
 export default function PortfolioPage() {
   const [holdings, setHoldings] = useState([]);
@@ -80,7 +81,11 @@ export default function PortfolioPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
+    await submitHolding();
+  };
+
+  const [submitHolding, submitting] = useAsyncAction(
+    async () => {
       if (editId) {
         await api(`/api/portfolio/holdings/${editId}`, { method: 'PUT', body: JSON.stringify({ quantity: parseFloat(form.quantity), avg_price: parseFloat(form.avg_price) }) });
       } else {
@@ -88,12 +93,17 @@ export default function PortfolioPage() {
       }
       setShowForm(false); setEditId(null); setForm({ symbol: '', name: '', quantity: '', avg_price: '', holding_type: 'EQUITY' });
       loadData();
-    } catch (err) { alert(err.message); }
-  };
+    },
+    { successMsg: editId ? 'Holding updated' : 'Holding added' }
+  );
 
   const handleTxnSubmit = async (e) => {
     e.preventDefault();
-    try {
+    await submitTxn();
+  };
+
+  const [submitTxn, submittingTxn] = useAsyncAction(
+    async () => {
       const payload = { symbol: txnForm.symbol, type: txnForm.type, price: parseFloat(txnForm.price), date: txnForm.date, holding_type: txnForm.holding_type };
       if (txnForm.inputMode === 'amt') {
         payload.amount = parseFloat(txnForm.amount);
@@ -105,8 +115,9 @@ export default function PortfolioPage() {
       setTxnForm({ symbol: '', type: 'BUY', quantity: '', price: '', date: new Date().toISOString().split('T')[0], amount: '', inputMode: 'qty', holding_type: 'EQUITY' });
       setSymbolSearch('');
       loadData();
-    } catch (err) { alert(err.message); }
-  };
+    },
+    { successMsg: 'Transaction recorded' }
+  );
 
   const handleImport = async (e) => {
     const file = e.target.files?.[0];
@@ -134,20 +145,37 @@ export default function PortfolioPage() {
     finally { setImporting(false); }
   };
 
-  const deleteHolding = async (id) => { if (confirm('Delete?')) { await api(`/api/portfolio/holdings/${id}`, { method: 'DELETE' }); loadData(); } };
+  const [deleteHolding, deletingHolding] = useAsyncAction(
+    async (id) => { await api(`/api/portfolio/holdings/${id}`, { method: 'DELETE' }); loadData(); },
+    { successMsg: 'Holding deleted' }
+  );
   const editHolding = (h) => { setForm({ symbol: h.symbol, name: h.name, quantity: h.quantity, avg_price: h.avg_price, holding_type: h.holding_type }); setEditId(h._id); setShowForm(true); };
   const recordTxnFor = (symbol) => { setTxnForm({ ...txnForm, symbol }); setSymbolSearch(symbol); setShowTxn(true); };
+  
   const handleDivSubmit = async (e) => {
     e.preventDefault();
-    try {
+    await submitDiv();
+  };
+
+  const [submitDiv, submittingDiv] = useAsyncAction(
+    async () => {
       await addDividend({ ...divForm, amount: parseFloat(divForm.amount) });
       setShowDiv(false);
       setDivForm({ symbol: '', amount: '', ex_date: new Date().toISOString().split('T')[0] });
       loadData();
-    } catch (err) { alert(err.message); }
-  };
-  const handleDeleteDiv = async (id) => { if (confirm('Delete?')) { await deleteDividend(id); loadData(); } };
-  const handleDeleteTxn = async (holdingId, index) => { if (confirm('Delete this transaction?')) { try { await deleteTransaction(holdingId, index); loadData(); } catch (err) { alert(err.message); } } };
+    },
+    { successMsg: 'Dividend recorded' }
+  );
+
+  const [handleDeleteDiv, deletingDiv] = useAsyncAction(
+    async (id) => { await deleteDividend(id); loadData(); },
+    { successMsg: 'Dividend deleted' }
+  );
+
+  const [handleDeleteTxn, deletingTxn] = useAsyncAction(
+    async (holdingId, index) => { await deleteTransaction(holdingId, index); loadData(); },
+    { successMsg: 'Transaction deleted' }
+  );
   const handleExport = async (type) => { try { await downloadExport(type); } catch { alert('Export failed'); } };
   const fmt = (n) => n?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0';
   
@@ -321,7 +349,7 @@ export default function PortfolioPage() {
                         </td>
                         <td className="px-3 md:px-6 py-4 text-right">
                           <button onClick={() => recordTxnFor(h.symbol)} className="p-2 text-[var(--text-muted)] hover:text-[#10b981] hover:bg-[#10b981]/10 rounded-lg" title="Record trade"><Plus className="w-4 h-4" /></button>
-                          <button onClick={() => deleteHolding(h._id)} className="p-2 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => deleteHolding(h._id)} disabled={deletingHolding} className={`p-2 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg ${deletingHolding ? 'opacity-50' : ''}`}><Trash2 className="w-4 h-4" /></button>
                         </td>
                       </tr>
                     ))}
@@ -369,7 +397,7 @@ export default function PortfolioPage() {
                         <td className="px-3 md:px-6 py-4 text-right tabular">₹{fmt(t.price)}</td>
                         <td className="px-3 md:px-6 py-4 text-right tabular font-medium">₹{fmt(t.quantity * t.price)}</td>
                         <td className="px-3 md:px-6 py-4 text-right">
-                          <button onClick={() => handleDeleteTxn(t.holding_id, t.index)} className="p-2 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => handleDeleteTxn(t.holding_id, t.index)} disabled={deletingTxn} className={`p-2 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg ${deletingTxn ? 'opacity-50' : ''}`}><Trash2 className="w-4 h-4" /></button>
                         </td>
                       </tr>
                     ))}
@@ -533,8 +561,8 @@ export default function PortfolioPage() {
                   <label className="block text-sm text-[var(--text-secondary)] mb-2">Date</label>
                   <input type="date" value={txnForm.date} onChange={e => setTxnForm({...txnForm, date: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[var(--accent)]" required />
                 </div>
-                <button type="submit" className={`w-full py-3 text-white rounded-lg font-medium ${txnForm.type === 'BUY' ? 'bg-[#10b981] hover:bg-[#0d9668]' : 'bg-[#ef4444] hover:bg-[#dc2626]'}`}>
-                  {txnForm.type === 'BUY' ? 'Record Buy' : 'Record Sell'}
+                <button type="submit" disabled={submittingTxn} className={`w-full py-3 text-white rounded-lg font-medium ${txnForm.type === 'BUY' ? 'bg-[#10b981] hover:bg-[#0d9668]' : 'bg-[#ef4444] hover:bg-[#dc2626]'} ${submittingTxn ? 'opacity-50' : ''}`}>
+                  {submittingTxn ? 'Recording...' : txnForm.type === 'BUY' ? 'Record Buy' : 'Record Sell'}
                 </button>
               </form>
             </div>

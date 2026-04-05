@@ -3,12 +3,11 @@ import { useState, useEffect } from 'react';
 import { Bell, MessageCircle, Mail, Save, Check, ExternalLink } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
+import { useAsyncAction } from '../../lib/useAsyncAction';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState({ daily_digest: false, alerts_enabled: true, email_alerts: true, hourly_alerts: false, telegram_chat_id: '' });
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [email, setEmail] = useState('');
 
   useEffect(() => {
@@ -19,15 +18,10 @@ export default function SettingsPage() {
     }).catch(() => setLoading(false));
   }, []);
 
-  const save = async () => {
-    setSaving(true);
-    try {
-      await api('/api/auth/settings', { method: 'PUT', body: JSON.stringify({ ...settings, email }) });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch (e) { alert(e.message); }
-    setSaving(false);
-  };
+  const [save, saving] = useAsyncAction(
+    () => api('/api/auth/settings', { method: 'PUT', body: JSON.stringify({ ...settings, email }) }),
+    { successMsg: 'Settings saved' }
+  );
 
   if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-4 md:p-6">Loading...</div></div>;
 
@@ -106,8 +100,8 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <button onClick={save} disabled={saving} className="w-full flex items-center justify-center gap-2 py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3] disabled:opacity-50">
-            {saved ? <><Check className="w-5 h-5" /> Saved!</> : <><Save className="w-5 h-5" /> {saving ? 'Saving...' : 'Save Settings'}</>}
+          <button onClick={save} disabled={saving} className={`w-full flex items-center justify-center gap-2 py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3] ${saving ? 'opacity-50' : ''}`}>
+            <Save className="w-5 h-5" /> {saving ? 'Saving...' : 'Save Settings'}
           </button>
         </div>
       </main>

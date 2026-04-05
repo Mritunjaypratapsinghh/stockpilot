@@ -31,10 +31,45 @@ export default function ITRWizard() {
   const [validation, setValidation] = useState(null);
   const [optimization, setOptimization] = useState(null);
   const [calendar, setCalendar] = useState(null);
+  const [cgData, setCgData] = useState(null);
   const [uploads, setUploads] = useState({ form16: null, ais: null, form26as: null });
   const [uploadResults, setUploadResults] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [salary, setSalary] = useState({ gross: '', basic: '', hra_received: '', professional_tax: '', employer_pf: '' });
+  const [hra, setHra] = useState({ rent_paid: '', city_name: '' });
+  const [otherIncome, setOtherIncome] = useState({ savings_interest: '', fd_interest: '', dividend_income_gross: '', interest_on_it_refund: '', other: '' });
+  const [deductions, setDeductions] = useState({ sec_80c: '', sec_80ccd_1b: '', sec_80d_self: '', sec_80d_parents: '', sec_80e: '', sec_80g: '', sec_80tta: '' });
+
+  const saveProfile = async () => {
+    try {
+      await api(`/api/v1/itr/profile/${FY}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          salary: Object.fromEntries(Object.entries(salary).map(([k, v]) => [k, Number(v) || 0])),
+          hra: { rent_paid: Number(hra.rent_paid) || 0, city_name: hra.city_name },
+          other_income: Object.fromEntries(Object.entries(otherIncome).map(([k, v]) => [k, Number(v) || 0])),
+          deductions: Object.fromEntries(Object.entries(deductions).map(([k, v]) => [k, Number(v) || 0])),
+        }),
+      });
+    } catch {}
+  };
+
+  const loadCG = async () => {
+    try { setCgData(await api(`/api/v1/itr/capital-gains/${FY}`)); } catch {}
+  };
+
+  const exportITR = async () => {
+    setLoading(true); setError('');
+    try {
+      const res = await api(`/api/v1/itr/export/${FY}`, { method: 'POST' });
+      const blob = new Blob([res.json_string], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `ITR_${FY}.json`; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { setError(errMsg(e)); }
+    setLoading(false);
+  };
 
   const handleUpload = async (endpoint, file) => {
     if (!file) return;
@@ -44,7 +79,7 @@ export default function ITRWizard() {
       formData.append('file', file);
       const token = localStorage.getItem('token');
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/itr/upload/${endpoint}?user_id=me&fy=${FY}`,
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/itr/upload/${endpoint}?fy=${FY}`,
         { method: 'POST', body: formData, headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
       const data = await res.json();
@@ -64,7 +99,7 @@ export default function ITRWizard() {
   const runScopeCheck = async () => {
     setLoading(true); setError('');
     try {
-      const res = await api('/api/v1/itr/scope-check?user_id=me', { method: 'POST', body: JSON.stringify({ residency: 'resident', transactions: [] }) });
+      const res = await api('/api/v1/itr/scope-check', { method: 'POST', body: JSON.stringify({ residency: 'resident', transactions: [] }) });
       setScopeResult(res);
     } catch (e) { setError(errMsg(e)); }
     setLoading(false);
@@ -74,8 +109,8 @@ export default function ITRWizard() {
     setLoading(true); setError('');
     try {
       const [recon, cl] = await Promise.all([
-        api(`/api/v1/itr/reconciliation/${FY}?user_id=me`),
-        api(`/api/v1/itr/checklist/${FY}?user_id=me`),
+        api(`/api/v1/itr/reconciliation/${FY}`),
+        api(`/api/v1/itr/checklist/${FY}`),
       ]);
       setReconciliation(recon);
       setChecklist(cl);
@@ -87,9 +122,9 @@ export default function ITRWizard() {
     setLoading(true); setError('');
     try {
       const [comp, cmp, opt] = await Promise.all([
-        api(`/api/v1/itr/compute/${FY}?user_id=me&regime=new`, { method: 'POST' }),
-        api(`/api/v1/itr/comparison/${FY}?user_id=me`),
-        api(`/api/v1/itr/optimize/${FY}?user_id=me`),
+        api(`/api/v1/itr/compute/${FY}&regime=new`, { method: 'POST' }),
+        api(`/api/v1/itr/comparison/${FY}`),
+        api(`/api/v1/itr/optimize/${FY}`),
       ]);
       setComputation(comp); setComparison(cmp); setOptimization(opt);
     } catch (e) { setError(errMsg(e)); }
@@ -99,7 +134,7 @@ export default function ITRWizard() {
   const runValidation = async () => {
     setLoading(true); setError('');
     try {
-      setValidation(await api(`/api/v1/itr/validate/${FY}?user_id=me`, { method: 'POST' }));
+      setValidation(await api(`/api/v1/itr/validate/${FY}`, { method: 'POST' }));
     } catch (e) { setError(errMsg(e)); }
     setLoading(false);
   };
@@ -246,10 +281,11 @@ export default function ITRWizard() {
         <div className="space-y-4">
           <p className="text-[var(--text-secondary)]">Confirm your salary details. Standard deduction (₹75K new / ₹50K old) applied automatically.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {['Gross Salary', 'Basic + DA', 'HRA Received', 'Professional Tax', 'Employer PF'].map((label) => (
-              <div key={label}>
+            {[['Gross Salary', 'gross'], ['Basic + DA', 'basic'], ['HRA Received', 'hra_received'], ['Professional Tax', 'professional_tax'], ['Employer PF', 'employer_pf']].map(([label, key]) => (
+              <div key={key}>
                 <label className="text-xs text-[var(--text-muted)] mb-1 block">{label}</label>
-                <input type="number" className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)]" placeholder="₹0" />
+                <input type="number" value={salary[key]} onChange={e => setSalary(p => ({ ...p, [key]: e.target.value }))}
+                  className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)]" placeholder="₹0" />
               </div>
             ))}
           </div>
@@ -258,14 +294,17 @@ export default function ITRWizard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-[var(--text-muted)] mb-1 block">Rent Paid (Annual)</label>
-                <input type="number" className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)]" placeholder="₹0" />
+                <input type="number" value={hra.rent_paid} onChange={e => setHra(p => ({ ...p, rent_paid: e.target.value }))}
+                  className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)]" placeholder="₹0" />
               </div>
               <div>
                 <label className="text-xs text-[var(--text-muted)] mb-1 block">City</label>
-                <input type="text" className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)]" placeholder="e.g. Mumbai" />
+                <input type="text" value={hra.city_name} onChange={e => setHra(p => ({ ...p, city_name: e.target.value }))}
+                  className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)]" placeholder="e.g. Mumbai" />
               </div>
             </div>
           </div>
+          <button onClick={saveProfile} className="px-5 py-2 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 text-sm font-medium">Save Salary Details</button>
         </div>
       );
 
@@ -273,10 +312,11 @@ export default function ITRWizard() {
         <div className="space-y-4">
           <p className="text-[var(--text-secondary)]">Declare all other income. AIS amounts shown for reference.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {['Savings Interest', 'FD Interest', 'Dividend (Gross)', 'Interest on IT Refund', 'Other Income'].map((label) => (
-              <div key={label}>
+            {[['Savings Interest', 'savings_interest'], ['FD Interest', 'fd_interest'], ['Dividend (Gross)', 'dividend_income_gross'], ['Interest on IT Refund', 'interest_on_it_refund'], ['Other Income', 'other']].map(([label, key]) => (
+              <div key={key}>
                 <label className="text-xs text-[var(--text-muted)] mb-1 block">{label}</label>
-                <input type="number" className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)]" placeholder="₹0" />
+                <input type="number" value={otherIncome[key]} onChange={e => setOtherIncome(p => ({ ...p, [key]: e.target.value }))}
+                  className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)]" placeholder="₹0" />
               </div>
             ))}
           </div>
@@ -284,14 +324,16 @@ export default function ITRWizard() {
             <p className="text-yellow-300">💡 FD interest is taxable when accrued, not when received.</p>
             <p className="text-yellow-300">💡 Report GROSS dividend amount (before TDS).</p>
           </div>
+          <button onClick={saveProfile} className="px-5 py-2 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 text-sm font-medium">Save Other Income</button>
         </div>
       );
 
       case 'cg': return (
         <div className="space-y-4">
           <p className="text-[var(--text-secondary)]">Capital gains computed from your portfolio using FIFO lot matching.</p>
+          {!cgData && <button onClick={loadCG} className="px-5 py-2 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 text-sm font-medium">Load Capital Gains</button>}
           <div className="grid grid-cols-2 gap-3">
-            {[['STCG 111A (20%)', computation?.tax_stcg_111a], ['LTCG 112A (12.5%)', computation?.tax_ltcg_112a], ['STCG Other (slab)', 0], ['LTCG Other (12.5%)', computation?.tax_ltcg_other]].map(([label, val], i) => (
+            {[['STCG 111A (20%)', cgData?.stcg_111a], ['LTCG 112A (12.5%)', cgData?.ltcg_112a_gross], ['STCG Other (slab)', cgData?.stcg_other], ['LTCG Other (12.5%)', cgData?.ltcg_other]].map(([label, val], i) => (
               <div key={i} className="p-4 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg">
                 <p className="text-xs text-[var(--text-muted)]">{label}</p>
                 <p className="text-xl font-semibold text-[var(--text-primary)] mt-1">{fmt(val || 0)}</p>
@@ -306,16 +348,18 @@ export default function ITRWizard() {
         <div className="space-y-4">
           <p className="text-[var(--text-secondary)]">Enter deductions. Limits enforced automatically.</p>
           <div className="space-y-3">
-            {[['80C (ELSS, PPF, EPF, LIC)', '₹1,50,000'], ['80CCD(1B) (NPS)', '₹50,000'], ['80D Self (Health Insurance)', '₹25,000 / ₹50,000'], ['80D Parents', '₹25,000 / ₹50,000'], ['80E (Education Loan)', 'Unlimited'], ['80G (Donations)', 'Varies'], ['80TTA (Savings Interest)', '₹10,000']].map(([label, limit]) => (
-              <div key={label} className="flex items-center gap-3">
+            {[['80C (ELSS, PPF, EPF, LIC)', 'sec_80c', '₹1,50,000'], ['80CCD(1B) (NPS)', 'sec_80ccd_1b', '₹50,000'], ['80D Self (Health Insurance)', 'sec_80d_self', '₹25,000 / ₹50,000'], ['80D Parents', 'sec_80d_parents', '₹25,000 / ₹50,000'], ['80E (Education Loan)', 'sec_80e', 'Unlimited'], ['80G (Donations)', 'sec_80g', 'Varies'], ['80TTA (Savings Interest)', 'sec_80tta', '₹10,000']].map(([label, key, limit]) => (
+              <div key={key} className="flex items-center gap-3">
                 <div className="flex-1">
                   <label className="text-xs text-[var(--text-muted)] mb-1 block">{label}</label>
-                  <input type="number" className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)]" placeholder="₹0" />
+                  <input type="number" value={deductions[key]} onChange={e => setDeductions(p => ({ ...p, [key]: e.target.value }))}
+                    className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)]" placeholder="₹0" />
                 </div>
                 <span className="text-xs text-[var(--text-muted)] w-28 text-right pt-4">Max: {limit}</span>
               </div>
             ))}
           </div>
+          <button onClick={saveProfile} className="px-5 py-2 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 text-sm font-medium">Save Deductions</button>
         </div>
       );
 
@@ -398,8 +442,8 @@ export default function ITRWizard() {
             <Download size={40} className="mx-auto mb-4 text-[var(--accent)]" />
             <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Export ITR JSON</h3>
             <p className="text-[var(--text-muted)] mb-5">Download the JSON file and upload it on the Income Tax e-filing portal.</p>
-            <button className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">
-              Download {validation?.itr_form || 'ITR-2'} JSON
+            <button onClick={exportITR} disabled={loading} className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50">
+              {loading ? 'Generating...' : `Download ${validation?.itr_form || 'ITR-2'} JSON`}
             </button>
           </div>
           <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">

@@ -23,6 +23,8 @@ export default function NetWorthPage() {
   const [editAsset, setEditAsset] = useState(null);
   const [newAsset, setNewAsset] = useState({ name: '', category: 'Fixed Deposits', value: '' });
   const [loading, setLoading] = useState(true);
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [toast, setToast] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -98,10 +100,18 @@ export default function NetWorthPage() {
   };
 
   const takeSnapshot = async () => {
+    if (snapshotLoading) return;
+    setSnapshotLoading(true);
     try {
       await api('/api/finance/networth/snapshot', { method: 'POST' });
+      setToast({ type: 'success', message: 'Snapshot saved!' });
       fetchData();
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      setToast({ type: 'error', message: 'Failed to save snapshot' });
+    } finally {
+      setSnapshotLoading(false);
+      setTimeout(() => setToast(null), 3000);
+    }
   };
 
   // Convert API response to chart format
@@ -116,6 +126,11 @@ export default function NetWorthPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <Navbar />
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-white text-sm ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+          {toast.message}
+        </div>
+      )}
       <main className="p-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -228,8 +243,8 @@ export default function NetWorthPage() {
               </button>
               <h2 className="text-xl font-semibold text-[var(--text-primary)]">{year}</h2>
               <div className="flex items-center gap-2">
-                <button onClick={takeSnapshot} className="flex items-center gap-1 px-3 py-1.5 bg-[#22c55e] text-white rounded-lg text-sm hover:bg-[#16a34a]">
-                  <Camera className="w-4 h-4" />Snapshot
+                <button onClick={takeSnapshot} disabled={snapshotLoading} className={`flex items-center gap-1 px-3 py-1.5 bg-[#22c55e] text-white rounded-lg text-sm hover:bg-[#16a34a] ${snapshotLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  <Camera className={`w-4 h-4 ${snapshotLoading ? 'animate-pulse' : ''}`} />{snapshotLoading ? 'Saving...' : 'Snapshot'}
                 </button>
                 <button onClick={() => setShowImport(true)} className="flex items-center gap-1 px-3 py-1.5 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] rounded-lg text-sm hover:bg-[var(--border)]">
                   <Upload className="w-4 h-4" />Import

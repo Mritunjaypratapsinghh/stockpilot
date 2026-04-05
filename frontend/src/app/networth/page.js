@@ -7,7 +7,7 @@ import Navbar from '../../components/Navbar';
 import { useAsyncAction } from '../../lib/useAsyncAction';
 
 const COLORS = ['#6366f1', '#22c55e', '#eab308', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899'];
-const ICONS = { 'Stocks': TrendingUp, 'Mutual Funds': Landmark, 'Fixed Deposits': Building, 'PPF': PiggyBank, 'Gold': Coins, 'Real Estate': Building };
+const ICONS = { 'Stocks': TrendingUp, 'Mutual Funds': Landmark, 'Fixed Deposits': Building, 'Bonds': Landmark, 'PPF': PiggyBank, 'Gold': Coins, 'Real Estate': Building };
 
 export default function NetWorthPage() {
   const [data, setData] = useState(null);
@@ -327,6 +327,7 @@ export default function NetWorthPage() {
                   <label className="text-sm text-[var(--text-secondary)]">Category</label>
                   <select value={newAsset.category} onChange={(e) => setNewAsset({ ...newAsset, category: e.target.value })} className="w-full mt-1 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)]">
                     <option>Fixed Deposits</option>
+                    <option>Bonds</option>
                     <option>PPF</option>
                     <option>NPS</option>
                     <option>EPF</option>
@@ -362,7 +363,7 @@ export default function NetWorthPage() {
                 <div>
                   <label className="text-sm text-[var(--text-secondary)]">Category</label>
                   <select value={editAsset.category} onChange={(e) => setEditAsset({ ...editAsset, category: e.target.value })} className="w-full mt-1 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)]">
-                    <option>Fixed Deposits</option><option>PPF</option><option>NPS</option><option>EPF</option><option>Gold</option><option>Real Estate</option><option>Savings</option><option>Others</option>
+                    <option>Fixed Deposits</option><option>Bonds</option><option>PPF</option><option>NPS</option><option>EPF</option><option>Gold</option><option>Real Estate</option><option>Savings</option><option>Others</option>
                   </select>
                 </div>
                 <div>

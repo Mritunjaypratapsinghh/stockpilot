@@ -401,29 +401,36 @@ export default function ITRWizard() {
     <div className="min-h-screen bg-gray-950 text-white">
       <Navbar />
       <div className="max-w-5xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-2">ITR Filing Assistant</h1>
-        <p className="text-gray-400 mb-6">FY {FY} • CA-grade accuracy • Zero-error filing</p>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-2xl font-bold">ITR Filing Assistant</h1>
+          <span className="text-sm text-gray-400 bg-gray-800 px-3 py-1 rounded-full">Step {step + 1} of {STEPS.length}</span>
+        </div>
+        <p className="text-gray-400 mb-4">FY {FY} • CA-grade accuracy • Zero-error filing</p>
 
-        {/* Progress */}
-        <div className="flex items-center gap-1 mb-8 overflow-x-auto pb-2">
+        {/* Progress Bar */}
+        <div className="w-full bg-gray-800 rounded-full h-2 mb-6">
+          <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+        </div>
+
+        {/* Step Tabs — two rows on mobile, single scrollable row on desktop */}
+        <div className="grid grid-cols-5 sm:flex sm:flex-wrap gap-2 mb-6">
           {STEPS.map((s, i) => {
             const Icon = s.icon;
             const active = i === step;
             const done = i < step;
             return (
               <button key={i} onClick={() => setStep(i)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-all
-                  ${active ? 'bg-blue-600 text-white' : done ? 'bg-green-900/30 text-green-400' : 'bg-gray-800 text-gray-500'}`}>
-                <Icon size={14} />
+                className={`flex items-center justify-center sm:justify-start gap-1.5 px-2.5 py-2 rounded-lg text-xs sm:text-sm whitespace-nowrap transition-all border
+                  ${active ? 'bg-blue-600 border-blue-500 text-white' : done ? 'bg-green-900/20 border-green-800 text-green-400' : 'bg-gray-900 border-gray-700 text-gray-500 hover:border-gray-600'}`}>
+                {done ? <CheckCircle size={14} className="shrink-0" /> : <span className="w-5 h-5 rounded-full border border-current flex items-center justify-center text-[10px] shrink-0">{i + 1}</span>}
                 <span className="hidden sm:inline">{s.title}</span>
-                <span className="sm:hidden">{i + 1}</span>
               </button>
             );
           })}
         </div>
 
         {/* Step Content */}
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6 min-h-[400px]">
           <h2 className="text-lg font-semibold mb-1">{STEPS[step].title}</h2>
           <p className="text-sm text-gray-400 mb-4">{STEPS[step].desc}</p>
           {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
@@ -432,10 +439,12 @@ export default function ITRWizard() {
 
         {/* Navigation */}
         <div className="flex justify-between">
-          <button onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0}
-            className="px-4 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 disabled:opacity-30 flex items-center gap-2">
-            <ChevronLeft size={16} /> Previous
-          </button>
+          {step > 0 ? (
+            <button onClick={() => setStep(step - 1)}
+              className="px-4 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 flex items-center gap-2">
+              <ChevronLeft size={16} /> Previous
+            </button>
+          ) : <div />}
           <button onClick={() => setStep(Math.min(STEPS.length - 1, step + 1))}
             disabled={step === STEPS.length - 1 || !canGoNext()}
             className="px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-30 flex items-center gap-2">

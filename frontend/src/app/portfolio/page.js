@@ -466,7 +466,7 @@ export default function PortfolioPage() {
                           <td className="px-3 md:px-6 py-4 text-right tabular">{d.quantity}</td>
                           <td className="px-3 md:px-6 py-4 text-right tabular font-medium text-[#10b981]">₹{fmt(d.total)}</td>
                           <td className="px-3 md:px-6 py-4 text-right">
-                            <button onClick={() => handleDeleteDiv(d._id)} className="p-2 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={() => handleDeleteDiv(d._id)} disabled={deletingDiv} className={`p-2 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg ${deletingDiv ? 'opacity-50' : ''}`}><Trash2 className="w-4 h-4" /></button>
                           </td>
                         </tr>
                       ))}
@@ -618,7 +618,7 @@ export default function PortfolioPage() {
                   <label className="block text-sm text-[var(--text-secondary)] mb-2">Ex-Date</label>
                   <input type="date" value={divForm.ex_date} onChange={e => setDivForm({...divForm, ex_date: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[var(--accent)]" required />
                 </div>
-                <button type="submit" className="w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3]">Add Dividend</button>
+                <button type="submit" disabled={submittingDiv} className={`w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3] ${submittingDiv ? 'opacity-50' : ''}`}>{submittingDiv ? 'Adding...' : 'Add Dividend'}</button>
               </form>
             </div>
           </div>

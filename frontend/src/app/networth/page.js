@@ -48,7 +48,7 @@ export default function NetWorthPage() {
   const addAsset = async () => {
     if (!newAsset.name || !newAsset.value) return;
     try {
-      await api('/api/finance/asset', { method: 'POST', body: JSON.stringify({ ...newAsset, value: parseFloat(newAsset.value) }) });
+      await api('/api/finance/assets', { method: 'POST', body: JSON.stringify({ ...newAsset, value: parseFloat(newAsset.value) }) });
       setShowAdd(false);
       setNewAsset({ name: '', category: 'Fixed Deposits', value: '' });
       fetchData();
@@ -57,7 +57,7 @@ export default function NetWorthPage() {
 
   const deleteAsset = async (id) => {
     try {
-      await api(`/api/finance/asset/${id}`, { method: 'DELETE' });
+      await api(`/api/finance/assets/${id}`, { method: 'DELETE' });
       fetchData();
     } catch (e) { console.error(e); }
   };
@@ -65,7 +65,7 @@ export default function NetWorthPage() {
   const updateAsset = async () => {
     if (!editAsset) return;
     try {
-      await api(`/api/finance/asset/${editAsset.id}`, { method: 'PUT', body: JSON.stringify({ name: editAsset.name, category: editAsset.category, value: parseFloat(editAsset.value) }) });
+      await api(`/api/finance/assets/${editAsset.id}`, { method: 'PUT', body: JSON.stringify({ name: editAsset.name, category: editAsset.category, value: parseFloat(editAsset.value) }) });
       setEditAsset(null);
       fetchData();
     } catch (e) { console.error(e); }

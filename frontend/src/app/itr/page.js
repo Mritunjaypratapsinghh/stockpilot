@@ -31,8 +31,29 @@ export default function ITRWizard() {
   const [validation, setValidation] = useState(null);
   const [optimization, setOptimization] = useState(null);
   const [calendar, setCalendar] = useState(null);
+  const [uploads, setUploads] = useState({ form16: null, ais: null, form26as: null });
+  const [uploadResults, setUploadResults] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleUpload = async (endpoint, file) => {
+    if (!file) return;
+    setLoading(true); setError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const token = localStorage.getItem('token');
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/itr/upload/${endpoint}?user_id=me&fy=${FY}`,
+        { method: 'POST', body: formData, headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Upload failed');
+      setUploads(prev => ({ ...prev, [endpoint]: file.name }));
+      setUploadResults(prev => ({ ...prev, [endpoint]: data }));
+    } catch (e) { setError(errMsg(e)); }
+    setLoading(false);
+  };
 
   useEffect(() => { loadCalendar(); }, []);
 
@@ -127,18 +148,58 @@ export default function ITRWizard() {
             { name: 'Form 16', hint: 'PDF from employer', endpoint: 'form16' },
             { name: 'AIS (Annual Information Statement)', hint: 'Password: PAN(lowercase) + DOB(DDMMYYYY)', endpoint: 'ais' },
             { name: 'Form 26AS', hint: 'Download from TRACES portal', endpoint: 'form26as' },
-          ].map((doc, i) => (
-            <div key={i} className="p-4 border border-[var(--border)] rounded-lg flex items-center justify-between">
-              <div>
-                <h3 className="font-medium text-[var(--text-primary)]">{doc.name}</h3>
-                <p className="text-xs text-[var(--text-muted)]">{doc.hint}</p>
+          ].map((doc) => (
+            <div key={doc.endpoint} className="p-4 border border-[var(--border)] rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium text-[var(--text-primary)]">{doc.name}</h3>
+                  <p className="text-xs text-[var(--text-muted)]">{doc.hint}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {uploads[doc.endpoint] && (
+                    <span className="text-xs text-green-400 flex items-center gap-1"><CheckCircle size={12} />{uploads[doc.endpoint]}</span>
+                  )}
+                  <label className={`px-4 py-2 rounded-lg cursor-pointer text-sm flex items-center gap-2 ${uploads[doc.endpoint] ? 'bg-green-500/10 border border-green-500/30 text-green-400' : 'bg-[var(--bg-tertiary)] border border-[var(--border)] hover:bg-[var(--border)] text-[var(--text-secondary)]'}`}>
+                    <Upload size={14} />{uploads[doc.endpoint] ? 'Re-upload' : 'Upload'}
+                    <input type="file" accept=".pdf" className="hidden" onChange={(e) => handleUpload(doc.endpoint, e.target.files[0])} />
+                  </label>
+                </div>
               </div>
-              <label className="px-4 py-2 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg cursor-pointer hover:bg-[var(--border)] text-sm flex items-center gap-2">
-                <Upload size={14} />Upload
-                <input type="file" accept=".pdf" className="hidden" />
-              </label>
+              {uploadResults[doc.endpoint] && (
+                <div className="mt-3 p-3 bg-[var(--bg-tertiary)] rounded-lg text-sm">
+                  {doc.endpoint === 'form16' && uploadResults[doc.endpoint].part_b && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                      <div><span className="text-[var(--text-muted)]">Gross Salary:</span> <span className="text-[var(--text-primary)]">{fmt(uploadResults[doc.endpoint].part_b.gross_salary)}</span></div>
+                      <div><span className="text-[var(--text-muted)]">TDS:</span> <span className="text-[var(--text-primary)]">{fmt(uploadResults[doc.endpoint].part_a?.total_tds)}</span></div>
+                      <div><span className="text-[var(--text-muted)]">Confidence:</span> <span className={uploadResults[doc.endpoint].confidence >= 0.8 ? 'text-green-400' : 'text-yellow-400'}>{Math.round(uploadResults[doc.endpoint].confidence * 100)}%</span></div>
+                    </div>
+                  )}
+                  {doc.endpoint === 'ais' && uploadResults[doc.endpoint].summary && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                      <div><span className="text-[var(--text-muted)]">Entries:</span> <span className="text-[var(--text-primary)]">{uploadResults[doc.endpoint].summary.total_entries}</span></div>
+                      <div><span className="text-[var(--text-muted)]">TDS:</span> <span className="text-[var(--text-primary)]">{uploadResults[doc.endpoint].summary.tds_entries}</span></div>
+                      <div><span className="text-[var(--text-muted)]">Exempt:</span> <span className="text-[var(--text-primary)]">{uploadResults[doc.endpoint].summary.exempt_entries}</span></div>
+                    </div>
+                  )}
+                  {doc.endpoint === 'form26as' && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                      <div><span className="text-[var(--text-muted)]">Total TDS:</span> <span className="text-[var(--text-primary)]">{fmt(uploadResults[doc.endpoint].total_tds)}</span></div>
+                      <div><span className="text-[var(--text-muted)]">Entries:</span> <span className="text-[var(--text-primary)]">{uploadResults[doc.endpoint].tds_entries?.length || 0}</span></div>
+                      <div><span className="text-[var(--text-muted)]">Advance Tax:</span> <span className="text-[var(--text-primary)]">{fmt(uploadResults[doc.endpoint].total_advance_tax)}</span></div>
+                    </div>
+                  )}
+                  {uploadResults[doc.endpoint].warnings?.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {uploadResults[doc.endpoint].warnings.map((w, i) => (
+                        <p key={i} className="text-yellow-400 text-xs">⚠️ {w}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
+          {loading && <p className="text-[var(--text-muted)] text-sm">Parsing document...</p>}
           <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
             <p className="text-blue-300 text-sm flex items-center gap-2"><HelpCircle size={14} />Don't have these? You can enter data manually in the next steps.</p>
           </div>

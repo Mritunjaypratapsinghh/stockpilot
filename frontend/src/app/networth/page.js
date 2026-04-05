@@ -5,6 +5,7 @@ import { Wallet, Plus, Trash2, TrendingUp, Building, Landmark, PiggyBank, Coins,
 import { api } from '../../lib/api';
 import Navbar from '../../components/Navbar';
 import { useAsyncAction } from '../../lib/useAsyncAction';
+import { useToast } from '../../lib/toast';
 
 const COLORS = ['#6366f1', '#22c55e', '#eab308', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899'];
 const ICONS = { 'Stocks': TrendingUp, 'Mutual Funds': Landmark, 'Fixed Deposits': Building, 'Bonds': Landmark, 'PPF': PiggyBank, 'Gold': Coins, 'Real Estate': Building };
@@ -24,6 +25,7 @@ export default function NetWorthPage() {
   const [editAsset, setEditAsset] = useState(null);
   const [newAsset, setNewAsset] = useState({ name: '', category: 'Fixed Deposits', value: '' });
   const [loading, setLoading] = useState(true);
+  const toast = useToast();
 
   const fetchData = async () => {
     try {
@@ -40,7 +42,7 @@ export default function NetWorthPage() {
         setMonthly({});
         setHistoryDetail([]);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { toast?.error('Failed to load networth data'); }
     setLoading(false);
   };
 

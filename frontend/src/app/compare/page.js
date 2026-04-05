@@ -3,12 +3,14 @@ import { useState } from 'react';
 import { Search, ArrowRightLeft, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
+import { useToast } from '../../lib/toast';
 
 export default function ComparePage() {
   const [symbols, setSymbols] = useState('');
   const [stocks, setStocks] = useState([]);
   const [comparison, setComparison] = useState({});
   const [loading, setLoading] = useState(false);
+  const toast = useToast();
 
   const compare = async () => {
     if (!symbols.trim()) return;
@@ -17,7 +19,7 @@ export default function ComparePage() {
       const data = await api(`/api/market/compare?symbols=${symbols}`);
       setStocks(data.stocks || []);
       setComparison(data.comparison || {});
-    } catch (e) { console.error(e); }
+    } catch (e) { toast?.error("Failed to load data"); }
     setLoading(false);
   };
 

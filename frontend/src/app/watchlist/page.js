@@ -5,6 +5,7 @@ import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
 import { useDebounce } from '../../lib/useDebounce';
 import { useAsyncAction } from '../../lib/useAsyncAction';
+import { useToast } from '../../lib/toast';
 
 export default function WatchlistPage() {
   const [watchlist, setWatchlist] = useState([]);
@@ -14,8 +15,9 @@ export default function WatchlistPage() {
   const [notes, setNotes] = useState('');
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
+  const toast = useToast();
 
-  const loadWatchlist = () => api('/api/watchlist').then(setWatchlist).catch(console.error);
+  const loadWatchlist = () => api('/api/watchlist').then(setWatchlist).catch(() => toast?.error('Failed to load watchlist'));
   useEffect(() => { loadWatchlist().finally(() => setLoading(false)); }, []);
 
   const [addToWatchlist, adding] = useAsyncAction(

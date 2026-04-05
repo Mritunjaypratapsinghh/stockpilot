@@ -5,6 +5,8 @@ import Navbar from '../../components/Navbar';
 import { getDashboard, addTransaction, importHoldings, api, addDividend, getDividends, deleteDividend, downloadExport, deleteTransaction } from '../../lib/api';
 import { useDebounce } from '../../lib/useDebounce';
 import { useAsyncAction } from '../../lib/useAsyncAction';
+import { useToast } from '../../lib/toast';
+import { useConfirm } from '../../lib/confirm';
 
 export default function PortfolioPage() {
   const [holdings, setHoldings] = useState([]);
@@ -35,6 +37,8 @@ export default function PortfolioPage() {
   const [symbolResults, setSymbolResults] = useState([]);
   const [showSymbolDropdown, setShowSymbolDropdown] = useState(false);
   const searchTimeout = useRef(null);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   useEffect(() => { loadData(); }, []);
 
@@ -134,19 +138,19 @@ export default function PortfolioPage() {
         const json = await res.json();
         if (!res.ok) throw new Error(json.detail || 'Import failed');
         const d = json.data || json;
-        alert(`Imported ${d.imported} transactions (${d.skipped} skipped, ${d.holdings_created} new holdings)`);
+        toast.success(`Imported ${d.imported} transactions (${d.skipped} skipped, ${d.holdings_created} new holdings)`);
       } else {
         const result = await importHoldings(file);
-        alert(`Imported ${result.imported} holdings from ${result.broker} (${result.skipped} skipped)`);
+        toast.success(`Imported ${result.imported} holdings from ${result.broker} (${result.skipped} skipped)`);
       }
       setShowImport(false);
       loadData();
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast.error(err.message || 'Import failed'); }
     finally { setImporting(false); }
   };
 
   const [deleteHolding, deletingHolding] = useAsyncAction(
-    async (id) => { await api(`/api/portfolio/holdings/${id}`, { method: 'DELETE' }); loadData(); },
+    async (id) => { if (!await confirm('Delete this holding?')) return; await api(`/api/portfolio/holdings/${id}`, { method: 'DELETE' }); loadData(); },
     { successMsg: 'Holding deleted' }
   );
   const editHolding = (h) => { setForm({ symbol: h.symbol, name: h.name, quantity: h.quantity, avg_price: h.avg_price, holding_type: h.holding_type }); setEditId(h._id); setShowForm(true); };
@@ -168,15 +172,18 @@ export default function PortfolioPage() {
   );
 
   const [handleDeleteDiv, deletingDiv] = useAsyncAction(
-    async (id) => { await deleteDividend(id); loadData(); },
+    async (id) => { if (!await confirm('Delete this dividend?')) return; await deleteDividend(id); loadData(); },
     { successMsg: 'Dividend deleted' }
   );
 
   const [handleDeleteTxn, deletingTxn] = useAsyncAction(
-    async (holdingId, index) => { await deleteTransaction(holdingId, index); loadData(); },
+    async (holdingId, index) => { if (!await confirm('Delete this transaction?')) return; await deleteTransaction(holdingId, index); loadData(); },
     { successMsg: 'Transaction deleted' }
   );
-  const handleExport = async (type) => { try { await downloadExport(type); } catch { alert('Export failed'); } };
+  const [handleExport, exporting] = useAsyncAction(
+    async (type) => { await downloadExport(type); },
+    { successMsg: 'Export downloaded', errorMsg: 'Export failed' }
+  );
   const fmt = (n) => n?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0';
   
   // Filter holdings and calculate dynamic summary

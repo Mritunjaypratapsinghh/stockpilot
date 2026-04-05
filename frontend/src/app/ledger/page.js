@@ -3,6 +3,8 @@ import { useState, useEffect, Fragment } from 'react';
 import { HandCoins, Plus, Trash2, X, ArrowUpRight, ArrowDownLeft, Check, Clock, RefreshCw, Calendar, ChevronDown, Pencil } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { getLedger, getLedgerSummary, addLedgerEntry, updateLedgerEntry, settleLedgerEntry, deleteLedgerEntry } from '../../lib/api';
+import { useAsyncAction } from '../../lib/useAsyncAction';
+import { useConfirm } from '../../lib/confirm';
 
 export default function LedgerPage() {
   const [entries, setEntries] = useState([]);
@@ -16,6 +18,7 @@ export default function LedgerPage() {
   const [settleNote, setSettleNote] = useState('');
   const [expanded, setExpanded] = useState(null);
   const [editEntry, setEditEntry] = useState(null);
+  const confirm = useConfirm();
 
   const load = async () => {
     setLoading(true);
@@ -49,42 +52,40 @@ export default function LedgerPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = {
-      type: form.type,
-      person_name: form.person_name,
-      amount: parseFloat(form.amount),
-      description: form.description || null,
-      due_date: form.due_date || null,
-      is_recurring: form.is_recurring,
-      recurring_amount: form.is_recurring ? parseFloat(form.recurring_amount) : null,
-      recurring_day: form.is_recurring ? parseInt(form.recurring_day) : null,
-      end_date: form.is_recurring ? form.end_date : null
-    };
-    if (editEntry) {
-      await updateLedgerEntry(editEntry.id, payload);
-      setEditEntry(null);
-    } else {
-      await addLedgerEntry(payload);
-    }
-    setForm({ type: 'lent', person_name: '', amount: '', description: '', due_date: '', is_recurring: false, recurring_amount: '', recurring_day: '7', end_date: '' });
-    setShowForm(false);
-    load();
+    await submitEntry();
   };
 
-  const handleSettle = async (id) => {
-    await settleLedgerEntry(id, { amount: parseFloat(settleAmount), note: settleNote || null });
-    setShowSettle(null);
-    setSettleAmount('');
-    setSettleNote('');
-    load();
-  };
-
-  const handleDelete = async (id) => {
-    if (confirm('Delete this entry?')) {
-      await deleteLedgerEntry(id);
+  const [submitEntry, submitting] = useAsyncAction(
+    async () => {
+      const payload = {
+        type: form.type, person_name: form.person_name, amount: parseFloat(form.amount),
+        description: form.description || null, due_date: form.due_date || null, is_recurring: form.is_recurring,
+        recurring_amount: form.is_recurring ? parseFloat(form.recurring_amount) : null,
+        recurring_day: form.is_recurring ? parseInt(form.recurring_day) : null,
+        end_date: form.is_recurring ? form.end_date : null
+      };
+      if (editEntry) { await updateLedgerEntry(editEntry.id, payload); setEditEntry(null); }
+      else await addLedgerEntry(payload);
+      setForm({ type: 'lent', person_name: '', amount: '', description: '', due_date: '', is_recurring: false, recurring_amount: '', recurring_day: '7', end_date: '' });
+      setShowForm(false);
       load();
-    }
-  };
+    },
+    { successMsg: editEntry ? 'Entry updated' : 'Entry added' }
+  );
+
+  const [handleSettle, settling] = useAsyncAction(
+    async (id) => {
+      await settleLedgerEntry(id, { amount: parseFloat(settleAmount), note: settleNote || null });
+      setShowSettle(null); setSettleAmount(''); setSettleNote('');
+      load();
+    },
+    { successMsg: 'Settlement recorded' }
+  );
+
+  const [handleDelete, deleting] = useAsyncAction(
+    async (id) => { if (!await confirm('Delete this entry?')) return; await deleteLedgerEntry(id); load(); },
+    { successMsg: 'Entry deleted' }
+  );
 
   const fmt = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 

@@ -4,6 +4,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { RefreshCw, TrendingUp, TrendingDown, AlertCircle, Check, Edit2, Save } from 'lucide-react';
 import { api } from '../../lib/api';
 import Navbar from '../../components/Navbar';
+import { useAsyncAction } from '../../lib/useAsyncAction';
+import { useToast } from '../../lib/toast';
 
 const COLORS = { Equity: '#6366f1', Debt: '#22c55e', Gold: '#eab308', Cash: '#64748b' };
 
@@ -13,6 +15,7 @@ export default function RebalancePage() {
   const [editing, setEditing] = useState(false);
   const [target, setTarget] = useState({ Equity: 60, Debt: 30, Gold: 5, Cash: 5 });
   const [loading, setLoading] = useState(true);
+  const toast = useToast();
 
   const fetchData = async () => {
     try {
@@ -24,25 +27,21 @@ export default function RebalancePage() {
       setSuggestions(suggest);
       if (alloc.target) setTarget(alloc.target);
     } catch (e) {
-      console.error(e);
+      toast?.error('Failed to load rebalance data');
     }
     setLoading(false);
   };
 
   useEffect(() => { fetchData(); }, []);
 
-  const saveTarget = async () => {
-    try {
-      await api('/api/analytics/rebalance/target', {
-        method: 'POST',
-        body: JSON.stringify(target)
-      });
+  const [saveTarget, saving] = useAsyncAction(
+    async () => {
+      await api('/api/analytics/rebalance/target', { method: 'POST', body: JSON.stringify(target) });
       setEditing(false);
       fetchData();
-    } catch (e) {
-      console.error(e);
-    }
-  };
+    },
+    { successMsg: 'Target allocation saved' }
+  );
 
   const chartData = data ? Object.entries(data.current).map(([name, value]) => ({ name, value })).filter(d => d.value > 0) : [];
 

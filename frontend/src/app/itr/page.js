@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Shield, Upload, CheckCircle, Calculator, AlertTriangle, FileText, Download, ChevronRight, ChevronLeft, Clock, HelpCircle } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
+import { useToast } from '../../lib/toast';
 
 const STEPS = [
   { id: 'scope', title: 'Scope Check', desc: 'Verify eligibility' },
@@ -40,6 +41,7 @@ export default function ITRWizard() {
   const [hra, setHra] = useState({ rent_paid: '', city_name: '' });
   const [otherIncome, setOtherIncome] = useState({ savings_interest: '', fd_interest: '', dividend_income_gross: '', interest_on_it_refund: '', other: '' });
   const [deductions, setDeductions] = useState({ sec_80c: '', sec_80ccd_1b: '', sec_80d_self: '', sec_80d_parents: '', sec_80e: '', sec_80g: '', sec_80tta: '' });
+  const toast = useToast();
 
   const saveProfile = async () => {
     try {
@@ -52,11 +54,12 @@ export default function ITRWizard() {
           deductions: Object.fromEntries(Object.entries(deductions).map(([k, v]) => [k, Number(v) || 0])),
         }),
       });
-    } catch {}
+      toast?.success('Profile saved');
+    } catch { toast?.error('Failed to save profile'); }
   };
 
   const loadCG = async () => {
-    try { setCgData(await api(`/api/v1/itr/capital-gains/${FY}`)); } catch {}
+    try { setCgData(await api(`/api/v1/itr/capital-gains/${FY}`)); } catch { toast?.error('Failed to load capital gains'); }
   };
 
   const exportITR = async () => {
@@ -67,6 +70,7 @@ export default function ITRWizard() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = `ITR_${FY}.json`; a.click();
       URL.revokeObjectURL(url);
+      toast?.success('ITR exported');
     } catch (e) { setError(errMsg(e)); }
     setLoading(false);
   };

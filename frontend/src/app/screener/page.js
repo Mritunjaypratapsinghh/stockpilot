@@ -3,11 +3,13 @@ import { useState, useEffect } from 'react';
 import { Filter, Search, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
+import { useToast } from '../../lib/toast';
 
 export default function ScreenerPage() {
   const [screens, setScreens] = useState([]);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const toast = useToast();
   const [activeScreen, setActiveScreen] = useState(null);
   const [showCustom, setShowCustom] = useState(false);
   const [filters, setFilters] = useState({ pe_max: '', pb_max: '', roe_min: '', dividend_yield_min: '', market_cap_min: '' });
@@ -18,7 +20,7 @@ export default function ScreenerPage() {
     try {
       const data = await api('/api/market/screener/screens');
       setScreens(data.screens || []);
-    } catch (e) { console.error(e); }
+    } catch (e) { toast?.error("Failed to load data"); }
   };
 
   const runScreen = async (screenId) => {
@@ -28,7 +30,7 @@ export default function ScreenerPage() {
     try {
       const data = await api(`/api/market/screener/run/${screenId}`);
       setResults(data.results || []);
-    } catch (e) { console.error(e); }
+    } catch (e) { toast?.error("Failed to load data"); }
     setLoading(false);
   };
 
@@ -40,7 +42,7 @@ export default function ScreenerPage() {
     try {
       const data = await api(`/api/market/screener/custom?${params}`);
       setResults(data.results || []);
-    } catch (e) { console.error(e); }
+    } catch (e) { toast?.error("Failed to load data"); }
     setLoading(false);
   };
 

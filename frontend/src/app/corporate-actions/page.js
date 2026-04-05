@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, DollarSign, Scissors, Bell } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
+import { useToast } from '../../lib/toast';
 
 export default function CorporateActionsPage() {
   const [actions, setActions] = useState([]);
@@ -10,6 +11,7 @@ export default function CorporateActionsPage() {
   const [dividends, setDividends] = useState([]);
   const [expectedIncome, setExpectedIncome] = useState(0);
   const [loading, setLoading] = useState(true);
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('upcoming');
 
   useEffect(() => { loadData(); }, []);
@@ -25,7 +27,7 @@ export default function CorporateActionsPage() {
       setUpcoming([...(actionsData.upcoming || []), ...(divData.upcoming || [])]);
       setDividends(divData.dividends || []);
       setExpectedIncome(divData.expected_income || 0);
-    } catch (e) { console.error(e); }
+    } catch (e) { toast?.error("Failed to load data"); }
     setLoading(false);
   };
 

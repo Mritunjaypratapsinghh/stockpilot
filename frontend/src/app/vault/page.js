@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { Shield, Plus, Trash2, X, Pencil, Users, Building2, Heart, TrendingUp, Home, FileText, Smartphone, Phone, Upload, File, Download } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { getVaultEntries, createVaultEntry, updateVaultEntry, deleteVaultEntry, getVaultNominees, addVaultNominee, removeVaultNominee, uploadVaultFile, deleteVaultFile, getVaultFileUrl } from '../../lib/api';
+import { useAsyncAction } from '../../lib/useAsyncAction';
+import { useConfirm } from '../../lib/confirm';
 
 const CATEGORIES = [
   { id: 'bank', label: 'Bank Accounts', icon: Building2, fields: ['bank_name', 'account_number', 'ifsc', 'branch', 'account_type', 'balance'] },
@@ -33,6 +35,7 @@ export default function VaultPage() {
   const [editEntry, setEditEntry] = useState(null);
   const [form, setForm] = useState({ title: '', details: {}, notes: '', nominee_visible: true });
   const [nomineeForm, setNomineeForm] = useState({ nominee_name: '', nominee_email: '', relation: '' });
+  const confirm = useConfirm();
 
   const load = async () => {
     setLoading(true);
@@ -63,28 +66,44 @@ export default function VaultPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = { category: activeTab, title: form.title, details: form.details, notes: form.notes || null, nominee_visible: form.nominee_visible };
-    if (editEntry) await updateVaultEntry(editEntry.id, payload);
-    else await createVaultEntry(payload);
-    setShowForm(false);
-    load();
+    await submitEntry();
   };
 
-  const handleDelete = async (id) => {
-    if (confirm('Delete this entry?')) { await deleteVaultEntry(id); load(); }
-  };
+  const [submitEntry, submitting] = useAsyncAction(
+    async () => {
+      const payload = { category: activeTab, title: form.title, details: form.details, notes: form.notes || null, nominee_visible: form.nominee_visible };
+      if (editEntry) await updateVaultEntry(editEntry.id, payload);
+      else await createVaultEntry(payload);
+      setShowForm(false);
+      load();
+    },
+    { successMsg: editEntry ? 'Entry updated' : 'Entry added' }
+  );
+
+  const [handleDelete, deleting] = useAsyncAction(
+    async (id) => { if (!await confirm('Delete this entry?')) return; await deleteVaultEntry(id); load(); },
+    { successMsg: 'Entry deleted' }
+  );
 
   const handleAddNominee = async (e) => {
     e.preventDefault();
-    await addVaultNominee(nomineeForm);
-    setNomineeForm({ nominee_name: '', nominee_email: '', relation: '' });
-    setShowNomineeForm(false);
-    load();
+    await submitNominee();
   };
 
-  const handleRemoveNominee = async (id) => {
-    if (confirm('Remove this nominee?')) { await removeVaultNominee(id); load(); }
-  };
+  const [submitNominee, addingNominee] = useAsyncAction(
+    async () => {
+      await addVaultNominee(nomineeForm);
+      setNomineeForm({ nominee_name: '', nominee_email: '', relation: '' });
+      setShowNomineeForm(false);
+      load();
+    },
+    { successMsg: 'Nominee added' }
+  );
+
+  const [handleRemoveNominee, removingNominee] = useAsyncAction(
+    async (id) => { if (!await confirm('Remove this nominee?')) return; await removeVaultNominee(id); load(); },
+    { successMsg: 'Nominee removed' }
+  );
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">

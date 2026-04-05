@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { ArrowRightLeft, TrendingUp, TrendingDown, Loader2, BarChart3 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
+import { useToast } from '../../lib/toast';
 
 export default function SimulatorPage() {
   const [holdings, setHoldings] = useState([]);
@@ -11,6 +12,7 @@ export default function SimulatorPage() {
   const [amount, setAmount] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     api('/api/portfolio/holdings').then(d => {
@@ -30,7 +32,7 @@ export default function SimulatorPage() {
         body: JSON.stringify({ sell, buy, amount: parseFloat(amount) }),
       });
       setResult(r);
-    } catch (e) { console.error(e); }
+    } catch (e) { toast?.error("Failed to load data"); }
     setLoading(false);
   };
 

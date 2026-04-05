@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import { getPortfolio, getHoldings, getIndices, getSnapshots, api } from '../lib/api';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { useToast } from '../lib/toast';
 
 const AreaChart = dynamic(() => import('recharts').then(mod => mod.AreaChart), { ssr: false });
 const Area = dynamic(() => import('recharts').then(mod => mod.Area), { ssr: false });
@@ -26,6 +27,7 @@ export default function Dashboard() {
   const [chartRange, setChartRange] = useState('3M');
   const [chartLoading, setChartLoading] = useState(false);
   const chartAbortRef = useRef(null);
+  const toast = useToast();
 
   const handleRangeChange = useCallback((range) => {
     if (range === chartRange || chartLoading) return;
@@ -49,6 +51,7 @@ export default function Dashboard() {
           setHoldings(h); 
           setIndices(idx); 
         })
+        .catch(() => toast?.error('Failed to load dashboard'))
         .finally(() => setLoading(false));
       api('/api/analytics/insights').then(d => setInsights(d?.insights || [])).catch(() => {});
       api('/api/analytics/health-score').then(d => setHealthScore(d)).catch(() => {});

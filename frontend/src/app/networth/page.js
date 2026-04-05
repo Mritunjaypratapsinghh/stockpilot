@@ -140,7 +140,7 @@ export default function NetWorthPage() {
             <span className="text-lg opacity-90">Total Net Worth</span>
           </div>
           <div className="text-4xl font-bold privacy-mask">₹{(data?.total || 0).toLocaleString('en-IN')}</div>
-          <div className="text-sm opacity-75 mt-1">{data?.assets_count || 0} assets tracked</div>
+          <div className="text-sm opacity-75 mt-1">{data?.assets?.length || 0} assets tracked</div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

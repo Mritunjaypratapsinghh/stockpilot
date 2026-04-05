@@ -161,7 +161,7 @@ export default function ITRWizard() {
     setLoading(true); setError('');
     try {
       const [comp, cmp, opt] = await Promise.all([
-        api(`/api/v1/itr/compute/${FY}&regime=new`, { method: 'POST' }),
+        api(`/api/v1/itr/compute/${FY}?regime=new`, { method: 'POST' }),
         api(`/api/v1/itr/comparison/${FY}`),
         api(`/api/v1/itr/optimize/${FY}`),
       ]);

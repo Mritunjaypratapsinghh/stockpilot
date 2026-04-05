@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Shield, Upload, CheckCircle, Calculator, AlertTriangle, FileText, Download, ChevronRight, ChevronLeft, Clock, HelpCircle } from 'lucide-react';
+import { Shield, Upload, CheckCircle, Calculator, AlertTriangle, FileText, Download, ChevronRight, ChevronLeft, Clock, HelpCircle, RefreshCw } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { api } from '../../lib/api';
 import { useToast } from '../../lib/toast';
@@ -37,6 +37,8 @@ export default function ITRWizard() {
   const [uploadResults, setUploadResults] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [uploading, setUploading] = useState({});
+  const [uploadErrors, setUploadErrors] = useState({});
   const [salary, setSalary] = useState({ gross: '', basic: '', hra_received: '', professional_tax: '', employer_pf: '' });
   const [hra, setHra] = useState({ rent_paid: '', city_name: '' });
   const [otherIncome, setOtherIncome] = useState({ savings_interest: '', fd_interest: '', dividend_income_gross: '', interest_on_it_refund: '', other: '' });
@@ -79,7 +81,11 @@ export default function ITRWizard() {
 
   const handleUpload = async (endpoint, file) => {
     if (!file) return;
-    setLoading(true); setError('');
+    setUploading(prev => ({ ...prev, [endpoint]: true }));
+    setUploadErrors(prev => ({ ...prev, [endpoint]: null }));
+    // Clear old results for this file
+    setUploadResults(prev => ({ ...prev, [endpoint]: null }));
+    setUploads(prev => ({ ...prev, [endpoint]: null }));
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -95,8 +101,12 @@ export default function ITRWizard() {
       if (!res.ok) throw new Error(data.detail || 'Upload failed');
       setUploads(prev => ({ ...prev, [endpoint]: file.name }));
       setUploadResults(prev => ({ ...prev, [endpoint]: data }));
-    } catch (e) { setError(errMsg(e)); }
-    setLoading(false);
+      toast?.success(`${file.name} uploaded successfully`);
+    } catch (e) {
+      setUploadErrors(prev => ({ ...prev, [endpoint]: errMsg(e) }));
+      toast?.error(`Upload failed: ${errMsg(e)}`);
+    }
+    setUploading(prev => ({ ...prev, [endpoint]: false }));
   };
 
   useEffect(() => { loadCalendar(); }, []);
@@ -203,12 +213,15 @@ export default function ITRWizard() {
                   {uploads[doc.endpoint] && (
                     <span className="text-xs text-green-400 flex items-center gap-1"><CheckCircle size={12} />{uploads[doc.endpoint]}</span>
                   )}
-                  <label className={`px-4 py-2 rounded-lg cursor-pointer text-sm flex items-center gap-2 ${uploads[doc.endpoint] ? 'bg-green-500/10 border border-green-500/30 text-green-400' : 'bg-[var(--bg-tertiary)] border border-[var(--border)] hover:bg-[var(--border)] text-[var(--text-secondary)]'}`}>
-                    <Upload size={14} />{uploads[doc.endpoint] ? 'Re-upload' : 'Upload'}
-                    <input type="file" accept=".pdf" className="hidden" onChange={(e) => handleUpload(doc.endpoint, e.target.files[0])} />
+                  <label className={`px-4 py-2 rounded-lg cursor-pointer text-sm flex items-center gap-2 ${uploading[doc.endpoint] ? 'opacity-50 pointer-events-none' : ''} ${uploads[doc.endpoint] ? 'bg-green-500/10 border border-green-500/30 text-green-400' : 'bg-[var(--bg-tertiary)] border border-[var(--border)] hover:bg-[var(--border)] text-[var(--text-secondary)]'}`}>
+                    {uploading[doc.endpoint] ? <><RefreshCw size={14} className="animate-spin" />Uploading...</> : <><Upload size={14} />{uploads[doc.endpoint] ? 'Re-upload' : 'Upload'}</>}
+                    <input type="file" accept=".pdf" className="hidden" onChange={(e) => { handleUpload(doc.endpoint, e.target.files[0]); e.target.value = ''; }} />
                   </label>
                 </div>
               </div>
+              {uploadErrors[doc.endpoint] && (
+                <div className="mt-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{uploadErrors[doc.endpoint]}</div>
+              )}
               {doc.needsPassword && (
                 <div className="mt-3">
                   <label className="text-xs text-[var(--text-muted)] mb-1 block">PDF Password (if protected)</label>

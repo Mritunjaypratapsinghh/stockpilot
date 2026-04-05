@@ -35,6 +35,7 @@ from .schemas import (
     ComputationResponse,
     ReconciliationResponse,
     RegimeComparisonResponse,
+    ScopeCheckRequest,
     ScopeCheckResponse,
     TaxCalendarResponse,
     TaxProfileCreate,
@@ -170,8 +171,14 @@ async def upload_form26as(user_id: str, fy: str, file: UploadFile = File(...), p
 
 # ── Scope Check ──
 @router.post("/scope-check", response_model=ScopeCheckResponse)
-async def scope_check(user_id: str, residency: str = "resident", transactions: list[dict] = []):
-    result = check_scope(transactions=transactions, residency=residency)
+async def scope_check(data: ScopeCheckRequest, user_id: str = "me"):
+    result = check_scope(
+        transactions=data.transactions,
+        residency=data.residency,
+        ais_entries=data.ais_entries,
+        has_foreign_income=data.has_foreign_income,
+        has_foreign_assets=data.has_foreign_assets,
+    )
     return {"supported": result.supported, "blockers": [asdict(b) for b in result.blockers]}
 
 

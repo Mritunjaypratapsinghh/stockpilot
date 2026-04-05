@@ -93,6 +93,14 @@ class AISItemResolve(BaseModel):
 
 
 # ── Response Schemas ──
+class ScopeCheckRequest(BaseModel):
+    residency: str = "resident"
+    transactions: list[dict] = []
+    ais_entries: list[dict] = []
+    has_foreign_income: bool = False
+    has_foreign_assets: bool = False
+
+
 class ScopeCheckResponse(BaseModel):
     supported: bool
     blockers: list[dict] = []

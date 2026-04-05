@@ -79,6 +79,26 @@ export default function ITRWizard() {
 
   const [pdfPasswords, setPdfPasswords] = useState({ form16: '', ais: '', form26as: '' });
 
+  const resolveAISItem = async (itemId, status) => {
+    try {
+      await api(`/api/v1/itr/ais-item/${itemId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status, is_exempt: status === 'exempt' }),
+      });
+      await loadReconciliation(); // refresh
+    } catch (e) { setError(errMsg(e)); }
+  };
+
+  const resolveAllAIS = async () => {
+    setLoading(true);
+    for (const item of (checklist?.items || [])) {
+      if (item.status === 'pending') {
+        await resolveAISItem(item._id, 'accepted');
+      }
+    }
+    setLoading(false);
+  };
+
   const handleUpload = async (endpoint, file) => {
     if (!file) return;
     setUploading(prev => ({ ...prev, [endpoint]: true }));
@@ -285,19 +305,31 @@ export default function ITRWizard() {
                 </div>
                 <span className="text-sm text-[var(--text-muted)]">{checklist.resolved}/{checklist.total}</span>
               </div>
-              {!checklist.can_proceed && (
-                <p className="text-yellow-400 text-sm mb-3">⚠️ {checklist.pending} items pending. Resolve all to proceed.</p>
+              {checklist.pending > 0 && (
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-yellow-400 text-sm">⚠️ {checklist.pending} items pending. Resolve all to proceed.</p>
+                  <button onClick={resolveAllAIS} disabled={loading} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700 disabled:opacity-50">
+                    {loading ? 'Accepting...' : 'Accept All'}
+                  </button>
+                </div>
               )}
-              {checklist.items?.slice(0, 10).map((item, i) => (
-                <div key={i} className={`p-3 mb-2 rounded-lg border ${item.status === 'pending' ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-green-500/30 bg-green-500/5'}`}>
-                  <div className="flex justify-between items-center">
-                    <div>
+              {checklist.items?.map((item, i) => (
+                <div key={item._id || i} className={`p-3 mb-2 rounded-lg border ${item.status === 'pending' ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-green-500/30 bg-green-500/5'}`}>
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex-1 min-w-0">
                       <span className="text-sm font-medium text-[var(--text-primary)]">{item.info_code}</span>
-                      <span className="text-[var(--text-muted)] text-sm ml-2">{item.description || item.source_name}</span>
+                      <p className="text-[var(--text-muted)] text-xs truncate">{item.description || item.source_name}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">{fmt(item.reported_value)}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded ${item.status === 'pending' ? 'bg-yellow-500/20 text-yellow-300' : 'bg-green-500/20 text-green-300'}`}>{item.status}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-sm font-medium">{fmt(item.reported_value)}</span>
+                      {item.status === 'pending' ? (
+                        <div className="flex gap-1">
+                          <button onClick={() => resolveAISItem(item._id, 'accepted')} className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">✓ Accept</button>
+                          <button onClick={() => resolveAISItem(item._id, 'disputed')} className="px-2 py-1 bg-red-600/20 text-red-400 border border-red-500/30 rounded text-xs hover:bg-red-600/30">✗ Dispute</button>
+                        </div>
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-300">{item.status}</span>
+                      )}
                     </div>
                   </div>
                 </div>

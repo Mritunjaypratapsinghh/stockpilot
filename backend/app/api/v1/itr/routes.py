@@ -112,6 +112,8 @@ async def upload_ais(
     uid = _uid(user)
     path = await _save_upload(file)
     result = parse_ais(path, password)
+    # Clear previous AIS items for this user+FY (re-upload replaces)
+    await AISLineItem.find(AISLineItem.user_id == uid, AISLineItem.financial_year == fy).delete()
     for entry in result.entries:
         await AISLineItem(
             user_id=uid,
@@ -135,6 +137,8 @@ async def upload_form26as(
     uid = _uid(user)
     path = await _save_upload(file)
     result = parse_form26as(path, password)
+    # Clear previous 26AS entries for this user+FY (re-upload replaces)
+    await TDSEntry.find(TDSEntry.user_id == uid, TDSEntry.financial_year == fy, TDSEntry.source == "form26as").delete()
     for entry in result.tds_entries:
         await TDSEntry(
             user_id=uid,

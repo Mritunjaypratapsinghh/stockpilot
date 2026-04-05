@@ -396,7 +396,7 @@ export default function ITRWizard() {
       case 'salary': return (
         <div className="space-y-4">
           <p className="text-[var(--text-secondary)]">Salary auto-filled from AIS. Standard deduction (₹75K new / ₹50K old) applied automatically.</p>
-          {salary.gross && <div className="p-2 bg-green-500/10 border border-green-500/20 rounded-lg text-xs text-green-400">✓ Auto-filled from AIS (TDS-192). Verify and edit if needed.</div>}
+          {Number(salary.gross) > 0 && <div className="p-2 bg-green-500/10 border border-green-500/20 rounded-lg text-xs text-green-400">✓ Auto-filled from AIS (TDS-192). Verify and edit if needed.</div>}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[['Gross Salary', 'gross'], ['Basic + DA', 'basic'], ['HRA Received', 'hra_received'], ['Professional Tax', 'professional_tax'], ['Employer PF', 'employer_pf']].map(([label, key]) => (
               <div key={key}>
@@ -427,8 +427,8 @@ export default function ITRWizard() {
 
       case 'other': return (
         <div className="space-y-4">
-          <p className="text-[var(--text-secondary)]">Auto-filled from AIS. Verify amounts — AIS is the reference.</p>
-          {(otherIncome.savings_interest || otherIncome.dividend_income_gross) && <div className="p-2 bg-green-500/10 border border-green-500/20 rounded-lg text-xs text-green-400">✓ Auto-filled from AIS. Edit if your actual amounts differ (e.g. joint account share).</div>}
+          <p className="text-[var(--text-secondary)]">Enter interest, dividends, and other income. Values auto-fill from AIS if available.</p>
+          {(Number(otherIncome.savings_interest) > 0 || Number(otherIncome.dividend_income_gross) > 0) && <div className="p-2 bg-green-500/10 border border-green-500/20 rounded-lg text-xs text-green-400">✓ Auto-filled from AIS. Edit if your actual amounts differ (e.g. joint account share).</div>}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[['Savings Interest', 'savings_interest'], ['FD Interest', 'fd_interest'], ['Dividend (Gross)', 'dividend_income_gross'], ['Interest on IT Refund', 'interest_on_it_refund'], ['Other Income', 'other']].map(([label, key]) => (
               <div key={key}>

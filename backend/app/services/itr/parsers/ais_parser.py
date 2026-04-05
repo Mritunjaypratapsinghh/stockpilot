@@ -76,13 +76,22 @@ def parse_ais(pdf_path: str, password: Optional[str] = None) -> AISParseResult:
     """Parse AIS PDF and extract all income/transaction entries."""
     result = AISParseResult()
 
-    try:
-        pdf = pdfplumber.open(pdf_path, password=password)
-    except Exception as e:
-        if "password" in str(e).lower() or "encrypted" in str(e).lower():
-            result.warnings.append(f"PDF is password-protected. Hint: {result.password_hint}")
-        else:
-            result.warnings.append(f"Cannot open PDF: {e}")
+    # Try multiple password variants: as-is, lowercase, uppercase
+    passwords_to_try = [password]
+    if password:
+        passwords_to_try.extend([password.lower(), password.upper()])
+        passwords_to_try = list(dict.fromkeys(passwords_to_try))  # dedupe
+
+    pdf = None
+    for pw in passwords_to_try:
+        try:
+            pdf = pdfplumber.open(pdf_path, password=pw)
+            break
+        except Exception:
+            continue
+
+    if pdf is None:
+        result.warnings.append(f"Cannot open PDF. Ensure password is correct. Hint: {result.password_hint}")
         return result
 
     full_text = ""

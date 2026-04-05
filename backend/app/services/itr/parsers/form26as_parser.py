@@ -71,10 +71,21 @@ def parse_form26as(pdf_path: str, password: Optional[str] = None) -> Form26ASRes
     """Parse Form 26AS PDF. This is the ONLY source for TDS credit claims."""
     result = Form26ASResult()
 
-    try:
-        pdf = pdfplumber.open(pdf_path, password=password)
-    except Exception as e:
-        result.warnings.append(f"Cannot open PDF: {e}")
+    passwords_to_try = [password]
+    if password:
+        passwords_to_try.extend([password.lower(), password.upper()])
+        passwords_to_try = list(dict.fromkeys(passwords_to_try))
+
+    pdf = None
+    for pw in passwords_to_try:
+        try:
+            pdf = pdfplumber.open(pdf_path, password=pw)
+            break
+        except Exception:
+            continue
+
+    if pdf is None:
+        result.warnings.append("Cannot open PDF. Check password (PAN lowercase + DOB DDMMYYYY).")
         return result
 
     full_text = ""

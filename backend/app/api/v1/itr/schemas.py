@@ -73,6 +73,15 @@ class LossCarryForwardInput(BaseModel):
     filed_on_time: bool = True
 
 
+class LossCarryForwardFlat(BaseModel):
+    """Flat format from frontend - converted to list in route."""
+
+    stcl_bf: int = 0
+    ltcl_bf: int = 0
+    house_property_loss_bf: int = 0
+    business_loss_bf: int = 0
+
+
 class TaxProfileUpdate(BaseModel):
     regime_choice: Optional[str] = None
     age_category: Optional[str] = None
@@ -81,7 +90,7 @@ class TaxProfileUpdate(BaseModel):
     house_property: Optional[list[HousePropertyInput]] = None
     other_income: Optional[OtherIncomeInput] = None
     deductions: Optional[DeductionsInput] = None
-    loss_carry_forward: Optional[list[LossCarryForwardInput]] = None
+    loss_carry_forward: Optional[LossCarryForwardFlat] = None
     filing_date: Optional[date] = None
 
 

@@ -14,13 +14,13 @@ from app.models.documents import (
     TaxProfile,
     TDSEntry,
 )
-from app.services.itr.capital_gains import compute_capital_gains
 from app.services.itr.hra_calculator import compute_hra
 from app.services.itr.itr_json_generator import export_json, generate_itr_json
 from app.services.itr.optimizer import optimize
 from app.services.itr.parsers.ais_parser import parse_ais
 from app.services.itr.parsers.form16_parser import parse_form16
 from app.services.itr.parsers.form26as_parser import parse_form26as
+from app.services.itr.portfolio_cg import get_portfolio_capital_gains
 from app.services.itr.reconciliation import generate_report, reconcile_tds
 from app.services.itr.scope_checker import check_scope
 from app.services.itr.tax_engine import TaxInput, compare_regimes, compute_tax
@@ -126,7 +126,50 @@ async def autofill_from_ais(fy: str, user: dict = Depends(get_current_user)):
 async def update_profile(fy: str, data: TaxProfileUpdate, user: dict = Depends(get_current_user)):
     profile = await _get_or_create_profile(_uid(user), fy)
     for key, value in data.dict(exclude_none=True).items():
-        if isinstance(value, dict):
+        # Handle loss_carry_forward special case - convert flat dict to list
+        if key == "loss_carry_forward" and isinstance(value, dict):
+            lcf_list = []
+            # from_ay = previous AY (losses are brought forward from prior year)
+            prev_ay = f"{int(fy.split('-')[0])}-{int(fy.split('-')[1])}"
+            if value.get("stcl_bf"):
+                lcf_list.append(
+                    {
+                        "from_ay": prev_ay,
+                        "loss_type": "STCL",
+                        "original": value["stcl_bf"],
+                        "remaining": value["stcl_bf"],
+                    }
+                )
+            if value.get("ltcl_bf"):
+                lcf_list.append(
+                    {
+                        "from_ay": prev_ay,
+                        "loss_type": "LTCL",
+                        "original": value["ltcl_bf"],
+                        "remaining": value["ltcl_bf"],
+                    }
+                )
+            if value.get("house_property_loss_bf"):
+                lcf_list.append(
+                    {
+                        "from_ay": prev_ay,
+                        "loss_type": "house_property",
+                        "original": value["house_property_loss_bf"],
+                        "remaining": value["house_property_loss_bf"],
+                    }
+                )
+            if value.get("business_loss_bf"):
+                lcf_list.append(
+                    {
+                        "from_ay": prev_ay,
+                        "loss_type": "business",
+                        "original": value["business_loss_bf"],
+                        "remaining": value["business_loss_bf"],
+                    }
+                )
+            if lcf_list:
+                profile.loss_carry_forward = lcf_list
+        elif isinstance(value, dict):
             existing = getattr(profile, key, None)
             if existing and hasattr(existing, "__dict__"):
                 for k, v in value.items():
@@ -278,7 +321,7 @@ async def resolve_ais_item(item_id: str, data: AISItemResolve, user: dict = Depe
 # ── Capital Gains ──
 @router.get("/capital-gains/{fy}")
 async def get_capital_gains(fy: str, user: dict = Depends(get_current_user)):
-    summary = compute_capital_gains([], [])
+    summary = await get_portfolio_capital_gains(user["_id"], fy)
     return asdict(summary)
 
 

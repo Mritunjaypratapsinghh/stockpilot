@@ -12,10 +12,12 @@ const STEPS = [
   { id: 'salary', title: 'Salary & HRA', desc: 'Confirm income' },
   { id: 'other', title: 'Other Income', desc: 'Interest, dividends' },
   { id: 'cg', title: 'Capital Gains', desc: 'Lot-wise review' },
+  { id: 'losses', title: 'Loss C/F', desc: 'Prior year losses' },
   { id: 'deductions', title: 'Deductions', desc: '80C/D/E/G' },
   { id: 'compute', title: 'Computation', desc: 'Both regimes' },
+  { id: 'advance', title: 'Advance Tax', desc: 'Quarterly schedule' },
   { id: 'validate', title: 'Validation', desc: 'Final checks' },
-  { id: 'export', title: 'Export & File', desc: 'ITR JSON' },
+  { id: 'export', title: 'Export & File', desc: 'ITR JSON + e-verify' },
 ];
 
 const FY = '2025-26';
@@ -43,6 +45,8 @@ export default function ITRWizard() {
   const [hra, setHra] = useState({ rent_paid: '', city_name: '' });
   const [otherIncome, setOtherIncome] = useState({ savings_interest: '', fd_interest: '', dividend_income_gross: '', interest_on_it_refund: '', other: '' });
   const [deductions, setDeductions] = useState({ sec_80c: '', sec_80ccd_1b: '', sec_80d_self: '', sec_80d_parents: '', sec_80e: '', sec_80g: '', sec_80tta: '' });
+  const [lossCarryForward, setLossCarryForward] = useState({ stcl_bf: '', ltcl_bf: '', house_property_loss_bf: '', business_loss_bf: '' });
+  const [advanceTax, setAdvanceTax] = useState(null);
   const toast = useToast();
 
   const saveProfile = async () => {
@@ -62,6 +66,8 @@ export default function ITRWizard() {
     if (oth) body.other_income = oth;
     const ded = toNum(deductions);
     if (ded) body.deductions = ded;
+    const lcf = toNum(lossCarryForward);
+    if (lcf) body.loss_carry_forward = lcf;
     if (!Object.keys(body).length) return;
     try {
       await api(`/api/v1/itr/profile/${FY}`, { method: 'PUT', body: JSON.stringify(body) });
@@ -70,6 +76,10 @@ export default function ITRWizard() {
 
   const loadCG = async () => {
     try { setCgData(await api(`/api/v1/itr/capital-gains/${FY}`)); } catch { toast?.error('Failed to load capital gains'); }
+  };
+
+  const loadAdvanceTax = async () => {
+    try { setAdvanceTax(await api(`/api/v1/itr/advance-tax/${FY}`)); } catch { toast?.error('Failed to load advance tax'); }
   };
 
   const exportITR = async () => {
@@ -108,8 +118,8 @@ export default function ITRWizard() {
   };
 
   const goToStep = (target) => {
-    // Auto-save if leaving a data entry step
-    if ([3, 4, 6].includes(step)) saveProfile();
+    // Auto-save if leaving a data entry step (salary=3, other=4, losses=6, deductions=7)
+    if ([3, 4, 6, 7].includes(step)) saveProfile();
     setStep(target);
     setError('');
   };
@@ -462,6 +472,35 @@ export default function ITRWizard() {
         </div>
       );
 
+      case 'losses': return (
+        <div className="space-y-4">
+          <p className="text-[var(--text-secondary)]">Enter losses brought forward from previous years (from last year's ITR).</p>
+          <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm">
+            <p className="text-blue-300 flex items-center gap-2"><HelpCircle size={14} />Find these in your previous ITR acknowledgment under "Schedule CYLA/BFLA".</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[
+              ['Short-term Capital Loss B/F', 'stcl_bf', 'Can offset STCG + LTCG'],
+              ['Long-term Capital Loss B/F', 'ltcl_bf', 'Can offset LTCG only'],
+              ['House Property Loss B/F', 'house_property_loss_bf', 'Max ₹2L/year, 8 years'],
+              ['Business Loss B/F', 'business_loss_bf', 'If any speculative/non-spec'],
+            ].map(([label, key, hint]) => (
+              <div key={key}>
+                <label className="text-xs text-[var(--text-muted)] mb-1 block">{label}</label>
+                <input type="number" value={lossCarryForward[key]} onChange={e => setLossCarryForward(p => ({ ...p, [key]: e.target.value }))}
+                  className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)]" placeholder="₹0" />
+                <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{hint}</p>
+              </div>
+            ))}
+          </div>
+          <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm space-y-1">
+            <p className="text-yellow-300">💡 Capital losses can be carried forward for 8 years.</p>
+            <p className="text-yellow-300">💡 STCL offsets both STCG and LTCG. LTCL offsets only LTCG.</p>
+          </div>
+          <button onClick={saveProfile} className="px-5 py-2 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 text-sm font-medium">Save Loss Details</button>
+        </div>
+      );
+
       case 'deductions': return (
         <div className="space-y-4">
           <p className="text-[var(--text-secondary)]">Enter deductions. Limits enforced automatically.</p>
@@ -518,6 +557,57 @@ export default function ITRWizard() {
         </div>
       );
 
+      case 'advance': return (
+        <div className="space-y-4">
+          <p className="text-[var(--text-secondary)]">Check if you need to pay advance tax in quarterly installments.</p>
+          <button onClick={loadAdvanceTax} disabled={loading} className="px-5 py-2 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 text-sm font-medium">
+            {loading ? 'Loading...' : 'Calculate Advance Tax'}
+          </button>
+          {advanceTax && !advanceTax.applicable && (
+            <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+              <p className="text-green-400 font-medium">✅ {advanceTax.message}</p>
+            </div>
+          )}
+          {advanceTax?.applicable && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg">
+                  <p className="text-xs text-[var(--text-muted)]">Total Tax Liability</p>
+                  <p className="text-lg font-semibold text-[var(--text-primary)]">{fmt(advanceTax.total_liability)}</p>
+                </div>
+                <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg">
+                  <p className="text-xs text-[var(--text-muted)]">TDS Credit</p>
+                  <p className="text-lg font-semibold text-green-400">- {fmt(advanceTax.tds_credit)}</p>
+                </div>
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                  <p className="text-xs text-[var(--text-muted)]">Net Payable</p>
+                  <p className="text-lg font-semibold text-red-400">{fmt(advanceTax.net_payable)}</p>
+                </div>
+              </div>
+              <div className="bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg overflow-hidden">
+                <div className="p-3 border-b border-[var(--border)]">
+                  <h3 className="font-medium text-[var(--text-primary)]">Quarterly Schedule</h3>
+                </div>
+                <div className="divide-y divide-[var(--border)]">
+                  {advanceTax.schedule?.map((q, i) => (
+                    <div key={i} className="p-3 flex justify-between items-center">
+                      <div>
+                        <p className="text-sm text-[var(--text-primary)]">{q.due_date}</p>
+                        <p className="text-xs text-[var(--text-muted)]">Cumulative {q.cumulative_pct}%</p>
+                      </div>
+                      <p className="font-semibold text-[var(--text-primary)]">{fmt(q.amount_due)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm">
+                <p className="text-yellow-300">⚠️ Missing advance tax deadlines attracts interest u/s 234B & 234C.</p>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+
       case 'validate': return (
         <div className="space-y-4">
           <button onClick={runValidation} disabled={loading} className="px-6 py-3 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 font-medium">
@@ -556,7 +646,7 @@ export default function ITRWizard() {
 
       case 'export': return (
         <div className="space-y-6">
-          <div className="p-8 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl text-center">
+          <div className="p-6 sm:p-8 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl text-center">
             <Download size={40} className="mx-auto mb-4 text-[var(--accent)]" />
             <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Export ITR JSON</h3>
             <p className="text-[var(--text-muted)] mb-5">Download the JSON file and upload it on the Income Tax e-filing portal.</p>
@@ -564,15 +654,52 @@ export default function ITRWizard() {
               {loading ? 'Generating...' : `Download ${validation?.itr_form || 'ITR-2'} JSON`}
             </button>
           </div>
+
+          {/* E-Verify Guide */}
+          <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+            <h3 className="font-medium text-green-300 mb-3 flex items-center gap-2"><Shield size={16} /> E-Verification (Mandatory within 30 days)</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              <div className="p-3 bg-[var(--bg-primary)] rounded-lg">
+                <p className="font-medium text-[var(--text-primary)] mb-1">🔐 Aadhaar OTP (Recommended)</p>
+                <p className="text-xs text-[var(--text-muted)]">Instant • Mobile linked to Aadhaar required</p>
+              </div>
+              <div className="p-3 bg-[var(--bg-primary)] rounded-lg">
+                <p className="font-medium text-[var(--text-primary)] mb-1">🏦 Net Banking</p>
+                <p className="text-xs text-[var(--text-muted)]">Login via bank → redirects to IT portal</p>
+              </div>
+              <div className="p-3 bg-[var(--bg-primary)] rounded-lg">
+                <p className="font-medium text-[var(--text-primary)] mb-1">💳 Bank Account EVC</p>
+                <p className="text-xs text-[var(--text-muted)]">Pre-validated bank account required</p>
+              </div>
+              <div className="p-3 bg-[var(--bg-primary)] rounded-lg">
+                <p className="font-medium text-[var(--text-primary)] mb-1">📝 DSC (Digital Signature)</p>
+                <p className="text-xs text-[var(--text-muted)]">For professionals with registered DSC</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Step-by-step filing */}
           <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-            <h3 className="font-medium text-blue-300 mb-2">📋 After Filing</h3>
-            <ol className="text-sm text-[var(--text-muted)] space-y-1 list-decimal list-inside">
-              <li>Upload JSON on incometax.gov.in → e-File → Income Tax Returns</li>
-              <li>E-verify within 30 days (Aadhaar OTP / Net Banking / DSC)</li>
-              <li>Save acknowledgment (ITR-V) for your records</li>
-              <li>Track refund status on the portal</li>
+            <h3 className="font-medium text-blue-300 mb-2">📋 Filing Steps</h3>
+            <ol className="text-sm text-[var(--text-muted)] space-y-2 list-decimal list-inside">
+              <li>Go to <span className="text-blue-300">incometax.gov.in</span> → Login with PAN</li>
+              <li>e-File → Income Tax Returns → File Income Tax Return</li>
+              <li>Select Assessment Year, Filing Type (Original/Revised), ITR Form</li>
+              <li>Choose "Upload JSON" → Select downloaded file</li>
+              <li>Verify pre-filled data → Submit</li>
+              <li>E-verify immediately using any method above</li>
+              <li>Download ITR-V acknowledgment for records</li>
             </ol>
           </div>
+
+          {/* Refund tracking */}
+          <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+            <h3 className="font-medium text-yellow-300 mb-2">💰 Refund Tracking</h3>
+            <p className="text-sm text-[var(--text-muted)]">After e-verification, track refund at:</p>
+            <p className="text-sm text-yellow-300 mt-1">incometax.gov.in → e-File → View Filed Returns → View Details</p>
+            <p className="text-xs text-[var(--text-muted)] mt-2">Typical processing: 15-45 days after e-verification</p>
+          </div>
+
           {calendar?.deadlines && (
             <div className="p-4 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg">
               <h3 className="font-medium text-[var(--text-primary)] mb-2 flex items-center gap-2"><Clock size={16} /> Key Deadlines</h3>
@@ -609,17 +736,18 @@ export default function ITRWizard() {
           <div className="bg-[var(--accent)] h-1.5 rounded-full transition-all duration-500" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
         </div>
 
-        {/* Step Tabs */}
-        <div className="flex flex-wrap gap-1.5 mb-5">
+        {/* Step Tabs - Numbers only on mobile, full text on desktop */}
+        <div className="flex flex-wrap gap-1.5 mb-5 overflow-x-auto pb-2 sm:pb-0">
           {STEPS.map((s, i) => {
             const active = i === step;
             const done = i < step;
             return (
               <button key={i} onClick={() => goToStep(i)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all
+                title={s.title}
+                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-all shrink-0
                   ${active ? 'bg-[var(--accent)] text-white' : done ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border)] hover:text-[var(--text-secondary)]'}`}>
                 {done ? <CheckCircle size={12} /> : <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[9px]">{i + 1}</span>}
-                {s.title}
+                <span className="hidden sm:inline">{s.title}</span>
               </button>
             );
           })}

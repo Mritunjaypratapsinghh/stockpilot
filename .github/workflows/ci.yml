@@ -29,10 +29,20 @@ jobs:
         run: ruff check app/ --select E,F,W --ignore E501
 
       - name: Type check (imports)
+        env:
+          SECRET_KEY: ci-test-secret-key-not-real
+          MONGODB_URI: mongodb://localhost:27017
+          MONGODB_DB: stockpilot_test
+          REDIS_URL: redis://localhost:6379
         run: python -c "from app.main import app; print(f'✓ {len(app.routes)} routes loaded')"
 
       - name: Unit tests
-        run: python -m pytest tests/unit/ -v --tb=short
+        env:
+          SECRET_KEY: ci-test-secret-key-not-real
+          MONGODB_URI: mongodb://localhost:27017
+          MONGODB_DB: stockpilot_test
+          REDIS_URL: redis://localhost:6379
+        run: python -m pytest tests/unit/ tests/edge_cases/ tests/security/ -v --tb=short
 
   frontend:
     runs-on: ubuntu-latest

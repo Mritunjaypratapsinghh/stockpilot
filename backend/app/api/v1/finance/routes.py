@@ -357,80 +357,12 @@ async def get_tax_harvest(current_user: dict = Depends(get_current_user)) -> Sta
     return StandardResponse.ok(result)
 
 
-@router.get("/tax", summary="Get tax summary", description="Calculate LTCG and STCG tax liability")
+@router.get("/tax", summary="Get tax summary")
 async def get_tax_summary(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Calculate tax liability based on holding period."""
-    from datetime import datetime, timedelta
+    from ....services.finance.tax_service import TaxService
 
-    from ....services.cache import cache_get, cache_set
-
-    cache_key = f"tax_summary:{current_user['_id']}"
-    cached = await cache_get(cache_key)
-    if cached:
-        return StandardResponse.ok(cached)
-
-    holdings = await get_user_holdings(current_user["_id"])
-    now = datetime.now()
-    fy_start = datetime(now.year if now.month >= 4 else now.year - 1, 4, 1)
-    fy = f"{fy_start.year}-{fy_start.year + 1}"
-    one_year_ago = now - timedelta(days=365)
-
-    if not holdings:
-        return StandardResponse.ok(
-            {
-                "financial_year": fy,
-                "realized": {"stcg": 0, "ltcg": 0},
-                "unrealized": {"total": 0, "stcg": 0, "ltcg": 0},
-                "tax_liability": {"stcg_tax": 0, "ltcg_tax": 0, "total_tax": 0},
-            }
-        )
-
-    prices = await get_prices_for_holdings(holdings) or {}
-    unrealized_ltcg = unrealized_stcg = 0
-
-    for h in holdings:
-        curr_price = prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price
-        pnl = (curr_price - h.avg_price) * h.quantity
-
-        # Check holding period from first transaction
-        first_buy = None
-        for t in h.transactions:
-            if t.type == "BUY":
-                t_date = datetime.fromisoformat(t.date) if isinstance(t.date, str) else t.date
-                if first_buy is None or t_date < first_buy:
-                    first_buy = t_date
-
-        # If held > 1 year, it's LTCG, else STCG (includes both gains and losses)
-        if first_buy and first_buy < one_year_ago:
-            unrealized_ltcg += pnl
-        else:
-            unrealized_stcg += pnl
-
-    # LTCG: 12.5% above 1.25L exemption, STCG: 20%
-    ltcg_exemption = 125000
-    ltcg_taxable = max(0, unrealized_ltcg - ltcg_exemption)
-    ltcg_tax = ltcg_taxable * 0.125
-    stcg_tax = max(0, unrealized_stcg) * 0.20  # Only tax on gains, not losses
-
-    result = {
-        "financial_year": fy,
-        "realized": {"stcg": 0, "ltcg": 0, "total": 0},
-        "unrealized": {
-            "stcg": round(unrealized_stcg, 2),
-            "ltcg": round(unrealized_ltcg, 2),
-            "total": round(unrealized_ltcg + unrealized_stcg, 2),
-        },
-        "tax_liability": {
-            "ltcg_exemption": ltcg_exemption,
-            "taxable_ltcg": round(ltcg_taxable, 2),
-            "ltcg_tax": round(ltcg_tax, 2),
-            "stcg_tax": round(stcg_tax, 2),
-            "total_tax": round(ltcg_tax + stcg_tax, 2),
-        },
-        "transactions": [],
-    }
-    await cache_set(cache_key, result, ttl=300)
-    return StandardResponse.ok(result)
+    svc = TaxService(current_user["_id"])
+    return StandardResponse.ok(await svc.get_tax_summary())
 
 
 @router.get("/dividends", summary="Get dividends", description="List dividend income from holdings")

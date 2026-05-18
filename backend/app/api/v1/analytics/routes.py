@@ -10,72 +10,25 @@ from fastapi.responses import StreamingResponse
 from ....core.constants import SECTOR_MAP
 from ....core.response_handler import StandardResponse
 from ....core.security import get_current_user
+from ....services.analytics import AnalyticsService
 from ....services.portfolio import get_prices_for_holdings, get_user_holdings
-from .schemas import AnalyticsSummary, SectorAllocation, SimulateRequest
+from .schemas import SimulateRequest
 
 router = APIRouter()
 
 
-@router.get("", summary="Get analytics", description="Get portfolio analytics and sector breakdown")
+@router.get("", summary="Get analytics")
 async def get_analytics(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Get portfolio analytics."""
-    from ....services.cache import cache_get, cache_set, market_ttl
-
-    ck = f"analytics:{current_user['_id']}"
-    cached = await cache_get(ck)
-    if cached:
-        return StandardResponse.ok(cached)
-
-    holdings = await get_user_holdings(current_user["_id"])
-    if not holdings:
-        return StandardResponse.ok(AnalyticsSummary(total_value=0, sectors=[], holdings_count=0))
-
-    prices = await get_prices_for_holdings(holdings)
-    sector_values = {}
-    total_value = 0
-
-    for h in holdings:
-        curr_price = prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price
-        value = h.quantity * curr_price
-        total_value += value
-        sector = SECTOR_MAP.get(h.symbol, "Others")
-        sector_values[sector] = sector_values.get(sector, 0) + value
-
-    sectors = [
-        SectorAllocation(sector=s, value=round(v, 2), percentage=round(v / total_value * 100, 1))
-        for s, v in sorted(sector_values.items(), key=lambda x: x[1], reverse=True)
-    ]
-
-    result = AnalyticsSummary(total_value=round(total_value, 2), sectors=sectors, holdings_count=len(holdings))
-    await cache_set(ck, result.model_dump() if hasattr(result, "model_dump") else result, ttl=market_ttl())
-    return StandardResponse.ok(result)
+    svc = AnalyticsService(current_user["_id"])
+    return StandardResponse.ok(await svc.get_sector_analytics())
 
 
-@router.get("/pnl-calendar", summary="Get PnL calendar", description="Get daily buy/sell activity calendar")
+@router.get("/pnl-calendar", summary="Get PnL calendar")
 async def get_pnl_calendar(
     year: int = None, month: int = None, current_user: dict = Depends(get_current_user)
 ) -> StandardResponse:
-    """Get PnL calendar data."""
-    holdings = await get_user_holdings(current_user["_id"])
-    if not holdings:
-        return StandardResponse.ok({"calendar": {}})
-
-    calendar = {}
-    for h in holdings:
-        for t in h.transactions:
-            date = t.date[:10] if isinstance(t.date, str) else t.date.strftime("%Y-%m-%d")
-            if date not in calendar:
-                calendar[date] = {"date": date, "pnl": 0, "buy": 0, "sell": 0, "transactions": []}
-            amount = t.quantity * t.price
-            if t.type == "BUY":
-                calendar[date]["buy"] += amount
-                calendar[date]["pnl"] -= amount
-            else:
-                calendar[date]["sell"] += amount
-                calendar[date]["pnl"] += amount
-            calendar[date]["transactions"].append({"symbol": h.symbol, "type": t.type, "amount": round(amount, 2)})
-
-    return StandardResponse.ok({"calendar": calendar})
+    svc = AnalyticsService(current_user["_id"])
+    return StandardResponse.ok(await svc.get_pnl_calendar())
 
 
 @router.get("/rebalance", summary="Get rebalance suggestions", description="Get portfolio rebalancing recommendations")
@@ -246,84 +199,10 @@ async def export_holdings_csv(current_user: dict = Depends(get_current_user)) ->
     )
 
 
-@router.get("/metrics", summary="Get portfolio metrics", description="Get key portfolio metrics")
+@router.get("/metrics", summary="Get portfolio metrics")
 async def get_metrics(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Calculate advanced portfolio metrics."""
-    import math
-
-    from ....services.cache import cache_get, cache_set, market_ttl
-
-    ck = f"metrics:{current_user['_id']}"
-    cached = await cache_get(ck)
-    if cached:
-        return StandardResponse.ok(cached)
-
-    holdings = await get_user_holdings(current_user["_id"])
-    if not holdings:
-        return StandardResponse.ok({"error": "No holdings found"})
-
-    prices = await get_prices_for_holdings(holdings)
-    total_value = 0
-    holdings_data = []
-
-    for h in holdings:
-        if h.holding_type == "MF":
-            continue
-        p = prices.get(h.symbol, {})
-        curr = p.get("current_price") or h.avg_price
-        value = h.quantity * curr
-        total_value += value
-        holdings_data.append(
-            {
-                "symbol": h.symbol,
-                "value": value,
-                "day_change_pct": p.get("day_change_pct", 0),
-                "beta": p.get("beta", 1.0),
-            }
-        )
-
-    if total_value == 0:
-        return StandardResponse.ok({"error": "Portfolio value is zero"})
-
-    for h in holdings_data:
-        h["weight"] = h["value"] / total_value
-
-    portfolio_beta = sum(h["weight"] * h.get("beta", 1.0) for h in holdings_data)
-    # Volatility: std deviation of weighted daily returns, annualized
-    weighted_returns = [h["day_change_pct"] * h["weight"] for h in holdings_data]
-    portfolio_daily_return = sum(weighted_returns)
-    mean = portfolio_daily_return
-    variance = sum(h["weight"] * (h["day_change_pct"] - mean) ** 2 for h in holdings_data)
-    daily_vol = math.sqrt(variance) if variance > 0 else 0
-    volatility = daily_vol * math.sqrt(252) if daily_vol > 0 else 15.0
-
-    sorted_holdings = sorted(holdings_data, key=lambda x: x["value"], reverse=True)
-    top_5_concentration = sum(h["weight"] for h in sorted_holdings[:5]) * 100
-    hhi = sum(h["weight"] ** 2 for h in holdings_data) * 10000
-
-    def get_risk_profile(beta: float, vol: float):
-        if beta < 0.8 and vol < 15:
-            return {"level": "Conservative", "description": "Lower risk, stable returns"}
-        elif beta < 1.2 and vol < 25:
-            return {"level": "Moderate", "description": "Balanced risk-reward"}
-        else:
-            return {"level": "Aggressive", "description": "Higher risk, potential for higher returns"}
-
-    result = {
-        "portfolio_value": round(total_value, 2),
-        "holdings_count": len(holdings_data),
-        "metrics": {
-            "beta": round(portfolio_beta, 2),
-            "volatility_annual": round(volatility, 1),
-            "top_5_concentration": round(top_5_concentration, 1),
-            "herfindahl_index": round(hhi, 0),
-            "diversification": "Good" if hhi < 1500 else "Moderate" if hhi < 2500 else "Concentrated",
-        },
-        "risk_profile": get_risk_profile(portfolio_beta, volatility),
-        "top_holdings": [{"symbol": h["symbol"], "weight": round(h["weight"] * 100, 1)} for h in sorted_holdings[:5]],
-    }
-    await cache_set(ck, result, ttl=market_ttl())
-    return StandardResponse.ok(result)
+    svc = AnalyticsService(current_user["_id"])
+    return StandardResponse.ok(await svc.get_metrics())
 
 
 @router.get(
@@ -586,90 +465,10 @@ async def get_drawdown(current_user: dict = Depends(get_current_user)) -> Standa
     return StandardResponse.ok(result)
 
 
-@router.get("/sector-risk", summary="Get sector risk", description="Get sector concentration risk")
+@router.get("/sector-risk", summary="Get sector risk")
 async def get_sector_risk(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Analyze sector concentration risk with MF categorization."""
-    from ....services.cache import cache_get, cache_set, market_ttl
-
-    ck = f"sector_risk:{current_user['_id']}"
-    cached = await cache_get(ck)
-    if cached:
-        return StandardResponse.ok(cached)
-    holdings = await get_user_holdings(current_user["_id"])
-    if not holdings:
-        return StandardResponse.ok({"sectors": [], "total_sectors": 0, "recommendations": []})
-
-    def get_mf_category(symbol: str) -> str:
-        s = symbol.upper()
-        if any(x in s for x in ["LIQ", "LIQUID", "OVERNIGHT", "MONEY", "-LM"]):
-            return "Liquid/Debt"
-        if any(x in s for x in ["GILT", "GSEC", "BOND", "DEBT", "INCOME"]):
-            return "Debt"
-        if any(x in s for x in ["HYBRID", "BAL", "BALANCED"]):
-            return "Hybrid"
-        if any(x in s for x in ["SMALL", "-SC", "SMALLCAP"]):
-            return "Small Cap"
-        if any(x in s for x in ["-MC", "MID", "MIDCAP"]):
-            return "Mid Cap"
-        if any(x in s for x in ["LARGE", "BLUECHIP", "NIFTY", "INDEX", "ALPHA"]):
-            return "Large Cap"
-        if any(x in s for x in ["FLEXI", "MULTI", "DIVERSIFIED", "PPFAS", "PARAG"]):
-            return "Flexi Cap"
-        if any(x in s for x in ["TAX", "ELSS"]):
-            return "ELSS"
-        if any(x in s for x in ["BANK", "FIN", "PSU"]):
-            return "Sectoral-BFSI"
-        if any(x in s for x in ["IT", "TECH", "DIGI"]):
-            return "Sectoral-IT"
-        if any(x in s for x in ["PHARMA", "HEALTH"]):
-            return "Sectoral-Pharma"
-        if any(x in s for x in ["USD", "GLOBAL", "US", "NASDAQ", "INTERNATIONAL", "PGIM"]):
-            return "International"
-        if any(x in s for x in ["GOLD", "SILVER", "COMMODITY"]):
-            return "Commodity"
-        if any(x in s for x in ["MOM", "MOMENTUM", "ETF"]):
-            return "ETF/Factor"
-        return "Equity-Other"
-
-    prices = await get_prices_for_holdings(holdings)
-    sector_values = {}
-    total_value = 0
-
-    for h in holdings:
-        value = h.quantity * (prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price)
-        total_value += value
-
-        if h.holding_type == "MF":
-            sector = get_mf_category(h.symbol)
-        else:
-            sector = SECTOR_MAP.get(h.symbol, "Others")
-
-        sector_values[sector] = sector_values.get(sector, 0) + value
-
-    sectors = []
-    for sector, value in sorted(sector_values.items(), key=lambda x: x[1], reverse=True):
-        weight = (value / total_value * 100) if total_value > 0 else 0
-        risk = "High" if weight > 30 else "Moderate" if weight > 20 else "Low"
-        sectors.append(
-            {"sector": sector, "value": round(value, 2), "weight": round(weight, 1), "concentration_risk": risk}
-        )
-
-    recommendations = []
-    for s in sectors:
-        if s["weight"] > 30:
-            recommendations.append(f"Reduce {s['sector']} exposure (currently {s['weight']}%)")
-
-    if len(sectors) < 5:
-        recommendations.append("Consider diversifying into more sectors")
-
-    result = {
-        "sectors": sectors,
-        "total_sectors": len(sectors),
-        "recommendations": recommendations,
-        "ideal_allocation": "No single sector should exceed 25-30% for balanced risk",
-    }
-    await cache_set(ck, result, ttl=market_ttl(300, 3600))
-    return StandardResponse.ok(result)
+    svc = AnalyticsService(current_user["_id"])
+    return StandardResponse.ok(await svc.get_sector_risk())
 
 
 @router.get("/pnl-monthly", summary="Get monthly PnL", description="Get monthly PnL summary")

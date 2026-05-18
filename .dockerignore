@@ -6,8 +6,9 @@ venv/
 .git
 .gitignore
 node_modules/
-frontend/
 bot/
 *.md
 tests/
 .pytest_cache/
+frontend/node_modules/
+frontend/.next/

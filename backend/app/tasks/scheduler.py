@@ -20,7 +20,7 @@ scheduler = AsyncIOScheduler(timezone="Asia/Kolkata")
 
 def _is_primary_worker() -> bool:
     """Only run scheduler in one worker to prevent duplicate jobs.
-    
+
     Set env SCHEDULER_ENABLED=0 on additional workers in multi-process deployments.
     Default: enabled (for single-process uvicorn dev mode).
     """

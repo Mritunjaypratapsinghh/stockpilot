@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from beanie import Document, PydanticObjectId
+from beanie import Document
 from fastapi import Query
 
 

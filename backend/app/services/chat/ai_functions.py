@@ -1,6 +1,5 @@
 """AI function calling for chat - enables AI to take actions."""
 
-import json
 import logging
 from datetime import datetime, timedelta
 from typing import Any
@@ -284,7 +283,7 @@ async def _get_tax_harvesting(user_id: PydanticObjectId) -> dict:
             losses.append({"symbol": h.symbol, "loss": abs(pnl), "value": current})
 
     losses.sort(key=lambda x: x["loss"], reverse=True)
-    total_loss = sum(l["loss"] for l in losses)
+    total_loss = sum(item["loss"] for item in losses)
     potential_tax_saved = total_loss * 0.20  # STCG rate
 
     return {

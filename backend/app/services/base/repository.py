@@ -8,7 +8,7 @@ All DB queries go through repositories to enforce:
 4. Audit-friendly query patterns
 """
 
-from typing import Any, Generic, Optional, TypeVar
+from typing import Generic, Optional, TypeVar
 
 from beanie import Document, PydanticObjectId
 

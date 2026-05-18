@@ -129,7 +129,7 @@ async def add_nominee(data: NomineeCreate, current_user: dict = Depends(get_curr
     )
     if existing:
         raise HTTPException(status_code=400, detail="Nominee already exists")
-    
+
     invite_token = secrets.token_urlsafe(32)
     nominee = VaultNominee(
         user_id=PydanticObjectId(current_user["_id"]),
@@ -139,7 +139,7 @@ async def add_nominee(data: NomineeCreate, current_user: dict = Depends(get_curr
         invite_token=invite_token,
     )
     await nominee.insert()
-    
+
     # Send invite email
     owner_name = current_user.get("name") or current_user.get("email", "Someone")
     accept_url = f"{settings.frontend_url}/vault/shared?token={invite_token}"
@@ -151,7 +151,7 @@ async def add_nominee(data: NomineeCreate, current_user: dict = Depends(get_curr
     <p style="color:#666;font-size:12px;">If you don't have a StockPilot account, you'll need to create one with this email address ({data.nominee_email}) to access the vault.</p>
     """
     await send_email(data.nominee_email, f"{owner_name} added you as a Vault Nominee - StockPilot", html)
-    
+
     return StandardResponse.ok(nominee_to_response(nominee), "Nominee added and invite sent")
 
 

@@ -749,11 +749,13 @@ async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_us
                 action_results.append({"function": func_name, "result": result})
 
                 # Add tool result to messages
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": json.dumps(result),
-                })
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "content": json.dumps(result),
+                    }
+                )
 
             # Get final response after tool execution (streamed)
             stream = client.chat.completions.create(

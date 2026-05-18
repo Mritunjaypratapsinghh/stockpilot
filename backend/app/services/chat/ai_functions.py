@@ -64,7 +64,10 @@ AI_TOOLS = [
                 "type": "object",
                 "properties": {
                     "symbol": {"type": "string", "description": "Stock symbol to calculate tax for"},
-                    "quantity": {"type": "number", "description": "Number of shares to sell (optional, defaults to all)"},
+                    "quantity": {
+                        "type": "number",
+                        "description": "Number of shares to sell (optional, defaults to all)",
+                    },
                 },
                 "required": ["symbol"],
             },

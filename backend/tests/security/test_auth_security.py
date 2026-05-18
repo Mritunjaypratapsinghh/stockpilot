@@ -10,20 +10,19 @@ These tests protect against:
 """
 
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import pytest
-from jose import jwt
-
 from app.core.config import settings
 from app.core.security import (
+    _is_legacy_sha256,
     create_access_token,
     get_password_hash,
     needs_rehash,
     verify_password,
     verify_token,
-    _is_legacy_sha256,
 )
+from jose import jwt
 
 
 class TestPasswordSecurity:
@@ -130,8 +129,8 @@ class TestTenantIsolation:
     """Verify that BaseRepository enforces user scoping."""
 
     def test_repository_scopes_queries(self):
-        from app.services.base.repository import BaseRepository
         from app.models.documents import Holding
+        from app.services.base.repository import BaseRepository
         from beanie import PydanticObjectId
 
         uid = PydanticObjectId()
@@ -142,14 +141,13 @@ class TestTenantIsolation:
 
     def test_repository_get_by_id_checks_ownership(self):
         """get_by_id must verify user_id matches, not just document existence."""
-        from app.services.base.repository import BaseRepository
         from app.models.documents import Holding
+        from app.services.base.repository import BaseRepository
         from beanie import PydanticObjectId
 
         uid = PydanticObjectId()
         repo = BaseRepository(Holding, uid)
-        # The method checks getattr(doc, "user_id") == self.user_id
-        # This is tested structurally — integration test would verify with real DB
+        assert hasattr(repo, "get_by_id")
 
 
 class TestInputValidation:

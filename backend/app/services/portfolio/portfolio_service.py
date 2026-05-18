@@ -43,8 +43,15 @@ class PortfolioService(BaseService):
 
             holdings = await self.holdings.get_all()
             if not holdings:
-                return {"total_investment": 0, "current_value": 0, "total_pnl": 0,
-                        "total_pnl_pct": 0, "day_pnl": 0, "day_pnl_pct": 0, "holdings_count": 0}
+                return {
+                    "total_investment": 0,
+                    "current_value": 0,
+                    "total_pnl": 0,
+                    "total_pnl_pct": 0,
+                    "day_pnl": 0,
+                    "day_pnl_pct": 0,
+                    "holdings_count": 0,
+                }
 
             prices = await get_prices_for_holdings(holdings) or {}
             total_inv = current_val = day_pnl = 0.0
@@ -65,7 +72,9 @@ class PortfolioService(BaseService):
                 "total_pnl": round(total_pnl, 2),
                 "total_pnl_pct": round((total_pnl / total_inv * 100) if total_inv > 0 else 0, 2),
                 "day_pnl": round(day_pnl, 2),
-                "day_pnl_pct": round((day_pnl / (current_val - day_pnl) * 100) if (current_val - day_pnl) > 0 else 0, 2),
+                "day_pnl_pct": round(
+                    (day_pnl / (current_val - day_pnl) * 100) if (current_val - day_pnl) > 0 else 0, 2
+                ),
                 "holdings_count": len(holdings),
             }
 
@@ -100,24 +109,37 @@ class PortfolioService(BaseService):
 
         return await self._cached("sectors", _compute)
 
-    async def add_holding(self, symbol: str, name: str, exchange: str, holding_type: str,
-                          quantity: float, avg_price: float) -> str:
+    async def add_holding(
+        self, symbol: str, name: str, exchange: str, holding_type: str, quantity: float, avg_price: float
+    ) -> str:
         """Add new holding. Returns holding ID."""
         existing = await self.holdings.find_by_symbol(symbol)
         if existing:
             raise ValueError("Holding already exists")
 
         doc = Holding(
-            user_id=self.user_id, symbol=symbol, name=name, exchange=exchange,
-            holding_type=holding_type, quantity=quantity, avg_price=avg_price,
+            user_id=self.user_id,
+            symbol=symbol,
+            name=name,
+            exchange=exchange,
+            holding_type=holding_type,
+            quantity=quantity,
+            avg_price=avg_price,
         )
         await doc.insert()
         await self._invalidate("holdings", "sectors", "dashboard", "analytics", "portfolio_summary")
         return str(doc.id)
 
-    async def add_transaction(self, symbol: str, txn_type: str, quantity: float,
-                              price: float, date: str, holding_type: str = "EQUITY",
-                              notes: str = "") -> dict:
+    async def add_transaction(
+        self,
+        symbol: str,
+        txn_type: str,
+        quantity: float,
+        price: float,
+        date: str,
+        holding_type: str = "EQUITY",
+        notes: str = "",
+    ) -> dict:
         """Add buy/sell transaction with automatic avg price recalculation."""
         holding = await self.holdings.find_by_symbol(symbol)
         txn_doc = EmbeddedTransaction(type=txn_type, quantity=quantity, price=price, date=date, notes=notes)
@@ -126,8 +148,14 @@ class PortfolioService(BaseService):
             if txn_type == "SELL":
                 raise ValueError("Cannot sell — no holding found")
             holding = Holding(
-                user_id=self.user_id, symbol=symbol, name=symbol, exchange="NSE",
-                holding_type=holding_type, quantity=quantity, avg_price=price, transactions=[txn_doc],
+                user_id=self.user_id,
+                symbol=symbol,
+                name=symbol,
+                exchange="NSE",
+                holding_type=holding_type,
+                quantity=quantity,
+                avg_price=price,
+                transactions=[txn_doc],
             )
             await holding.insert()
             await self._invalidate("holdings", "sectors", "dashboard", "analytics", "portfolio_summary")

@@ -9,18 +9,14 @@ Provides:
 - Freezegun-compatible date helpers
 """
 
-import hashlib
 from datetime import date, datetime, timezone
-from typing import Any
-from unittest.mock import AsyncMock, patch
 
 import pytest
+from app.core.security import create_access_token
 from beanie import PydanticObjectId
 
-from app.core.security import create_access_token, get_password_hash
-
-
 # ── Factories ──
+
 
 def make_user_id() -> str:
     """Generate a realistic MongoDB ObjectId string."""
@@ -31,16 +27,22 @@ def make_token(user_id: str = None, email: str = "test@example.com", expired: bo
     """Generate a valid JWT token for testing."""
     uid = user_id or make_user_id()
     if expired:
-        from datetime import timedelta
-        from jose import jwt
+
         from app.core.config import settings
+        from jose import jwt
+
         payload = {"sub": uid, "email": email, "exp": datetime(2020, 1, 1, tzinfo=timezone.utc)}
         return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
     return create_access_token({"sub": uid}, email=email)
 
 
-def make_holding(symbol: str = "TCS", quantity: float = 10, avg_price: float = 3500,
-                 holding_type: str = "EQUITY", transactions: list = None) -> dict:
+def make_holding(
+    symbol: str = "TCS",
+    quantity: float = 10,
+    avg_price: float = 3500,
+    holding_type: str = "EQUITY",
+    transactions: list = None,
+) -> dict:
     """Factory for holding data."""
     return {
         "symbol": symbol,
@@ -54,14 +56,14 @@ def make_holding(symbol: str = "TCS", quantity: float = 10, avg_price: float = 3
     }
 
 
-def make_transaction(txn_type: str = "BUY", quantity: float = 10,
-                     price: float = 3500, date_str: str = "2024-01-15") -> dict:
+def make_transaction(
+    txn_type: str = "BUY", quantity: float = 10, price: float = 3500, date_str: str = "2024-01-15"
+) -> dict:
     """Factory for transaction data."""
     return {"type": txn_type, "quantity": quantity, "price": price, "date": date_str}
 
 
-def make_ais_item(info_code: str = "192", amount: int = 50000,
-                  status: str = "pending", category: str = "TDS") -> dict:
+def make_ais_item(info_code: str = "192", amount: int = 50000, status: str = "pending", category: str = "TDS") -> dict:
     """Factory for AIS line item."""
     return {
         "info_code": info_code,
@@ -75,6 +77,7 @@ def make_ais_item(info_code: str = "192", amount: int = 50000,
 
 
 # ── Auth Fixtures ──
+
 
 @pytest.fixture
 def user_id() -> str:
@@ -102,6 +105,7 @@ def malformed_token() -> str:
 
 
 # ── Date Fixtures ──
+
 
 @pytest.fixture
 def fy_2025_26():

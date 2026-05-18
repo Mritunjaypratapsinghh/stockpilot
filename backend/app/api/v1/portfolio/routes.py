@@ -377,12 +377,14 @@ async def get_transactions(
     txns.sort(key=lambda x: x.get("date", ""), reverse=True)
     total = len(txns)
     start = (page - 1) * limit
-    return StandardResponse.ok({
-        "transactions": txns[start : start + limit],
-        "total": total,
-        "page": page,
-        "pages": (total + limit - 1) // limit,
-    })
+    return StandardResponse.ok(
+        {
+            "transactions": txns[start : start + limit],
+            "total": total,
+            "page": page,
+            "pages": (total + limit - 1) // limit,
+        }
+    )
 
 
 @router.post("/transactions", summary="Add transaction", description="Record a buy or sell transaction")

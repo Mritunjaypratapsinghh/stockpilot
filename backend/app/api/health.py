@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
+
 from ..core.database import get_database
 from ..services.cache import get_redis
 

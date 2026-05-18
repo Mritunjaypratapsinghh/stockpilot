@@ -1,14 +1,10 @@
 """Tests for HRA calculator and reconciliation engine."""
 
-from datetime import date
-
-import pytest
-
 from app.services.itr.hra_calculator import compute_hra
 from app.services.itr.reconciliation import (
     MatchStatus,
-    reconcile_tds,
     generate_report,
+    reconcile_tds,
 )
 
 
@@ -16,33 +12,30 @@ class TestHRA:
     """HRA exemption calculation."""
 
     def test_metro_city(self):
-        r = compute_hra(basic_plus_da=600_000, hra_received=200_000,
-                        rent_paid=240_000, city_name="Mumbai")
+        r = compute_hra(basic_plus_da=600_000, hra_received=200_000, rent_paid=240_000, city_name="Mumbai")
         assert r.is_metro is True
         # min(200K actual, 240K-60K=180K rent-10%, 300K 50%basic)
         assert r.exemption == 180_000
 
     def test_non_metro_city(self):
-        r = compute_hra(basic_plus_da=600_000, hra_received=200_000,
-                        rent_paid=240_000, city_name="Jaipur")
+        r = compute_hra(basic_plus_da=600_000, hra_received=200_000, rent_paid=240_000, city_name="Jaipur")
         assert r.is_metro is False
         # min(200K actual, 180K rent-10%, 240K 40%basic)
         assert r.exemption == 180_000
 
     def test_new_regime_returns_zero(self):
-        r = compute_hra(basic_plus_da=600_000, hra_received=200_000,
-                        rent_paid=240_000, city_name="Mumbai", regime="new")
+        r = compute_hra(
+            basic_plus_da=600_000, hra_received=200_000, rent_paid=240_000, city_name="Mumbai", regime="new"
+        )
         assert r.exemption == 0
         assert len(r.warnings) > 0
 
     def test_no_rent_returns_zero(self):
-        r = compute_hra(basic_plus_da=600_000, hra_received=200_000,
-                        rent_paid=0, city_name="Mumbai")
+        r = compute_hra(basic_plus_da=600_000, hra_received=200_000, rent_paid=0, city_name="Mumbai")
         assert r.exemption == 0
 
     def test_no_hra_component(self):
-        r = compute_hra(basic_plus_da=600_000, hra_received=0,
-                        rent_paid=120_000, city_name="Delhi")
+        r = compute_hra(basic_plus_da=600_000, hra_received=0, rent_paid=120_000, city_name="Delhi")
         assert r.exemption == 0
         assert "80GG" in r.warnings[0]
 

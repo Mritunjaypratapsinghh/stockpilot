@@ -97,6 +97,7 @@ def _held_longer_than(buy_date: date, sell_date: date, months: int) -> bool:
     except ValueError:
         # Handle edge case like Jan 31 + 12 months → Feb has no 31
         import calendar
+
         last_day = calendar.monthrange(y, m)[1]
         cutoff = buy_date.replace(year=y, month=m, day=min(buy_date.day, last_day))
     return sell_date > cutoff

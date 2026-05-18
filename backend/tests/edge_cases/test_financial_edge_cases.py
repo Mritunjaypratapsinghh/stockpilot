@@ -13,11 +13,13 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-
 from app.services.itr.capital_gains import (
-    CGTransaction, Lot, _held_longer_than, compute_capital_gains,
+    CGTransaction,
+    Lot,
+    _held_longer_than,
+    compute_capital_gains,
 )
-from app.services.itr.tax_engine import TaxInput, compute_tax, compare_regimes
+from app.services.itr.tax_engine import TaxInput, compute_tax
 from app.services.itr.tax_rules import get_rules
 
 
@@ -30,20 +32,36 @@ class TestFloatingPointPrecision:
         Each 0.5 → int(0.5) = 0, so aggregate = 0. This is acceptable for tax purposes
         (IT dept rounds to nearest rupee per transaction).
         """
-        lots = [Lot(symbol="TEST", buy_date=date(2023, 1, 1), quantity=1,
-                    cost_per_unit=100.50, asset_type="equity") for _ in range(100)]
-        sells = [CGTransaction(symbol="TEST", sell_date=date(2023, 6, 1), quantity=1,
-                               sale_price_per_unit=101.00, asset_type="equity") for _ in range(100)]
+        lots = [
+            Lot(symbol="TEST", buy_date=date(2023, 1, 1), quantity=1, cost_per_unit=100.50, asset_type="equity")
+            for _ in range(100)
+        ]
+        sells = [
+            CGTransaction(
+                symbol="TEST", sell_date=date(2023, 6, 1), quantity=1, sale_price_per_unit=101.00, asset_type="equity"
+            )
+            for _ in range(100)
+        ]
         result = compute_capital_gains(lots, sells)
         # int(0.5) = 0 per lot → aggregate = 0 (known truncation behavior)
         assert result.stcg_111a == 0
 
     def test_fractional_quantity_mf(self):
         """MF units can be 3.456 — ensure no precision loss."""
-        lots = [Lot(symbol="HDFC_MF", buy_date=date(2022, 1, 1), quantity=3.456,
-                    cost_per_unit=45.67, asset_type="equity_mf")]
-        sells = [CGTransaction(symbol="HDFC_MF", sell_date=date(2024, 2, 1), quantity=3.456,
-                               sale_price_per_unit=55.89, asset_type="equity_mf")]
+        lots = [
+            Lot(
+                symbol="HDFC_MF", buy_date=date(2022, 1, 1), quantity=3.456, cost_per_unit=45.67, asset_type="equity_mf"
+            )
+        ]
+        sells = [
+            CGTransaction(
+                symbol="HDFC_MF",
+                sell_date=date(2024, 2, 1),
+                quantity=3.456,
+                sale_price_per_unit=55.89,
+                asset_type="equity_mf",
+            )
+        ]
         result = compute_capital_gains(lots, sells)
         expected = int((55.89 - 45.67) * 3.456)
         assert abs(result.ltcg_112a_gross - expected) <= 1  # ±₹1 tolerance
@@ -75,15 +93,17 @@ class TestFiscalYearBoundaries:
 
     def test_sell_on_march_31_belongs_to_current_fy(self):
         """Sell on Mar 31 2026 is in FY 2025-26."""
-        lots = [Lot(symbol="A", buy_date=date(2025, 1, 1), quantity=10, cost_per_unit=100)]
+        lots = [Lot(symbol="A", buy_date=date(2025, 1, 1), quantity=10, cost_per_unit=100)]  # noqa: F841
         sells = [CGTransaction(symbol="A", sell_date=date(2026, 3, 31), quantity=10, sale_price_per_unit=150)]
         from app.services.itr.portfolio_cg import _fy_range
+
         fy_start, fy_end = _fy_range("2025-26")
         assert fy_start <= sells[0].sell_date <= fy_end
 
     def test_sell_on_april_1_belongs_to_next_fy(self):
         """Sell on Apr 1 2026 is in FY 2026-27, NOT 2025-26."""
         from app.services.itr.portfolio_cg import _fy_range
+
         fy_start, fy_end = _fy_range("2025-26")
         assert date(2026, 4, 1) > fy_end
 
@@ -131,8 +151,7 @@ class TestNegativeAndExtremeValues:
 
     def test_deductions_exceed_income(self):
         """Deductions > income → taxable = 0, not negative."""
-        inp = TaxInput(gross_salary=300_000, sec_80c=150_000, sec_80ccd_1b=50_000,
-                       sec_80d_self=25_000)
+        inp = TaxInput(gross_salary=300_000, sec_80c=150_000, sec_80ccd_1b=50_000, sec_80d_self=25_000)
         r = compute_tax(inp, regime="old")
         assert r.taxable_normal_income >= 0
 
@@ -155,10 +174,25 @@ class TestGrandfathering:
 
     def test_grandfathering_increases_cost(self):
         """FMV > actual cost → use FMV as cost (lower gain)."""
-        lots = [Lot(symbol="RELIANCE", buy_date=date(2017, 6, 1), quantity=10,
-                    cost_per_unit=500, fmv_31jan2018=1000, asset_type="equity")]
-        sells = [CGTransaction(symbol="RELIANCE", sell_date=date(2024, 6, 1),
-                               quantity=10, sale_price_per_unit=2500, asset_type="equity")]
+        lots = [
+            Lot(
+                symbol="RELIANCE",
+                buy_date=date(2017, 6, 1),
+                quantity=10,
+                cost_per_unit=500,
+                fmv_31jan2018=1000,
+                asset_type="equity",
+            )
+        ]
+        sells = [
+            CGTransaction(
+                symbol="RELIANCE",
+                sell_date=date(2024, 6, 1),
+                quantity=10,
+                sale_price_per_unit=2500,
+                asset_type="equity",
+            )
+        ]
         result = compute_capital_gains(lots, sells)
         # Cost = max(500, 1000) = 1000 per unit (grandfathered)
         # Gain = (2500 - 1000) * 10 = 15000
@@ -166,10 +200,21 @@ class TestGrandfathering:
 
     def test_ceiling_rule_prevents_artificial_loss(self):
         """If FMV > sale price → cost = sale price (no loss)."""
-        lots = [Lot(symbol="YES", buy_date=date(2017, 1, 1), quantity=100,
-                    cost_per_unit=50, fmv_31jan2018=300, asset_type="equity")]
-        sells = [CGTransaction(symbol="YES", sell_date=date(2024, 6, 1),
-                               quantity=100, sale_price_per_unit=200, asset_type="equity")]
+        lots = [
+            Lot(
+                symbol="YES",
+                buy_date=date(2017, 1, 1),
+                quantity=100,
+                cost_per_unit=50,
+                fmv_31jan2018=300,
+                asset_type="equity",
+            )
+        ]
+        sells = [
+            CGTransaction(
+                symbol="YES", sell_date=date(2024, 6, 1), quantity=100, sale_price_per_unit=200, asset_type="equity"
+            )
+        ]
         result = compute_capital_gains(lots, sells)
         # FMV (300) > sale (200) → ceiling rule: cost = sale price = 200
         # Gain = (200 - 200) * 100 = 0
@@ -177,10 +222,21 @@ class TestGrandfathering:
 
     def test_post_2018_no_grandfathering(self):
         """Purchases after Jan 31 2018 don't get grandfathering."""
-        lots = [Lot(symbol="TCS", buy_date=date(2019, 1, 1), quantity=10,
-                    cost_per_unit=1000, fmv_31jan2018=900, asset_type="equity")]
-        sells = [CGTransaction(symbol="TCS", sell_date=date(2024, 6, 1),
-                               quantity=10, sale_price_per_unit=3000, asset_type="equity")]
+        lots = [
+            Lot(
+                symbol="TCS",
+                buy_date=date(2019, 1, 1),
+                quantity=10,
+                cost_per_unit=1000,
+                fmv_31jan2018=900,
+                asset_type="equity",
+            )
+        ]
+        sells = [
+            CGTransaction(
+                symbol="TCS", sell_date=date(2024, 6, 1), quantity=10, sale_price_per_unit=3000, asset_type="equity"
+            )
+        ]
         result = compute_capital_gains(lots, sells)
         # No grandfathering → cost = 1000
         # Gain = (3000 - 1000) * 10 = 20000
@@ -201,12 +257,9 @@ class TestLTCGExemptionAggregate:
             CGTransaction(symbol="B", sell_date=date(2024, 6, 1), quantity=10, sale_price_per_unit=950),
         ]
         result = compute_capital_gains(lots, sells)
-        # A: (850-100)*10 = 7500, B: (950-200)*10 = 7500, total = 15000... wait
-        # Let me recalculate: A gain = 7500, B gain = 7500, gross = 15000
-        # Actually: A = (850-100)*10 = 7500, B = (950-200)*10 = 7500
-        # Gross LTCG = 15000, exemption = 125000 → net = 0 (within exemption)
-        # Need bigger gains for this test
-        pass
+        # Both gains within ₹1.25L exemption → net = 0
+        assert result.ltcg_112a_gross == 15_000
+        assert result.ltcg_112a_net == 0
 
     def test_exemption_caps_at_125k(self):
         """LTCG of 200K → taxable = 200K - 125K = 75K."""

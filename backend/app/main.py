@@ -6,10 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .api.health import router as health_router
 from .api.v1 import router as v1_router
-from .middleware.security_headers import SecurityHeadersMiddleware
 from .core.config import settings
 from .core.database import close_db, init_db
 from .core.security import verify_token
+from .middleware.security_headers import SecurityHeadersMiddleware
 from .services.cache import close_redis, get_redis
 from .services.http_client import close_http_client
 from .services.market.price_service import get_bulk_prices

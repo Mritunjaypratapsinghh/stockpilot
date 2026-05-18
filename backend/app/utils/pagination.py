@@ -27,8 +27,9 @@ def paginated_response(items: list[Any], total: int, page: int, limit: int) -> d
     }
 
 
-async def paginate_query(model: type[Document], query: dict, page: int = 1,
-                         limit: int = 50, sort: str = "-created_at") -> dict:
+async def paginate_query(
+    model: type[Document], query: dict, page: int = 1, limit: int = 50, sort: str = "-created_at"
+) -> dict:
     """Execute paginated query on a Beanie model. Returns standard envelope."""
     total = await model.find(query).count()
     skip = (page - 1) * limit

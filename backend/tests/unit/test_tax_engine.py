@@ -1,11 +1,6 @@
 """Tests for tax computation engine — the most critical business logic."""
 
-from datetime import date
-from decimal import Decimal
-
-import pytest
-
-from app.services.itr.tax_engine import TaxInput, TaxResult, compare_regimes, compute_tax
+from app.services.itr.tax_engine import TaxInput, compare_regimes, compute_tax
 
 
 class TestNewRegimeSlabs:
@@ -120,9 +115,14 @@ class TestRegimeComparison:
         inp = TaxInput(
             gross_salary=5_000_000,
             basic_plus_da=2_500_000,
-            sec_80c=150_000, sec_80ccd_1b=50_000, sec_80ccd_2=250_000,
-            sec_80d_self=50_000, sec_80d_parents=50_000,
-            hra_exemption=600_000, lta_exemption=100_000, professional_tax=2500,
+            sec_80c=150_000,
+            sec_80ccd_1b=50_000,
+            sec_80ccd_2=250_000,
+            sec_80d_self=50_000,
+            sec_80d_parents=50_000,
+            hra_exemption=600_000,
+            lta_exemption=100_000,
+            professional_tax=2500,
         )
         comp = compare_regimes(inp)
         assert comp.recommended == "old"

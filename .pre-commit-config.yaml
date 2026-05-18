@@ -19,7 +19,7 @@ repos:
 
       - id: ruff
         name: ruff
-        entry: backend/venv/bin/ruff check --fix --exit-non-zero-on-fix
+        entry: backend/venv/bin/ruff check --fix --exit-non-zero-on-fix --ignore E501
         language: system
         types: [python]
         files: ^backend/

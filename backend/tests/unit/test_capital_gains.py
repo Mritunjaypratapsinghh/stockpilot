@@ -2,10 +2,7 @@
 
 from datetime import date
 
-import pytest
-
 from app.services.itr.capital_gains import (
-    CGSummary,
     CGTransaction,
     Lot,
     _held_longer_than,
@@ -108,10 +105,18 @@ class TestDebtMF:
     """Debt MF post-Apr-2023 → slab rate."""
 
     def test_debt_mf_post_2023_slab_rate(self):
-        lots = [Lot(symbol="HDFC_DEBT", buy_date=date(2023, 5, 1), quantity=100,
-                    cost_per_unit=100, asset_type="debt_mf")]
-        sells = [CGTransaction(symbol="HDFC_DEBT", sell_date=date(2024, 6, 1), quantity=100,
-                               sale_price_per_unit=110, asset_type="debt_mf")]
+        lots = [
+            Lot(symbol="HDFC_DEBT", buy_date=date(2023, 5, 1), quantity=100, cost_per_unit=100, asset_type="debt_mf")
+        ]
+        sells = [
+            CGTransaction(
+                symbol="HDFC_DEBT",
+                sell_date=date(2024, 6, 1),
+                quantity=100,
+                sale_price_per_unit=110,
+                asset_type="debt_mf",
+            )
+        ]
         result = compute_capital_gains(lots, sells)
         # Post-Apr-2023 debt MF → always slab rate regardless of holding period
         assert result.slab_rate_gains == 1_000

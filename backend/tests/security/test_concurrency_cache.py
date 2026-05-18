@@ -8,13 +8,11 @@ Protects against:
 - FIFO ordering under concurrent sells
 """
 
-import asyncio
 from datetime import date
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
-from app.services.cache import cache_get, cache_set, cache_delete, market_open, market_ttl
+from app.services.cache import cache_get, market_ttl
 
 
 class TestCacheBehavior:
@@ -53,7 +51,9 @@ class TestCacheBehavior:
         """During market hours, TTL should be short."""
         with patch("app.services.cache.datetime") as mock_dt:
             from datetime import datetime
+
             import pytz
+
             ist = pytz.timezone("Asia/Kolkata")
             # Monday 10:00 AM IST
             mock_dt.now.return_value = datetime(2026, 5, 18, 10, 0, tzinfo=ist)
@@ -71,7 +71,7 @@ class TestFIFOConcurrency:
 
     def test_fifo_order_deterministic(self):
         """Same lots + sells always produce same result regardless of input order."""
-        from app.services.itr.capital_gains import compute_capital_gains, Lot, CGTransaction
+        from app.services.itr.capital_gains import CGTransaction, Lot, compute_capital_gains
 
         lots = [
             Lot(symbol="X", buy_date=date(2023, 3, 1), quantity=10, cost_per_unit=200),
@@ -86,7 +86,7 @@ class TestFIFOConcurrency:
 
     def test_fifo_sorts_by_buy_date(self):
         """FIFO must sell oldest lots first regardless of input order."""
-        from app.services.itr.capital_gains import compute_capital_gains, Lot, CGTransaction
+        from app.services.itr.capital_gains import CGTransaction, Lot, compute_capital_gains
 
         # Input in reverse order
         lots = [

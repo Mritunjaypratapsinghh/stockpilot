@@ -222,7 +222,6 @@ async def accept_invite(token: str = Query(...), current_user: dict = Depends(ge
     return StandardResponse.ok(message="Invite accepted")
 
 
-
 # --- File Upload/Download ---
 
 
@@ -273,9 +272,7 @@ async def download_file(filename: str, current_user: dict = Depends(get_current_
         raise HTTPException(status_code=404, detail="File not found")
 
     # Verify user owns an entry with this file
-    entry = await VaultEntry.find_one(
-        {"user_id": PydanticObjectId(current_user["_id"]), "files": filename}
-    )
+    entry = await VaultEntry.find_one({"user_id": PydanticObjectId(current_user["_id"]), "files": filename})
     if not entry:
         # Check if user is a nominee with access
         nominations = await VaultNominee.find({"nominee_email": current_user["email"], "accepted": True}).to_list()
@@ -288,9 +285,7 @@ async def download_file(filename: str, current_user: dict = Depends(get_current_
 
 
 @router.delete("/entries/{entry_id}/files/{filename}", summary="Delete file from vault entry")
-async def delete_file(
-    entry_id: str, filename: str, current_user: dict = Depends(get_current_user)
-) -> StandardResponse:
+async def delete_file(entry_id: str, filename: str, current_user: dict = Depends(get_current_user)) -> StandardResponse:
     if not PydanticObjectId.is_valid(entry_id):
         raise HTTPException(status_code=400, detail="Invalid ID")
     entry = await VaultEntry.find_one(

@@ -82,3 +82,8 @@
 **Rule**:
 - **Always run the computation manually before writing the assertion.**
 - Use `python -c "..."` to verify expected values before hardcoding them in tests.
+
+### ⚠️ NEVER Use MongoDB MCP Tool for StockPilot
+**Rule**: The MongoDB MCP server is connected to the **office/work database**, NOT StockPilot's database. Never use `connect`, `find`, `aggregate`, `insert`, `update`, `delete` MCP tools when working on this project. They will hit the wrong database.
+
+**If you need to query StockPilot's DB**: Use `python -c "..."` with the app's own Beanie/Motor connection, or curl the API endpoints.

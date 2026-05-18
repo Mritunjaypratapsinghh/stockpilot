@@ -2,7 +2,6 @@
 
 import csv
 import io
-from typing import List
 
 from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -14,13 +13,11 @@ from ....models.documents import Holding
 from ....models.documents.holding import EmbeddedTransaction
 from ....services.cache import cache_delete
 from ....services.portfolio import get_prices_for_holdings, get_user_holdings
+from ....services.portfolio.portfolio_service import PortfolioService
 from .schemas import (
     HoldingCreate,
-    HoldingResponse,
     HoldingUpdate,
     ImportResult,
-    PortfolioSummary,
-    SectorAllocation,
     TransactionCreate,
 )
 
@@ -33,183 +30,65 @@ async def _invalidate_portfolio_cache(user_id: str) -> None:
         await cache_delete(f"{prefix}:{user_id}")
 
 
-@router.get("", summary="Get portfolio summary", description="Get total investment, current value, and P&L")
+@router.get("", summary="Get portfolio summary")
 async def get_portfolio_summary(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Get portfolio summary with total investment, current value, and P&L."""
-    holdings = await get_user_holdings(current_user["_id"])
-    if not holdings:
-        return StandardResponse.ok(
-            PortfolioSummary(
-                total_investment=0,
-                current_value=0,
-                total_pnl=0,
-                total_pnl_pct=0,
-                day_pnl=0,
-                day_pnl_pct=0,
-                holdings_count=0,
-            )
-        )
-
-    prices = await get_prices_for_holdings(holdings) or {}
-    total_investment = current_value = day_pnl = 0.0
-
-    for h in holdings:
-        inv = h.quantity * h.avg_price
-        total_investment += inv
-        p = prices.get(h.symbol, {})
-        curr_price = p.get("current_price") or h.current_price or h.avg_price
-        prev_close = p.get("previous_close") or curr_price
-        current_value += h.quantity * curr_price
-        day_pnl += (curr_price - prev_close) * h.quantity
-
-    total_pnl = current_value - total_investment
-    return StandardResponse.ok(
-        PortfolioSummary(
-            total_investment=round(total_investment, 2),
-            current_value=round(current_value, 2),
-            total_pnl=round(total_pnl, 2),
-            total_pnl_pct=round((total_pnl / total_investment * 100) if total_investment > 0 else 0, 2),
-            day_pnl=round(day_pnl, 2),
-            day_pnl_pct=round((day_pnl / (current_value - day_pnl) * 100) if (current_value - day_pnl) > 0 else 0, 2),
-            holdings_count=len(holdings),
-        )
-    )
+    svc = PortfolioService(current_user["_id"])
+    return StandardResponse.ok(await svc.get_summary())
 
 
-@router.get("/holdings", summary="Get all holdings", description="List all stock and MF holdings with current prices")
+@router.get("/holdings", summary="Get all holdings")
 async def get_holdings(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Get all holdings with current prices and P&L."""
-    from ....services.cache import cache_get, cache_set, market_ttl
-
-    ck = f"holdings:{current_user['_id']}"
-    cached = await cache_get(ck)
-    if cached:
-        return StandardResponse.ok(cached)
-    holdings = await get_user_holdings(current_user["_id"])
-    prices = await get_prices_for_holdings(holdings) or {}
-
-    result: List[HoldingResponse] = []
-    for h in holdings:
-        p = prices.get(h.symbol, {})
-        curr_price = p.get("current_price") or h.current_price or h.avg_price
-        inv = h.quantity * h.avg_price
-        val = h.quantity * curr_price
-        pnl = val - inv
-        result.append(
-            HoldingResponse(
-                _id=str(h.id),
-                symbol=h.symbol,
-                name=h.name,
-                holding_type=h.holding_type,
-                quantity=h.quantity,
-                avg_price=h.avg_price,
-                current_price=round(curr_price, 2),
-                day_change_pct=p.get("day_change_pct", 0),
-                current_value=round(val, 2),
-                total_investment=round(inv, 2),
-                pnl=round(pnl, 2),
-                pnl_pct=round((pnl / inv * 100) if inv > 0 else 0, 2),
-            )
-        )
-    serialized = [r.model_dump() if hasattr(r, "model_dump") else r for r in result]
-    await cache_set(ck, serialized, ttl=market_ttl())
-    return StandardResponse.ok(result)
+    svc = PortfolioService(current_user["_id"])
+    return StandardResponse.ok(await svc.get_holdings_with_prices())
 
 
-@router.post("/holdings", summary="Add holding", description="Add a new stock or MF holding")
+@router.post("/holdings", summary="Add holding")
 async def add_holding(holding: HoldingCreate, current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Add a new holding to portfolio."""
-    user_id = PydanticObjectId(current_user["_id"])
-    existing = await Holding.find_one(Holding.user_id == user_id, Holding.symbol == holding.symbol)
-    if existing:
-        raise HTTPException(status_code=400, detail="Holding already exists")
-
-    doc = Holding(
-        user_id=user_id,
-        symbol=holding.symbol,
-        name=holding.name,
-        exchange=holding.exchange,
-        holding_type=holding.holding_type,
-        quantity=holding.quantity,
-        avg_price=holding.avg_price,
-    )
-    await doc.insert()
-    await _invalidate_portfolio_cache(current_user["_id"])
-    return StandardResponse.ok({"id": str(doc.id), "symbol": holding.symbol}, "Holding added")
+    svc = PortfolioService(current_user["_id"])
+    try:
+        doc_id = await svc.add_holding(
+            symbol=holding.symbol,
+            name=holding.name,
+            exchange=holding.exchange,
+            holding_type=holding.holding_type,
+            quantity=holding.quantity,
+            avg_price=holding.avg_price,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return StandardResponse.ok({"id": doc_id, "symbol": holding.symbol}, "Holding added")
 
 
-@router.put("/holdings/{holding_id}", summary="Update holding", description="Update quantity or average price")
+@router.put("/holdings/{holding_id}", summary="Update holding")
 async def update_holding(
     holding_id: str, update: HoldingUpdate, current_user: dict = Depends(get_current_user)
 ) -> StandardResponse:
-    """Update holding quantity or average price."""
-    if not PydanticObjectId.is_valid(holding_id):
-        raise HTTPException(status_code=400, detail="Invalid ID")
-    h = await Holding.find_one(
-        Holding.id == PydanticObjectId(holding_id), Holding.user_id == PydanticObjectId(current_user["_id"])
-    )
-    if not h:
-        raise HTTPException(status_code=404, detail="Holding not found")
-    if update.quantity is not None:
-        h.quantity = update.quantity
-    if update.avg_price is not None:
-        h.avg_price = update.avg_price
-    await h.save()
-    await _invalidate_portfolio_cache(current_user["_id"])
+    svc = PortfolioService(current_user["_id"])
+    try:
+        await svc.update_holding(holding_id, quantity=update.quantity, avg_price=update.avg_price)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     return StandardResponse.ok(message="Holding updated")
 
 
-@router.delete("/holdings/{holding_id}", summary="Delete holding", description="Remove a holding from portfolio")
+@router.delete("/holdings/{holding_id}", summary="Delete holding")
 async def delete_holding(holding_id: str, current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Delete a holding from portfolio."""
-    if not PydanticObjectId.is_valid(holding_id):
-        raise HTTPException(status_code=400, detail="Invalid ID")
-    h = await Holding.find_one(
-        Holding.id == PydanticObjectId(holding_id), Holding.user_id == PydanticObjectId(current_user["_id"])
-    )
-    if not h:
-        raise HTTPException(status_code=404, detail="Holding not found")
-    await h.delete()
-    await _invalidate_portfolio_cache(current_user["_id"])
+    svc = PortfolioService(current_user["_id"])
+    try:
+        await svc.delete_holding(holding_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     return StandardResponse.ok(message="Holding deleted")
 
 
-@router.get("/sectors", summary="Get sector allocation", description="Get portfolio breakdown by sector")
+@router.get("/sectors", summary="Get sector allocation")
 async def get_sector_allocation(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Get portfolio sector allocation breakdown."""
-    from ....services.cache import cache_get, cache_set, market_ttl
-
-    ck = f"sectors:{current_user['_id']}"
-    cached = await cache_get(ck)
-    if cached:
-        return StandardResponse.ok(cached)
-    holdings = await get_user_holdings(current_user["_id"])
-    if not holdings:
-        return StandardResponse.ok({"sectors": [], "total_value": 0})
-
-    prices = await get_prices_for_holdings(holdings) or {}
-    sector_values: dict[str, float] = {}
-    total_value = 0.0
-
-    for h in holdings:
-        curr_price = prices.get(h.symbol, {}).get("current_price") or h.current_price or h.avg_price
-        value = h.quantity * curr_price
-        total_value += value
-        sector = SECTOR_MAP.get(h.symbol, "Others")
-        sector_values[sector] = sector_values.get(sector, 0) + value
-
-    sectors = [
-        SectorAllocation(
-            sector=s, value=round(v, 2), percentage=round(v / total_value * 100, 1) if total_value > 0 else 0
-        )
-        for s, v in sorted(sector_values.items(), key=lambda x: x[1], reverse=True)
-    ]
-    result = {
-        "sectors": [s.model_dump() if hasattr(s, "model_dump") else s for s in sectors],
-        "total_value": round(total_value, 2),
-    }
-    await cache_set(ck, result, ttl=market_ttl(300, 3600))
-    return StandardResponse.ok(result)
+    svc = PortfolioService(current_user["_id"])
+    return StandardResponse.ok(await svc.get_sectors())
 
 
 @router.get(
@@ -362,109 +241,45 @@ def _calc_xirr(holdings, current_value):
     return round(rate * 100, 2) if -1 < rate < 10 else None
 
 
-@router.get("/transactions", summary="Get transactions", description="List all buy/sell transactions")
+@router.get("/transactions", summary="Get transactions")
 async def get_transactions(
     page: int = 1, limit: int = 50, current_user: dict = Depends(get_current_user)
 ) -> StandardResponse:
-    """Get all transactions across holdings with pagination."""
-    page = max(1, page)
-    limit = max(1, min(limit, 200))
-    holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
-    txns: list = []
-    for h in holdings:
-        for i, t in enumerate(h.transactions):
-            txns.append({"symbol": h.symbol, "holding_id": str(h.id), "index": i, **t.model_dump()})
-    txns.sort(key=lambda x: x.get("date", ""), reverse=True)
-    total = len(txns)
-    start = (page - 1) * limit
-    return StandardResponse.ok(
-        {
-            "transactions": txns[start : start + limit],
-            "total": total,
-            "page": page,
-            "pages": (total + limit - 1) // limit,
-        }
-    )
+    svc = PortfolioService(current_user["_id"])
+    return StandardResponse.ok(await svc.get_transactions(page, limit))
 
 
-@router.post("/transactions", summary="Add transaction", description="Record a buy or sell transaction")
+@router.post("/transactions", summary="Add transaction")
 async def add_transaction(txn: TransactionCreate, current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Add a buy or sell transaction."""
-    user_id = PydanticObjectId(current_user["_id"])
-    quantity = txn.quantity or (round(txn.amount / txn.price, 4) if txn.amount else None)
-    if not quantity:
-        raise HTTPException(status_code=400, detail="Provide quantity or amount")
-
-    holding = await Holding.find_one(Holding.user_id == user_id, Holding.symbol == txn.symbol)
-    txn_doc = EmbeddedTransaction(
-        type=txn.type, quantity=quantity, price=txn.price, date=txn.date.isoformat(), notes=txn.notes
-    )
-
-    if not holding:
-        if txn.type == "SELL":
-            raise HTTPException(status_code=400, detail="Cannot sell - no holding found")
-        holding = Holding(
-            user_id=user_id,
+    svc = PortfolioService(current_user["_id"])
+    try:
+        result = await svc.add_transaction(
             symbol=txn.symbol,
-            name=txn.symbol,
-            exchange="NSE",
+            txn_type=txn.type,
+            quantity=txn.quantity,
+            price=txn.price,
+            date_str=txn.date.isoformat(),
             holding_type=txn.holding_type,
-            quantity=quantity,
-            avg_price=txn.price,
-            transactions=[txn_doc],
+            notes=txn.notes or "",
+            amount=txn.amount,
         )
-        await holding.insert()
-        return StandardResponse.ok({"holding_id": str(holding.id)}, "Holding created")
-
-    old_qty, old_avg = holding.quantity, holding.avg_price
-    if txn.type == "BUY":
-        new_qty = round(old_qty + quantity, 4)
-        new_avg = ((old_qty * old_avg) + (quantity * txn.price)) / new_qty
-    else:
-        if quantity > old_qty:
-            raise HTTPException(status_code=400, detail="Cannot sell more than held")
-        new_qty = round(old_qty - quantity, 4)
-        new_avg = old_avg
-
-    if new_qty == 0:
-        await holding.delete()
-        await _invalidate_portfolio_cache(current_user["_id"])
-        return StandardResponse.ok(message="Holding sold completely")
-
-    holding.quantity = new_qty
-    holding.avg_price = round(new_avg, 4)
-    holding.transactions.append(txn_doc)
-    await holding.save()
-    await _invalidate_portfolio_cache(current_user["_id"])
-    return StandardResponse.ok({"new_quantity": new_qty, "new_avg_price": round(new_avg, 2)}, "Transaction added")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    msg = "Holding sold completely" if result.get("sold_completely") else "Transaction added"
+    return StandardResponse.ok(result, msg)
 
 
 @router.delete("/transactions/{holding_id}/{index}")
 async def delete_transaction(
     holding_id: str, index: int, current_user: dict = Depends(get_current_user)
 ) -> StandardResponse:
-    """Delete a transaction by index."""
-    if not PydanticObjectId.is_valid(holding_id) or index < 0:
-        raise HTTPException(status_code=400, detail="Invalid ID or index")
-
-    holding = await Holding.find_one(
-        Holding.id == PydanticObjectId(holding_id), Holding.user_id == PydanticObjectId(current_user["_id"])
-    )
-    if not holding or index >= len(holding.transactions):
-        raise HTTPException(status_code=404, detail="Transaction not found")
-
-    holding.transactions.pop(index)
-    if holding.transactions:
-        qty, cost = 0.0, 0.0
-        for t in holding.transactions:
-            if t.type == "BUY":
-                cost += t.quantity * t.price
-                qty += t.quantity
-            else:
-                qty -= t.quantity
-        holding.avg_price = round(cost / qty, 4) if qty > 0 else holding.avg_price
-        holding.quantity = round(qty, 4) if qty > 0 else holding.quantity
-    await holding.save()
+    svc = PortfolioService(current_user["_id"])
+    try:
+        await svc.delete_transaction(holding_id, index)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     return StandardResponse.ok(message="Transaction deleted")
 
 

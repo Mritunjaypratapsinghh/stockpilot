@@ -11,8 +11,7 @@ export function usePriceWebSocket(symbols = []) {
   const reconnectTimeout = useRef(null);
 
   const connect = useCallback(() => {
-    const token = localStorage.getItem('token');
-    const url = token ? `${WS_BASE}/ws/prices?token=${token}` : `${WS_BASE}/ws/prices`;
+    const url = `${WS_BASE}/ws/prices`;
     
     const ws = new WebSocket(url);
     wsRef.current = ws;

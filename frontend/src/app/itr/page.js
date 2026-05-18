@@ -47,6 +47,7 @@ export default function ITRWizard() {
   const [deductions, setDeductions] = useState({ sec_80c: '', sec_80ccd_1b: '', sec_80d_self: '', sec_80d_parents: '', sec_80e: '', sec_80g: '', sec_80tta: '' });
   const [lossCarryForward, setLossCarryForward] = useState({ stcl_bf: '', ltcl_bf: '', house_property_loss_bf: '', business_loss_bf: '' });
   const [advanceTax, setAdvanceTax] = useState(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const toast = useToast();
 
   const saveProfile = async () => {
@@ -70,22 +71,22 @@ export default function ITRWizard() {
     if (lcf) body.loss_carry_forward = lcf;
     if (!Object.keys(body).length) return;
     try {
-      await api(`/api/v1/itr/profile/${FY}`, { method: 'PUT', body: JSON.stringify(body) });
-    } catch {}
+      await api(`/api/itr/profile/${FY}`, { method: 'PUT', body: JSON.stringify(body) });
+    } catch (e) { console.error('saveProfile failed:', e); }
   };
 
   const loadCG = async () => {
-    try { setCgData(await api(`/api/v1/itr/capital-gains/${FY}`)); } catch { toast?.error('Failed to load capital gains'); }
+    try { setCgData(await api(`/api/itr/capital-gains/${FY}`)); } catch { toast?.error('Failed to load capital gains'); }
   };
 
   const loadAdvanceTax = async () => {
-    try { setAdvanceTax(await api(`/api/v1/itr/advance-tax/${FY}`)); } catch { toast?.error('Failed to load advance tax'); }
+    try { setAdvanceTax(await api(`/api/itr/advance-tax/${FY}`)); } catch { toast?.error('Failed to load advance tax'); }
   };
 
   const exportITR = async () => {
     setLoading(true); setError('');
     try {
-      const res = await api(`/api/v1/itr/export/${FY}`, { method: 'POST' });
+      const res = await api(`/api/itr/export/${FY}`, { method: 'POST' });
       const blob = new Blob([res.json_string], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = `ITR_${FY}.json`; a.click();
@@ -99,7 +100,7 @@ export default function ITRWizard() {
 
   const resolveAISItem = async (itemId, status) => {
     try {
-      await api(`/api/v1/itr/ais-item/${itemId}`, {
+      await api(`/api/itr/ais-item/${itemId}`, {
         method: 'PUT',
         body: JSON.stringify({ status, is_exempt: status === 'exempt' }),
       });
@@ -109,11 +110,8 @@ export default function ITRWizard() {
 
   const resolveAllAIS = async () => {
     setLoading(true);
-    for (const item of (checklist?.items || [])) {
-      if (item.status === 'pending') {
-        await resolveAISItem(item.id, 'accepted');
-      }
-    }
+    const pending = (checklist?.items || []).filter(item => item.status === 'pending');
+    await Promise.all(pending.map(item => resolveAISItem(item.id, 'accepted')));
     setLoading(false);
   };
 
@@ -135,12 +133,12 @@ export default function ITRWizard() {
       const formData = new FormData();
       formData.append('file', file);
       const pw = pdfPasswords[endpoint];
-      const token = localStorage.getItem('token');
+      
       const params = new URLSearchParams({ fy: FY });
       if (pw) params.append('password', pw);
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/itr/upload/${endpoint}?${params}`,
-        { method: 'POST', body: formData, headers: token ? { Authorization: `Bearer ${token}` } : {} }
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/itr/upload/${endpoint}?${params}`,
+        { method: 'POST', body: formData, credentials: 'include' }
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Upload failed');
@@ -155,16 +153,17 @@ export default function ITRWizard() {
   };
 
   useEffect(() => { loadCalendar(); }, []);
-  useEffect(() => { if (step === 3 || step === 4 || step === 6) loadProfileData(); }, [step]);
+  useEffect(() => { if ((step === 3 || step === 4 || step === 6) && !profileLoaded) loadProfileData(); }, [step]);
 
   const loadCalendar = async () => {
-    try { setCalendar(await api(`/api/v1/itr/tax-calendar?fy=${FY}`)); } catch {}
+    try { setCalendar(await api(`/api/itr/tax-calendar?fy=${FY}`)); } catch (e) { console.error('loadCalendar failed:', e); }
   };
 
   const loadProfileData = async () => {
     try {
       // Auto-fill from AIS first
-      const profile = await api(`/api/v1/itr/profile/${FY}/autofill`, { method: 'POST' });
+      const profile = await api(`/api/itr/profile/${FY}/autofill`, { method: 'POST' });
+      setProfileLoaded(true);
       if (profile.salary?.gross) setSalary(prev => ({
         ...prev,
         gross: String(profile.salary.gross || ''),
@@ -196,13 +195,13 @@ export default function ITRWizard() {
         sec_80g: String(profile.deductions?.sec_80g || prev.sec_80g || ''),
         sec_80tta: String(profile.deductions?.sec_80tta || prev.sec_80tta || ''),
       }));
-    } catch {}
+    } catch (e) { console.error('loadProfileData failed:', e); }
   };
 
   const runScopeCheck = async () => {
     setLoading(true); setError('');
     try {
-      const res = await api('/api/v1/itr/scope-check', { method: 'POST', body: JSON.stringify({ residency: 'resident', transactions: [] }) });
+      const res = await api('/api/itr/scope-check', { method: 'POST', body: JSON.stringify({ residency: 'resident', transactions: [] }) });
       setScopeResult(res);
     } catch (e) { setError(errMsg(e)); }
     setLoading(false);
@@ -212,8 +211,8 @@ export default function ITRWizard() {
     setLoading(true); setError('');
     try {
       const [recon, cl] = await Promise.all([
-        api(`/api/v1/itr/reconciliation/${FY}`),
-        api(`/api/v1/itr/checklist/${FY}`),
+        api(`/api/itr/reconciliation/${FY}`),
+        api(`/api/itr/checklist/${FY}`),
       ]);
       setReconciliation(recon);
       setChecklist(cl);
@@ -225,9 +224,9 @@ export default function ITRWizard() {
     setLoading(true); setError('');
     try {
       const [comp, cmp, opt] = await Promise.all([
-        api(`/api/v1/itr/compute/${FY}?regime=new`, { method: 'POST' }),
-        api(`/api/v1/itr/comparison/${FY}`),
-        api(`/api/v1/itr/optimize/${FY}`),
+        api(`/api/itr/compute/${FY}?regime=new`, { method: 'POST' }),
+        api(`/api/itr/comparison/${FY}`),
+        api(`/api/itr/optimize/${FY}`),
       ]);
       setComputation(comp); setComparison(cmp); setOptimization(opt);
     } catch (e) { setError(errMsg(e)); }
@@ -237,7 +236,7 @@ export default function ITRWizard() {
   const runValidation = async () => {
     setLoading(true); setError('');
     try {
-      setValidation(await api(`/api/v1/itr/validate/${FY}`, { method: 'POST' }));
+      setValidation(await api(`/api/itr/validate/${FY}`, { method: 'POST' }));
     } catch (e) { setError(errMsg(e)); }
     setLoading(false);
   };
@@ -245,7 +244,7 @@ export default function ITRWizard() {
   const canGoNext = () => {
     if (step === 0 && scopeResult && !scopeResult.supported) return false;
     if (step === 2 && checklist && !checklist.can_proceed) return false;
-    if (step === 8 && validation && !validation.can_proceed) return false;
+    if (step === 10 && validation && !validation.can_proceed) return false;
     return true;
   };
 

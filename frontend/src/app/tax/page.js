@@ -32,8 +32,8 @@ export default function TaxPage() {
   };
 
   const exportReport = async () => {
-    const token = localStorage.getItem('token');
-    const res = await fetch('/api/finance/tax/export', { headers: { Authorization: `Bearer ${token}` } });
+    
+    const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/api/finance/tax/export', { credentials: 'include' });
     const blob = await res.blob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');

@@ -44,7 +44,7 @@ def generate_itr_json(
         "income": {
             "salary": {
                 "gross_salary": salary.get("gross", 0),
-                "standard_deduction": computation.get("salary_income", 0) - salary.get("gross", 0),
+                "standard_deduction": max(0, salary.get("gross", 0) - computation.get("salary_income", 0)),
                 "net_salary": computation.get("salary_income", 0),
             },
             "house_property": [

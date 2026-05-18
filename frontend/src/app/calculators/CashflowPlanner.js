@@ -50,7 +50,7 @@ export default function CashflowPlanner() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    api(`/api/v1/calculators/cashflow?inflows=${inflows.map(i => i.amount).join(',')}&outflows=${outflows.map(o => o.amount).join(',')}`)
+    api(`/api/calculators/cashflow?inflows=${inflows.map(i => i.amount).join(',')}&outflows=${outflows.map(o => o.amount).join(',')}`)
       .then(r => { setResult(r); setError(null); }).catch(e => setError(e.message));
   }, [inflows, outflows]);
 

@@ -101,7 +101,6 @@ class AISItemResolve(BaseModel):
     is_exempt: bool = False
 
 
-# ── Response Schemas ──
 class ScopeCheckRequest(BaseModel):
     residency: str = "resident"
     transactions: list[dict] = []
@@ -110,6 +109,7 @@ class ScopeCheckRequest(BaseModel):
     has_foreign_assets: bool = False
 
 
+# ── Response Schemas ──
 class ScopeCheckResponse(BaseModel):
     supported: bool
     blockers: list[dict] = []

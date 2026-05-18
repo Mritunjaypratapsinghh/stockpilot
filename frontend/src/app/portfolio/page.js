@@ -131,9 +131,9 @@ export default function PortfolioPage() {
       if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
         const formData = new FormData();
         formData.append('file', file);
-        const token = localStorage.getItem('token');
+        
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/portfolio/import-transactions`, {
-          method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData,
+          method: 'POST', credentials: 'include', body: formData,
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.detail || 'Import failed');

@@ -1,5 +1,6 @@
 """Market routes - quotes, search, indices, research, screener, compare, corporate actions."""
 
+import re
 from datetime import datetime
 
 import httpx
@@ -16,11 +17,24 @@ from ....utils.logger import logger
 
 router = APIRouter()
 
+SYMBOL_RE = re.compile(r"^[A-Z0-9&\-]{1,20}$")
+
+
+def _sanitize_symbol(symbol: str) -> str:
+    """Validate and sanitize stock symbol."""
+    cleaned = symbol.strip().upper().replace(" ", "")
+    if not SYMBOL_RE.match(cleaned):
+        raise HTTPException(status_code=400, detail="Invalid symbol format")
+    return cleaned
+
 
 @router.get("/quote/{symbol}", summary="Get stock quote", description="Get real-time price for a stock")
 async def get_quote(symbol: str, exchange: str = "NSE") -> StandardResponse:
     """Get real-time stock quote."""
-    price_data = await get_stock_price(symbol.upper(), exchange)
+    symbol = _sanitize_symbol(symbol)
+    if exchange not in ("NSE", "BSE"):
+        raise HTTPException(status_code=400, detail="Exchange must be NSE or BSE")
+    price_data = await get_stock_price(symbol, exchange)
     if not price_data:
         raise HTTPException(status_code=404, detail="Stock not found")
     return StandardResponse.ok(price_data)
@@ -72,7 +86,13 @@ async def get_indices() -> StandardResponse:
 @router.get("/quotes", summary="Get bulk quotes", description="Get prices for multiple stocks")
 async def get_bulk_quotes(symbols: str) -> StandardResponse:
     """Get prices for multiple stocks at once."""
-    symbol_list = [s.strip().upper() for s in symbols.split(",")]
+    symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    # Validate each symbol
+    for s in symbol_list:
+        if not SYMBOL_RE.match(s):
+            raise HTTPException(status_code=400, detail=f"Invalid symbol: {s}")
+    if len(symbol_list) > 50:
+        raise HTTPException(status_code=400, detail="Maximum 50 symbols per request")
     return StandardResponse.ok(await get_bulk_prices(symbol_list))
 
 

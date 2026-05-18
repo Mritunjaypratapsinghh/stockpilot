@@ -85,6 +85,23 @@ def _months_between(d1: date, d2: date) -> int:
     return (d2.year - d1.year) * 12 + (d2.month - d1.month)
 
 
+def _held_longer_than(buy_date: date, sell_date: date, months: int) -> bool:
+    """Exact date comparison for holding period. sell_date must be AFTER the anniversary."""
+    y = buy_date.year + months // 12
+    m = buy_date.month + months % 12
+    if m > 12:
+        y += 1
+        m -= 12
+    try:
+        cutoff = buy_date.replace(year=y, month=m)
+    except ValueError:
+        # Handle edge case like Jan 31 + 12 months → Feb has no 31
+        import calendar
+        last_day = calendar.monthrange(y, m)[1]
+        cutoff = buy_date.replace(year=y, month=m, day=min(buy_date.day, last_day))
+    return sell_date > cutoff
+
+
 def _is_debt_mf_post_2023(asset_type: str, buy_date: date, rules: TaxRules) -> bool:
     return asset_type in ("debt_mf", "etf_debt") and buy_date >= rules.debt_mf_no_ltcg_cutoff
 
@@ -196,7 +213,7 @@ def compute_capital_gains(
 
             holding = _months_between(lot.buy_date, sell.sell_date)
             threshold = _get_holding_period_months(lot.asset_type, rules)
-            is_lt = holding > threshold
+            is_lt = _held_longer_than(lot.buy_date, sell.sell_date, threshold)
             classification = _classify(lot.asset_type, is_lt, lot.buy_date, rules)
             gain = sale_consideration - cost
 

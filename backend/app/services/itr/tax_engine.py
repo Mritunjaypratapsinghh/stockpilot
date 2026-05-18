@@ -243,7 +243,7 @@ def compute_tax(
         at.log("step_6", "reinvestment_exemption", reinvestment, rule="Sec 54/54EC/54F")
 
     # ── Normal taxable income ──
-    normal_income = r.salary_income + max(r.hp_income, -hp_loss) + r.other_sources + stcg_other - hp_loss
+    normal_income = r.salary_income + max(r.hp_income, -hp_loss) + r.other_sources + stcg_other
     normal_income = max(0, normal_income - deductions)
     r.taxable_normal_income = normal_income
     at.log("step_5", "taxable_normal_income", normal_income)
@@ -288,6 +288,7 @@ def compute_tax(
 
     # ── Step 9: Rebate u/s 87A ──
     # Eligibility on NORMAL income only, rebate on NORMAL tax only
+    # Marginal relief: tax should not exceed income above threshold
     if regime == "new" and normal_income <= rules.rebate_new_threshold:
         r.rebate_87a = min(r.tax_on_normal, rules.rebate_new_limit)
         at.log(
@@ -296,6 +297,17 @@ def compute_tax(
             r.rebate_87a,
             rule=f"87A: normal income ₹{normal_income:,} ≤ ₹{rules.rebate_new_threshold:,}",
         )
+    elif regime == "new" and normal_income > rules.rebate_new_threshold:
+        # Marginal relief: cap tax so net doesn't exceed income above threshold
+        excess = normal_income - rules.rebate_new_threshold
+        if r.tax_on_normal > excess:
+            r.rebate_87a = r.tax_on_normal - excess
+            at.log(
+                "step_9",
+                "rebate_87a_marginal",
+                r.rebate_87a,
+                rule=f"87A marginal relief: tax capped at excess ₹{excess:,} above ₹{rules.rebate_new_threshold:,}",
+            )
     elif regime == "old" and normal_income <= rules.rebate_old_threshold:
         r.rebate_87a = min(r.tax_on_normal, rules.rebate_old_limit)
         at.log(

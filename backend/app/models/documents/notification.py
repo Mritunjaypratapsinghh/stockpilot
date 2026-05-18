@@ -1,4 +1,5 @@
 from pydantic import Field
+from pymongo import ASCENDING, DESCENDING, IndexModel
 
 from .base import BaseDocument
 
@@ -10,3 +11,6 @@ class Notification(BaseDocument):
 
     class Settings:
         name = "notifications"
+        indexes = [
+            IndexModel([("user_id", ASCENDING), ("created_at", DESCENDING)]),
+        ]

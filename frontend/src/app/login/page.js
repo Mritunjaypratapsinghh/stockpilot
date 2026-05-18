@@ -28,8 +28,7 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault(); setLoading(true);
     try {
-      const res = await api(isLogin ? '/api/auth/login' : '/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
-      localStorage.setItem('token', res.access_token);
+      await api(isLogin ? '/api/auth/login' : '/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
       window.location.href = '/';
     } catch (err) {
       showToast(err.message);
@@ -39,8 +38,7 @@ export default function LoginPage() {
   const handleGoogleSuccess = async (response) => {
     setLoading(true);
     try {
-      const res = await api('/api/auth/google', { method: 'POST', body: JSON.stringify({ credential: response.credential }) });
-      localStorage.setItem('token', res.access_token);
+      await api('/api/auth/google', { method: 'POST', body: JSON.stringify({ credential: response.credential }) });
       window.location.href = '/';
     } catch (err) {
       showToast(err.message);

@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from pydantic import Field
+from pymongo import ASCENDING, DESCENDING, IndexModel
 
 from .base import BaseDocument
 
@@ -14,3 +15,6 @@ class PortfolioSnapshot(BaseDocument):
 
     class Settings:
         name = "portfolio_snapshots"
+        indexes = [
+            IndexModel([("user_id", ASCENDING), ("date", DESCENDING)]),
+        ]

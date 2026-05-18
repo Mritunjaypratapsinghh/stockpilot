@@ -15,7 +15,7 @@ export default function RetirementPlanner() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    api(`/api/v1/calculators/retirement?current_age=${age}&retirement_age=${retireAge}&monthly_expenses=${expenses}&current_savings=${savings}&inflation=${inflation}&expected_return=${returns}`)
+    api(`/api/calculators/retirement?current_age=${age}&retirement_age=${retireAge}&monthly_expenses=${expenses}&current_savings=${savings}&inflation=${inflation}&expected_return=${returns}`)
       .then(r => { setResult(r); setError(null); }).catch(e => setError(e.message));
   }, [age, retireAge, expenses, savings, inflation, returns]);
 

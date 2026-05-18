@@ -17,8 +17,8 @@ from .portfolio import router as portfolio_router
 from .vault import router as vault_router
 from .watchlist import router as watchlist_router
 
-# Create v1 router
-router = APIRouter(prefix="/v1")
+# Create v1 router — mounted at /api in main.py
+router = APIRouter()
 
 # Include all routers
 router.include_router(auth_router, prefix="/auth", tags=["Auth"])

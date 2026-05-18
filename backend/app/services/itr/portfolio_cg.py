@@ -11,7 +11,7 @@ from ...models.documents import Holding
 from .capital_gains import CGSummary, CGTransaction, Lot, compute_capital_gains
 
 
-def _parse_date(d: str | datetime) -> date:
+def _parse_date(d: str | datetime) -> date | None:
     if isinstance(d, datetime):
         return d.date()
     if isinstance(d, date):
@@ -19,7 +19,7 @@ def _parse_date(d: str | datetime) -> date:
     try:
         return datetime.fromisoformat(d).date()
     except (ValueError, TypeError):
-        return date.min  # fallback for malformed dates
+        return None  # caller must skip this transaction
 
 
 def _fy_range(fy: str) -> tuple[date, date]:
@@ -29,9 +29,7 @@ def _fy_range(fy: str) -> tuple[date, date]:
         return date(start_year, 4, 1), date(start_year + 1, 3, 31)
     except (ValueError, IndexError):
         # Default to current FY if parsing fails
-        from datetime import datetime as dt
-
-        now = dt.now()
+        now = datetime.now()
         start_year = now.year if now.month >= 4 else now.year - 1
         return date(start_year, 4, 1), date(start_year + 1, 3, 31)
 
@@ -61,6 +59,8 @@ async def get_portfolio_capital_gains(user_id: str, fy: str) -> CGSummary:
 
         for t in h.transactions:
             t_date = _parse_date(t.date)
+            if t_date is None:
+                continue
 
             if t.type == "BUY":
                 lots.append(

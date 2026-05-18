@@ -1,6 +1,7 @@
 from typing import Optional
 
 from pydantic import Field
+from pymongo import ASCENDING, IndexModel
 
 from .base import BaseDocument
 
@@ -16,3 +17,6 @@ class Dividend(BaseDocument):
 
     class Settings:
         name = "dividends"
+        indexes = [
+            IndexModel([("user_id", ASCENDING)]),
+        ]

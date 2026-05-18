@@ -1,9 +1,10 @@
+import json
 import logging
 import re
 from typing import List, Optional
 
 from beanie import PydanticObjectId
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from groq import Groq
 from pydantic import BaseModel
@@ -28,6 +29,13 @@ SYSTEM_PROMPT = (
     "- Format currency in Indian style with ₹ symbol (e.g., ₹1,21,992).\n"
     "- Use markdown: **bold** for emphasis, bullet points with - for lists.\n"
     "- Keep responses focused but thorough (5-15 lines).\n\n"
+    "ACTIONS - You can take real actions for the user:\n"
+    "- Create price alerts (notify when stock hits target price)\n"
+    "- Add stocks to watchlist\n"
+    "- Calculate tax on selling holdings\n"
+    "- Find tax harvesting opportunities\n"
+    "- Get live stock prices\n"
+    "When user asks to set alerts, reminders, or take actions, USE THE TOOLS PROVIDED.\n\n"
     "Rules:\n"
     "- For portfolio-specific questions, use the data below. Never fabricate holdings.\n"
     "- For general finance/investing questions, use your knowledge to explain.\n"
@@ -205,10 +213,10 @@ async def get_stock_fundamentals(symbol: str) -> str:
 
 async def get_live_price(symbol: str) -> str:
     """Fetch live price for a stock."""
-    from ....services.market.price_service import get_price
+    from ....services.market.price_service import get_stock_price
 
     try:
-        data = await get_price(symbol.replace("?", "").strip())
+        data = await get_stock_price(symbol.replace("?", "").strip())
         if not data or not data.get("current_price"):
             return ""
         change = data.get("day_change_pct", 0)
@@ -509,7 +517,7 @@ async def export_chat(
 @router.post("/ask")
 async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_user)):
     if not client:
-        return StandardResponse.error("AI chat not configured. Set GROQ_API_KEY.")
+        raise HTTPException(status_code=503, detail="AI chat unavailable. GROQ_API_KEY not configured.")
 
     import asyncio
 
@@ -626,12 +634,14 @@ async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_us
         try:
             from ....models.documents import Alert
 
+            # Map condition to alert_type
+            alert_type = "PRICE_ABOVE" if alert_intent["condition"] == "above" else "PRICE_BELOW"
             alert = Alert(
                 user_id=user_id,
                 symbol=alert_intent["symbol"],
-                condition=alert_intent["condition"],
-                target_price=alert_intent["target_price"],
-                active=True,
+                alert_type=alert_type,
+                target_value=alert_intent["target_price"],
+                is_active=True,
             )
             await alert.insert()
             sym = alert_intent["symbol"]
@@ -703,30 +713,83 @@ async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_us
     suggestions = generate_suggestions(req.message, len(holdings) > 0)
 
     try:
-        stream = client.chat.completions.create(
+        # Import AI tools
+        from ....services.chat import AI_TOOLS, execute_function
+
+        # First call with tools to check if AI wants to use any
+        initial_response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=messages,
+            tools=AI_TOOLS,
+            tool_choice="auto",
             temperature=0.3,
             max_completion_tokens=800,
-            stream=True,
         )
+
+        response_message = initial_response.choices[0].message
+        tool_calls = response_message.tool_calls
+        action_results = []
+
+        # Process tool calls if any
+        if tool_calls:
+            # Add assistant message with tool calls
+            messages.append(response_message)
+
+            for tool_call in tool_calls:
+                func_name = tool_call.function.name
+                try:
+                    func_args = json.loads(tool_call.function.arguments)
+                except json.JSONDecodeError:
+                    func_args = {}
+
+                logger.info(f"AI calling function: {func_name} with args: {func_args}")
+
+                # Execute the function
+                result = await execute_function(func_name, func_args, current_user["_id"])
+                action_results.append({"function": func_name, "result": result})
+
+                # Add tool result to messages
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": json.dumps(result),
+                })
+
+            # Get final response after tool execution (streamed)
+            stream = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=messages,
+                temperature=0.3,
+                max_completion_tokens=800,
+                stream=True,
+            )
+        else:
+            # No tool calls — use the content from initial response directly
+            initial_content = response_message.content or ""
+            stream = None
 
         async def generate():
             full = []
-            for chunk in stream:
-                token = chunk.choices[0].delta.content or ""
-                if token:
-                    full.append(token)
-                    yield token
+
+            if stream is not None:
+                for chunk in stream:
+                    token = chunk.choices[0].delta.content or ""
+                    if token:
+                        full.append(token)
+                        yield token
+            else:
+                # Yield initial response content directly
+                full.append(initial_content)
+                yield initial_content
 
             # Metadata for frontend
-            import json
-
             meta = {"suggestions": suggestions, "session_id": session_id}
             if sparkline_data:
                 meta["sparkline"] = sparkline_data
             if alert_created:
                 meta["alert"] = alert_created
+            if action_results:
+                meta["actions"] = action_results
 
             yield f"\n\n<!--META:{json.dumps(meta)}-->"
 

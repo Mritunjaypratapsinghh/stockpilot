@@ -4,21 +4,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from .api.health import router as health_router
 from .api.v1 import router as v1_router
-from .api.v1.alerts import router as alerts_router
-from .api.v1.analytics import router as analytics_router
-from .api.v1.auth import router as auth_router
-from .api.v1.chat import router as chat_router
-from .api.v1.export import router as export_router
-from .api.v1.finance import router as finance_router
-from .api.v1.ipo import router as ipo_router
-from .api.v1.market import router as market_router
-from .api.v1.portfolio import router as portfolio_router
-from .api.v1.watchlist import router as watchlist_router
+from .middleware.security_headers import SecurityHeadersMiddleware
 from .core.config import settings
 from .core.database import close_db, init_db
 from .core.security import verify_token
-from .services.cache import close_redis
+from .services.cache import close_redis, get_redis
+from .services.http_client import close_http_client
 from .services.market.price_service import get_bulk_prices
 from .services.websocket import ws_manager
 from .tasks.scheduler import start_scheduler
@@ -38,6 +31,7 @@ async def lifespan(app: FastAPI):
     logger.info("StockPilot API ready")
     yield
     logger.info("Shutting down...")
+    await close_http_client()
     await close_redis()
     await close_db()
 
@@ -62,21 +56,19 @@ async def log_requests(request: Request, call_next):
     # Track API usage in Redis for analytics
     if path.startswith("/api/") and response.status_code < 400:
         try:
-            from .services.cache import get_redis
-
             redis = await get_redis()
             if redis:
                 today = time.strftime("%Y-%m-%d")
-                # Endpoint hit count
-                await redis.hincrby(f"analytics:endpoints:{today}", path, 1)
-                # DAU tracking (from auth header)
+                ep_key = f"analytics:endpoints:{today}"
+                dau_key = f"analytics:dau:{today}"
+                await redis.hincrby(ep_key, path, 1)
+                await redis.expire(ep_key, 7 * 86400)  # 7 days TTL
                 auth = request.headers.get("authorization", "")
                 if auth.startswith("Bearer "):
-                    from .core.security import verify_token
-
                     user = verify_token(auth.split(" ")[1])
                     if user:
-                        await redis.sadd(f"analytics:dau:{today}", user["_id"])
+                        await redis.sadd(dau_key, user["_id"])
+                        await redis.expire(dau_key, 7 * 86400)
         except Exception:
             pass
 
@@ -87,24 +79,14 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
+app.add_middleware(SecurityHeadersMiddleware)
 
-# V1 API routes (new structure)
+# All API routes
+app.include_router(health_router)
 app.include_router(v1_router, prefix="/api")
-
-# Legacy routes (backward compatibility with frontend using /api/* paths)
-app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
-app.include_router(portfolio_router, prefix="/api/portfolio", tags=["Portfolio"])
-app.include_router(market_router, prefix="/api/market", tags=["Market"])
-app.include_router(alerts_router, prefix="/api/alerts", tags=["Alerts"])
-app.include_router(finance_router, prefix="/api/finance", tags=["Finance"])
-app.include_router(analytics_router, prefix="/api/analytics", tags=["Analytics"])
-app.include_router(ipo_router, prefix="/api/ipo", tags=["IPO"])
-app.include_router(watchlist_router, prefix="/api/watchlist", tags=["Watchlist"])
-app.include_router(export_router, prefix="/api/export", tags=["Export"])
-app.include_router(chat_router, prefix="/api/chat", tags=["Chat"])
 
 
 @app.get("/")
@@ -114,20 +96,39 @@ async def root():
 
 @app.api_route("/health", methods=["GET", "HEAD"])
 async def health():
-    return {"status": "healthy"}
+    """Health check with dependency verification."""
+    checks = {"api": "healthy"}
+
+    # Check MongoDB
+    try:
+        from .core.database import client
+
+        if client:
+            await client.admin.command("ping")
+            checks["mongodb"] = "healthy"
+        else:
+            checks["mongodb"] = "not_connected"
+    except Exception:
+        checks["mongodb"] = "unhealthy"
+
+    # Check Redis
+    try:
+        redis = await get_redis()
+        if redis:
+            await redis.ping()
+            checks["redis"] = "healthy"
+        else:
+            checks["redis"] = "unavailable"
+    except Exception:
+        checks["redis"] = "unhealthy"
+
+    status = "healthy" if all(v == "healthy" for v in checks.values()) else "degraded"
+    return {"status": status, "checks": checks}
 
 
 @app.websocket("/ws/prices")
 async def websocket_prices(websocket: WebSocket, token: str = None):
-    """WebSocket endpoint for real-time price updates.
-
-    Connect: ws://host/ws/prices?token=JWT_TOKEN
-
-    Messages:
-    - {"action": "subscribe", "symbols": ["RELIANCE", "TCS"]}
-    - {"action": "unsubscribe", "symbols": ["RELIANCE"]}
-    """
-    # Authenticate user
+    """WebSocket endpoint for real-time price updates."""
     user = verify_token(token) if token else None
     user_id = user["_id"] if user else str(id(websocket))
 
@@ -140,8 +141,8 @@ async def websocket_prices(websocket: WebSocket, token: str = None):
             symbols = data.get("symbols", [])
 
             if action == "subscribe" and symbols:
+                symbols = symbols[:50]  # Limit to prevent abuse
                 await ws_manager.subscribe(user_id, symbols)
-                # Send initial prices
                 prices = await get_bulk_prices(symbols)
                 for symbol, price_data in prices.items():
                     await websocket.send_json({"type": "price", "symbol": symbol, "data": price_data})
@@ -153,6 +154,3 @@ async def websocket_prices(websocket: WebSocket, token: str = None):
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         await ws_manager.disconnect(websocket, user_id)
-
-
-# test

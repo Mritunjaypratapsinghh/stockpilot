@@ -20,7 +20,8 @@ export default function PublicLayout({ children }) {
     const s = localStorage.getItem('theme') || 'dark';
     setTheme(s);
     document.documentElement.setAttribute('data-theme', s);
-    setLoggedIn(!!localStorage.getItem('token'));
+    fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/api/auth/me', { credentials: 'include' })
+      .then(r => setLoggedIn(r.ok)).catch(() => setLoggedIn(false));
   }, []);
 
   const toggleTheme = () => {

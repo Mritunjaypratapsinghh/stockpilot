@@ -39,6 +39,9 @@ Thumbs.db
 dist/
 build/
 
+# Uploads (user data)
+uploads/
+
 # Temporary analysis files
 *_LOGIC*.md
 *_REVIEW*.md

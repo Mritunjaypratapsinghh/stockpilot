@@ -77,21 +77,30 @@ def reconcile_tds(
     ais_entries: [{tan, section, amount, source_name}]
     form26as_entries: [{tan, section, amount, deductor_name}]
     """
-    # Index by TAN+section
-    f16 = {}
+    # Index by TAN+section — accumulate amounts for duplicates
+    f16: dict[str, dict] = {}
     for e in form16_entries:
         key = _match_key(e.get("tan", ""), e.get("section", ""))
-        f16[key] = e
+        if key in f16:
+            f16[key]["amount"] = f16[key].get("amount", 0) + e.get("amount", 0)
+        else:
+            f16[key] = dict(e)
 
-    ais = {}
+    ais: dict[str, dict] = {}
     for e in ais_entries:
         key = _match_key(e.get("tan", ""), e.get("section", ""))
-        ais[key] = e
+        if key in ais:
+            ais[key]["amount"] = ais[key].get("amount", 0) + e.get("amount", 0)
+        else:
+            ais[key] = dict(e)
 
-    f26 = {}
+    f26: dict[str, dict] = {}
     for e in form26as_entries:
         key = _match_key(e.get("tan", ""), e.get("section", ""))
-        f26[key] = e
+        if key in f26:
+            f26[key]["amount"] = f26[key].get("amount", 0) + e.get("amount", 0)
+        else:
+            f26[key] = dict(e)
 
     all_keys = set(f16.keys()) | set(ais.keys()) | set(f26.keys())
     items = []

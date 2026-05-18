@@ -1,3 +1,5 @@
+import os
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from ..utils.logger import logger
@@ -16,7 +18,19 @@ from .ws_broadcaster import broadcast_prices
 scheduler = AsyncIOScheduler(timezone="Asia/Kolkata")
 
 
+def _is_primary_worker() -> bool:
+    """Only run scheduler in one worker to prevent duplicate jobs.
+    
+    Set env SCHEDULER_ENABLED=0 on additional workers in multi-process deployments.
+    Default: enabled (for single-process uvicorn dev mode).
+    """
+    return os.environ.get("SCHEDULER_ENABLED", "1") != "0"
+
+
 def start_scheduler():
+    if not _is_primary_worker():
+        logger.info("Scheduler disabled for this worker")
+        return
     # WebSocket price broadcast (every 5 seconds during market hours)
     scheduler.add_job(broadcast_prices, "interval", seconds=5, id="ws_broadcast")
 

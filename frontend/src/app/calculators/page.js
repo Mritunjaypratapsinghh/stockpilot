@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
 import PublicNavbar from '../../components/PublicNavbar';
+import { api } from '../../lib/api';
 import { PieChart, TrendingUp, Target, Wallet, CreditCard, Receipt, DollarSign, Calculator } from 'lucide-react';
 import AssetAllocation from './AssetAllocation';
 import SIPStepup from './SIPStepup';
@@ -28,7 +29,7 @@ export default function CalculatorsPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const ActiveComponent = calculators.find(c => c.id === active)?.component || AssetAllocation;
 
-  useEffect(() => { setIsLoggedIn(!!localStorage.getItem('token')); }, []);
+  useEffect(() => { api('/api/auth/me').then(() => setIsLoggedIn(true)).catch(() => setIsLoggedIn(false)); }, []);
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', margin: 0, padding: 0 }}>

@@ -1,13 +1,21 @@
-"""Authentication routes for user registration, login, and settings."""
+"""Authentication routes — login, register, Google OAuth, logout."""
 
 from beanie import PydanticObjectId
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from google.auth.transport import requests
 from google.oauth2 import id_token
 
 from ....core.config import settings
 from ....core.response_handler import StandardResponse
-from ....core.security import create_access_token, get_current_user, get_password_hash, verify_password
+from ....core.security import (
+    COOKIE_MAX_AGE,
+    COOKIE_NAME,
+    create_access_token,
+    get_current_user,
+    get_password_hash,
+    needs_rehash,
+    verify_password,
+)
 from ....middleware.rate_limit import rate_limit
 from ....models.documents import User
 from .schemas import GoogleAuth, SettingsUpdate, Token, UserCreate, UserLogin, UserResponse
@@ -15,14 +23,26 @@ from .schemas import GoogleAuth, SettingsUpdate, Token, UserCreate, UserLogin, U
 router = APIRouter()
 
 
+def _set_auth_cookie(response: Response, token: str) -> None:
+    """Set httpOnly secure cookie with JWT token."""
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=token,
+        httponly=True,
+        secure=True,  # HTTPS only in production
+        samesite="lax",
+        max_age=COOKIE_MAX_AGE,
+        path="/",
+    )
+
+
 @router.post(
     "/register",
     summary="Register new user",
-    description="Create a new user account with email and password",
     dependencies=[Depends(rate_limit("auth"))],
 )
-async def register(user_data: UserCreate) -> StandardResponse:
-    """Register a new user account."""
+async def register(user_data: UserCreate, response: Response) -> StandardResponse:
+    """Register a new user account. Sets httpOnly auth cookie."""
     existing = await User.find_one(User.email == user_data.email)
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -30,34 +50,37 @@ async def register(user_data: UserCreate) -> StandardResponse:
     user = User(email=user_data.email, password_hash=get_password_hash(user_data.password))
     await user.insert()
     token = create_access_token({"sub": str(user.id)}, email=user_data.email)
+    _set_auth_cookie(response, token)
     return StandardResponse.ok(Token(access_token=token), "Registration successful")
 
 
 @router.post(
     "/login",
     summary="User login",
-    description="Authenticate user and return JWT token",
     dependencies=[Depends(rate_limit("auth"))],
 )
-async def login(user_data: UserLogin) -> StandardResponse:
-    """Authenticate user and return JWT token."""
+async def login(user_data: UserLogin, response: Response) -> StandardResponse:
+    """Authenticate user. Sets httpOnly auth cookie. Auto-upgrades legacy hashes."""
     user = await User.find_one(User.email == user_data.email)
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    if not user.password_hash or not verify_password(user_data.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not user or not user.password_hash or not verify_password(user_data.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    if needs_rehash(user.password_hash):
+        user.password_hash = get_password_hash(user_data.password)
+        await user.save()
+
     token = create_access_token({"sub": str(user.id)}, email=user.email)
+    _set_auth_cookie(response, token)
     return StandardResponse.ok(Token(access_token=token), "Login successful")
 
 
 @router.post(
     "/google",
     summary="Google OAuth",
-    description="Authenticate with Google",
     dependencies=[Depends(rate_limit("auth"))],
 )
-async def google_auth(data: GoogleAuth) -> StandardResponse:
-    """Authenticate or register user via Google OAuth."""
+async def google_auth(data: GoogleAuth, response: Response) -> StandardResponse:
+    """Authenticate via Google OAuth. Sets httpOnly auth cookie."""
     try:
         idinfo = id_token.verify_oauth2_token(data.credential, requests.Request(), settings.google_client_id)
     except Exception:
@@ -76,12 +99,19 @@ async def google_auth(data: GoogleAuth) -> StandardResponse:
         await user.insert()
 
     token = create_access_token({"sub": str(user.id)}, email=email)
+    _set_auth_cookie(response, token)
     return StandardResponse.ok(Token(access_token=token), "Login successful")
 
 
-@router.get("/me", summary="Get current user", description="Get authenticated user profile")
+@router.post("/logout", summary="Logout")
+async def logout(response: Response) -> StandardResponse:
+    """Clear auth cookie."""
+    response.delete_cookie(key=COOKIE_NAME, path="/", httponly=True, secure=True, samesite="lax")
+    return StandardResponse.ok(message="Logged out")
+
+
+@router.get("/me", summary="Get current user")
 async def get_me(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Get current authenticated user profile."""
     user = await User.get(PydanticObjectId(current_user["_id"]))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -96,11 +126,8 @@ async def get_me(current_user: dict = Depends(get_current_user)) -> StandardResp
     )
 
 
-@router.put(
-    "/settings", summary="Update user settings", description="Update user preferences and notification settings"
-)
+@router.put("/settings", summary="Update user settings")
 async def update_settings(data: SettingsUpdate, current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Update user settings and preferences."""
     user = await User.get(PydanticObjectId(current_user["_id"]))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

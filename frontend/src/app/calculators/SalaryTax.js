@@ -19,7 +19,7 @@ export default function SalaryTax() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    api(`/api/v1/calculators/salary-tax?annual_ctc=${ctc}&pf_type=${pfType}&regime=${regime}&vpf=${vpf}`)
+    api(`/api/calculators/salary-tax?annual_ctc=${ctc}&pf_type=${pfType}&regime=${regime}&vpf=${vpf}`)
       .then(r => { setResult(r); setError(null); }).catch(e => setError(e.message));
   }, [ctc, pfType, regime, vpf]);
 

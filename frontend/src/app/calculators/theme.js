@@ -110,7 +110,7 @@ export function useCalc(url) {
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     setLoading(true); setError(null);
-    fetch(`/api/v1/calculators/${url}`).then(r => r.json()).then(d => { setResult(d.data || d); setLoading(false); })
+    fetch(`/api/calculators/${url}`).then(r => r.json()).then(d => { setResult(d.data || d); setLoading(false); })
       .catch(e => { setError(e.message); setLoading(false); });
   }, [url]);
   return { result, error, loading };

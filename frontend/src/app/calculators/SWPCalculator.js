@@ -16,7 +16,7 @@ export default function SWPCalculator() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    api(`/api/v1/calculators/swp?corpus=${corpus}&monthly_withdrawal=${withdrawal}&annual_stepup=${stepup}&expected_return=${returns}&years=${years}`)
+    api(`/api/calculators/swp?corpus=${corpus}&monthly_withdrawal=${withdrawal}&annual_stepup=${stepup}&expected_return=${returns}&years=${years}`)
       .then(r => { setResult(r); setError(null); }).catch(e => setError(e.message));
   }, [corpus, withdrawal, stepup, returns, years]);
 

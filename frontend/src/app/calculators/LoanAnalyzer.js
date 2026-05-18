@@ -39,7 +39,7 @@ export default function LoanAnalyzer() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    api(`/api/v1/calculators/loan-analyzer?principal=${principal}&interest_rate=${rate}&tenure_years=${tenure}&stepup_pct=${stepup}&extra_emis=${extraEmis}`)
+    api(`/api/calculators/loan-analyzer?principal=${principal}&interest_rate=${rate}&tenure_years=${tenure}&stepup_pct=${stepup}&extra_emis=${extraEmis}`)
       .then(r => { setResult(r); setError(null); }).catch(e => setError(e.message));
   }, [principal, rate, tenure, stepup, extraEmis]);
 

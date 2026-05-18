@@ -54,12 +54,15 @@ def nominee_to_response(n: VaultNominee) -> NomineeResponse:
 @router.get("/entries", summary="Get vault entries")
 async def get_entries(
     category: Optional[VaultCategoryEnum] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
     current_user: dict = Depends(get_current_user),
 ) -> StandardResponse:
     query = {"user_id": PydanticObjectId(current_user["_id"])}
     if category:
         query["category"] = category.value
-    entries = await VaultEntry.find(query).sort("-created_at").to_list()
+    skip = (page - 1) * limit
+    entries = await VaultEntry.find(query).sort("-created_at").skip(skip).limit(limit).to_list()
     return StandardResponse.ok([entry_to_response(e) for e in entries])
 
 
@@ -202,9 +205,15 @@ async def accept_invite(token: str = Query(...), current_user: dict = Depends(ge
     nominee = await VaultNominee.find_one({"invite_token": token, "nominee_email": current_user["email"]})
     if not nominee:
         raise HTTPException(status_code=404, detail="Invalid or expired invite")
+    # Token expires after 7 days
+    from datetime import datetime, timedelta, timezone
+
+    if nominee.created_at and (datetime.now(timezone.utc) - nominee.created_at) > timedelta(days=7):
+        nominee.invite_token = None
+        await nominee.save()
+        raise HTTPException(status_code=410, detail="Invite expired. Ask the owner to resend.")
     if nominee.accepted:
         return StandardResponse.ok(message="Already accepted")
-    from datetime import datetime, timezone
 
     nominee.accepted = True
     nominee.accepted_at = datetime.now(timezone.utc)
@@ -215,6 +224,9 @@ async def accept_invite(token: str = Query(...), current_user: dict = Depends(ge
 
 
 # --- File Upload/Download ---
+
+
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 @router.post("/entries/{entry_id}/upload", summary="Upload file to vault entry")
@@ -229,14 +241,19 @@ async def upload_file(
     if not entry:
         raise HTTPException(status_code=404, detail="Entry not found")
 
-    ext = Path(file.filename).suffix.lower()
+    ext = Path(file.filename).suffix.lower() if file.filename else ""
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
+
+    # Read with size limit
+    content = await file.read(MAX_UPLOAD_SIZE + 1)
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 10 MB")
 
     filename = f"{uuid.uuid4().hex}{ext}"
     filepath = UPLOAD_DIR / filename
     with open(filepath, "wb") as f:
-        f.write(await file.read())
+        f.write(content)
 
     entry.files = entry.files or []
     entry.files.append(filename)
@@ -246,7 +263,12 @@ async def upload_file(
 
 @router.get("/files/{filename}", summary="Download vault file")
 async def download_file(filename: str, current_user: dict = Depends(get_current_user)):
-    filepath = UPLOAD_DIR / filename
+    # Prevent path traversal — only allow UUID hex filenames with extension
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    filepath = (UPLOAD_DIR / filename).resolve()
+    if not str(filepath).startswith(str(UPLOAD_DIR.resolve())):
+        raise HTTPException(status_code=400, detail="Invalid filename")
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="File not found")
 

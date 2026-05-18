@@ -12,6 +12,7 @@ from ....core.response_handler import StandardResponse
 from ....core.security import get_current_user
 from ....models.documents import Holding
 from ....models.documents.holding import EmbeddedTransaction
+from ....services.cache import cache_delete
 from ....services.portfolio import get_prices_for_holdings, get_user_holdings
 from .schemas import (
     HoldingCreate,
@@ -24,6 +25,12 @@ from .schemas import (
 )
 
 router = APIRouter()
+
+
+async def _invalidate_portfolio_cache(user_id: str) -> None:
+    """Clear all portfolio-related cache keys for a user."""
+    for prefix in ("holdings", "sectors", "dashboard", "analytics"):
+        await cache_delete(f"{prefix}:{user_id}")
 
 
 @router.get("", summary="Get portfolio summary", description="Get total investment, current value, and P&L")
@@ -127,6 +134,7 @@ async def add_holding(holding: HoldingCreate, current_user: dict = Depends(get_c
         avg_price=holding.avg_price,
     )
     await doc.insert()
+    await _invalidate_portfolio_cache(current_user["_id"])
     return StandardResponse.ok({"id": str(doc.id), "symbol": holding.symbol}, "Holding added")
 
 
@@ -147,6 +155,7 @@ async def update_holding(
     if update.avg_price is not None:
         h.avg_price = update.avg_price
     await h.save()
+    await _invalidate_portfolio_cache(current_user["_id"])
     return StandardResponse.ok(message="Holding updated")
 
 
@@ -161,6 +170,7 @@ async def delete_holding(holding_id: str, current_user: dict = Depends(get_curre
     if not h:
         raise HTTPException(status_code=404, detail="Holding not found")
     await h.delete()
+    await _invalidate_portfolio_cache(current_user["_id"])
     return StandardResponse.ok(message="Holding deleted")
 
 
@@ -353,14 +363,26 @@ def _calc_xirr(holdings, current_value):
 
 
 @router.get("/transactions", summary="Get transactions", description="List all buy/sell transactions")
-async def get_transactions(current_user: dict = Depends(get_current_user)) -> StandardResponse:
-    """Get all transactions across holdings."""
+async def get_transactions(
+    page: int = 1, limit: int = 50, current_user: dict = Depends(get_current_user)
+) -> StandardResponse:
+    """Get all transactions across holdings with pagination."""
+    page = max(1, page)
+    limit = max(1, min(limit, 200))
     holdings = await Holding.find(Holding.user_id == PydanticObjectId(current_user["_id"])).to_list()
     txns: list = []
     for h in holdings:
         for i, t in enumerate(h.transactions):
             txns.append({"symbol": h.symbol, "holding_id": str(h.id), "index": i, **t.model_dump()})
-    return StandardResponse.ok(sorted(txns, key=lambda x: x.get("date", ""), reverse=True))
+    txns.sort(key=lambda x: x.get("date", ""), reverse=True)
+    total = len(txns)
+    start = (page - 1) * limit
+    return StandardResponse.ok({
+        "transactions": txns[start : start + limit],
+        "total": total,
+        "page": page,
+        "pages": (total + limit - 1) // limit,
+    })
 
 
 @router.post("/transactions", summary="Add transaction", description="Record a buy or sell transaction")
@@ -404,12 +426,14 @@ async def add_transaction(txn: TransactionCreate, current_user: dict = Depends(g
 
     if new_qty == 0:
         await holding.delete()
+        await _invalidate_portfolio_cache(current_user["_id"])
         return StandardResponse.ok(message="Holding sold completely")
 
     holding.quantity = new_qty
     holding.avg_price = round(new_avg, 4)
     holding.transactions.append(txn_doc)
     await holding.save()
+    await _invalidate_portfolio_cache(current_user["_id"])
     return StandardResponse.ok({"new_quantity": new_qty, "new_avg_price": round(new_avg, 2)}, "Transaction added")
 
 

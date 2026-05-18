@@ -1,40 +1,55 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-export async function api(endpoint, options = {}) {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  
-  const res = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
-    },
-  });
+// Request deduplication — prevents duplicate in-flight requests to the same endpoint
+const _inflight = new Map();
 
-  if (!res.ok) {
-    if (res.status === 401 && typeof window !== 'undefined' && !window.location.pathname.includes('/login') && !window.location.pathname.includes('/calculators')) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-      return;
-    }
-    const error = await res.json().catch(() => ({ detail: 'Request failed' }));
-    throw new Error(error.detail || 'Request failed');
+export async function api(endpoint, options = {}) {
+  const method = options.method || 'GET';
+
+  // Only deduplicate GET requests
+  const dedupeKey = method === 'GET' ? endpoint : null;
+  if (dedupeKey && _inflight.has(dedupeKey)) {
+    return _inflight.get(dedupeKey);
   }
 
-  const json = await res.json();
-  // Auto-extract data from StandardResponse format
-  return json.data !== undefined ? json.data : json;
+  const promise = (async () => {
+    const res = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      credentials: 'include', // Send httpOnly cookies automatically
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+
+    if (!res.ok) {
+      if (res.status === 401 && typeof window !== 'undefined' && !window.location.pathname.includes('/login') && !window.location.pathname.includes('/calculators')) {
+        window.location.href = '/login';
+        return;
+      }
+      const error = await res.json().catch(() => ({ detail: 'Request failed' }));
+      throw new Error(error.detail || 'Request failed');
+    }
+
+    const json = await res.json();
+    return json.data !== undefined ? json.data : json;
+  })();
+
+  if (dedupeKey) {
+    _inflight.set(dedupeKey, promise);
+    promise.finally(() => _inflight.delete(dedupeKey));
+  }
+
+  return promise;
 }
 
 export async function uploadFile(endpoint, file) {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const formData = new FormData();
   formData.append('file', file);
   
   const res = await fetch(`${API_BASE}${endpoint}`, {
     method: 'POST',
-    headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+    credentials: 'include',
     body: formData,
   });
 
@@ -55,14 +70,12 @@ export const getDashboard = () => api('/api/portfolio/dashboard');
 export const getTransactions = () => api('/api/portfolio/transactions');
 export const addTransaction = (data) => api('/api/portfolio/transactions', { method: 'POST', body: JSON.stringify(data) });
 export const deleteTransaction = (holdingId, index) => api(`/api/portfolio/transactions/${holdingId}/${index}`, { method: 'DELETE' });
-export const getTransactionsList = () => api('/api/portfolio/transactions');
 export const importHoldings = (file) => uploadFile('/api/portfolio/import', file);
 export const getAlerts = () => api('/api/alerts');
 export const getWatchlist = () => api('/api/watchlist');
 export const getIndices = () => api('/api/market/indices');
 export const getMarketSummary = () => api('/api/market/summary');
 export const getAnalysis = (symbol, exchange = 'NSE') => api(`/api/market/research/${symbol}?exchange=${exchange}`);
-export const getEnhancedAnalysis = (symbol, exchange = 'NSE') => api(`/api/market/research/${symbol}?exchange=${exchange}`);
 export const getNews = (symbol) => api(`/api/market/research/${symbol}/news`);
 export const getNotifications = () => api('/api/alerts/notifications');
 export const getDividends = () => api('/api/finance/dividends');
@@ -70,10 +83,7 @@ export const addDividend = (data) => api('/api/finance/dividends', { method: 'PO
 export const deleteDividend = (id) => api(`/api/finance/dividends/${id}`, { method: 'DELETE' });
 
 export const downloadExport = async (type) => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  const res = await fetch(`${API_BASE}/api/export/${type}/csv`, {
-    headers: { ...(token && { Authorization: `Bearer ${token}` }) },
-  });
+  const res = await fetch(`${API_BASE}/api/export/${type}/csv`, { credentials: 'include' });
   if (!res.ok) throw new Error('Export failed');
   const blob = await res.blob();
   const url = window.URL.createObjectURL(blob);
@@ -84,30 +94,31 @@ export const downloadExport = async (type) => {
   window.URL.revokeObjectURL(url);
 };
 
-
 // Ledger
 export const getLedger = (params = {}) => {
   const query = new URLSearchParams(params).toString();
-  return api(`/api/v1/ledger${query ? `?${query}` : ''}`);
+  return api(`/api/ledger${query ? `?${query}` : ''}`);
 };
-export const getLedgerSummary = () => api('/api/v1/ledger/summary');
-export const addLedgerEntry = (data) => api('/api/v1/ledger', { method: 'POST', body: JSON.stringify(data) });
-export const updateLedgerEntry = (id, data) => api(`/api/v1/ledger/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const settleLedgerEntry = (id, data) => api(`/api/v1/ledger/${id}/settle`, { method: 'POST', body: JSON.stringify(data) });
-export const deleteLedgerEntry = (id) => api(`/api/v1/ledger/${id}`, { method: 'DELETE' });
-
+export const getLedgerSummary = () => api('/api/ledger/summary');
+export const addLedgerEntry = (data) => api('/api/ledger', { method: 'POST', body: JSON.stringify(data) });
+export const updateLedgerEntry = (id, data) => api(`/api/ledger/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const settleLedgerEntry = (id, data) => api(`/api/ledger/${id}/settle`, { method: 'POST', body: JSON.stringify(data) });
+export const deleteLedgerEntry = (id) => api(`/api/ledger/${id}`, { method: 'DELETE' });
 
 // Vault
-export const getVaultEntries = (category) => api(`/api/v1/vault/entries${category ? `?category=${category}` : ''}`);
-export const createVaultEntry = (data) => api('/api/v1/vault/entries', { method: 'POST', body: JSON.stringify(data) });
-export const updateVaultEntry = (id, data) => api(`/api/v1/vault/entries/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteVaultEntry = (id) => api(`/api/v1/vault/entries/${id}`, { method: 'DELETE' });
-export const getVaultNominees = () => api('/api/v1/vault/nominees');
-export const addVaultNominee = (data) => api('/api/v1/vault/nominees', { method: 'POST', body: JSON.stringify(data) });
-export const removeVaultNominee = (id) => api(`/api/v1/vault/nominees/${id}`, { method: 'DELETE' });
-export const getSharedVaults = () => api('/api/v1/vault/shared');
-export const viewSharedVault = (email) => api(`/api/v1/vault/shared/${encodeURIComponent(email)}`);
-export const acceptVaultInvite = (token) => api(`/api/v1/vault/accept-invite?token=${token}`, { method: 'POST' });
-export const uploadVaultFile = (entryId, file) => uploadFile(`/api/v1/vault/entries/${entryId}/upload`, file);
-export const deleteVaultFile = (entryId, filename) => api(`/api/v1/vault/entries/${entryId}/files/${filename}`, { method: 'DELETE' });
-export const getVaultFileUrl = (filename) => `${API_BASE}/api/v1/vault/files/${filename}`;
+export const getVaultEntries = (category) => api(`/api/vault/entries${category ? `?category=${category}` : ''}`);
+export const createVaultEntry = (data) => api('/api/vault/entries', { method: 'POST', body: JSON.stringify(data) });
+export const updateVaultEntry = (id, data) => api(`/api/vault/entries/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteVaultEntry = (id) => api(`/api/vault/entries/${id}`, { method: 'DELETE' });
+export const getVaultNominees = () => api('/api/vault/nominees');
+export const addVaultNominee = (data) => api('/api/vault/nominees', { method: 'POST', body: JSON.stringify(data) });
+export const removeVaultNominee = (id) => api(`/api/vault/nominees/${id}`, { method: 'DELETE' });
+export const getSharedVaults = () => api('/api/vault/shared');
+export const viewSharedVault = (email) => api(`/api/vault/shared/${encodeURIComponent(email)}`);
+export const acceptVaultInvite = (token) => api(`/api/vault/accept-invite?token=${token}`, { method: 'POST' });
+export const uploadVaultFile = (entryId, file) => uploadFile(`/api/vault/entries/${entryId}/upload`, file);
+export const deleteVaultFile = (entryId, filename) => api(`/api/vault/entries/${entryId}/files/${filename}`, { method: 'DELETE' });
+export const getVaultFileUrl = (filename) => `${API_BASE}/api/vault/files/${filename}`;
+
+// Auth
+export const logout = () => api('/api/auth/logout', { method: 'POST' });

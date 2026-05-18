@@ -1,6 +1,8 @@
 import json
+from datetime import datetime
 from typing import Any, Optional
 
+import pytz
 import redis.asyncio as redis
 
 from ..core.config import settings
@@ -10,10 +12,17 @@ _redis: Optional[redis.Redis] = None
 
 
 async def get_redis() -> redis.Redis:
-    """Get Redis connection (lazy initialization)."""
+    """Get Redis connection with connection pool (lazy initialization)."""
     global _redis
     if _redis is None:
-        _redis = redis.from_url(settings.redis_url, decode_responses=True)
+        _redis = redis.from_url(
+            settings.redis_url,
+            decode_responses=True,
+            max_connections=20,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+            retry_on_timeout=True,
+        )
     return _redis
 
 
@@ -58,14 +67,24 @@ async def cache_delete(key: str) -> bool:
         return False
 
 
+_IST = pytz.timezone("Asia/Kolkata")
+
+# NSE holidays 2026 (update annually — check NSE circular each December)
+_NSE_HOLIDAYS = {
+    (1, 26), (3, 10), (3, 31), (4, 1), (4, 14), (4, 18),
+    (5, 1), (6, 26), (7, 17), (8, 15), (8, 27), (10, 2),
+    (10, 20), (10, 21), (11, 5), (11, 26), (12, 25),
+}
+
+
 def market_open() -> bool:
-    """Check if Indian stock market is currently open."""
-    from datetime import datetime
-
-    import pytz
-
-    now = datetime.now(pytz.timezone("Asia/Kolkata"))
-    return now.weekday() < 5 and 915 <= now.hour * 100 + now.minute <= 1530
+    """Check if Indian stock market is currently open (accounts for holidays)."""
+    now = datetime.now(_IST)
+    if now.weekday() >= 5:
+        return False
+    if (now.month, now.day) in _NSE_HOLIDAYS:
+        return False
+    return 915 <= now.hour * 100 + now.minute <= 1530
 
 
 def market_ttl(active: int = 120, closed: int = 3600) -> int:

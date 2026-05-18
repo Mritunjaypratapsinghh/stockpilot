@@ -27,7 +27,7 @@ export default function AssetAllocation() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    api(`/api/v1/calculators/asset-allocation?age=${age}&risk_appetite=${risk}&horizon=${horizon}`)
+    api(`/api/calculators/asset-allocation?age=${age}&risk_appetite=${risk}&horizon=${horizon}`)
       .then(r => { setResult(r); setError(null); }).catch(e => setError(e.message));
   }, [age, risk, horizon]);
 

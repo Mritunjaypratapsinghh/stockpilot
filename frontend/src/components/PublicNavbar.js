@@ -11,7 +11,8 @@ export default function PublicNavbar() {
     const savedTheme = localStorage.getItem('theme') || 'dark';
     setTheme(savedTheme);
     document.documentElement.setAttribute('data-theme', savedTheme);
-    setIsLoggedIn(!!localStorage.getItem('token'));
+    fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/api/auth/me', { credentials: 'include' })
+      .then(r => setIsLoggedIn(r.ok)).catch(() => setIsLoggedIn(false));
   }, []);
 
   const cycleTheme = () => {

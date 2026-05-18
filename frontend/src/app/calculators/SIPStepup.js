@@ -17,7 +17,7 @@ export default function SIPStepup() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    api(`/api/v1/calculators/sip-stepup?monthly_amount=${amount}&expected_return=${returns}&years=${years}&annual_stepup=${stepup}`)
+    api(`/api/calculators/sip-stepup?monthly_amount=${amount}&expected_return=${returns}&years=${years}&annual_stepup=${stepup}`)
       .then(r => { setResult(r); setError(null); }).catch(e => setError(e.message));
   }, [amount, returns, years, stepup]);
 

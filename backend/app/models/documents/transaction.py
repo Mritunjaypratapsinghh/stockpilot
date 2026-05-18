@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Literal, Optional
 
 from pydantic import Field
+from pymongo import ASCENDING, DESCENDING, IndexModel
 
 from .base import BaseDocument
 
@@ -19,3 +20,7 @@ class Transaction(BaseDocument):
 
     class Settings:
         name = "transactions"
+        indexes = [
+            IndexModel([("user_id", ASCENDING), ("date", DESCENDING)]),
+            IndexModel([("user_id", ASCENDING), ("symbol", ASCENDING)]),
+        ]

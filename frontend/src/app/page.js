@@ -42,9 +42,9 @@ export default function Dashboard() {
   }, [chartRange, chartLoading]);
 
   useEffect(() => {
-    const t = localStorage.getItem('token');
-    setToken(t);
-    if (t) {
+    // Check auth by calling /me — cookie sent automatically
+    api('/api/auth/me').then(() => {
+      setToken(true);
       Promise.all([getPortfolio(), getHoldings(), getIndices().catch(() => ({}))])
         .then(([p, h, idx]) => { 
           setPortfolio(p); 
@@ -57,9 +57,9 @@ export default function Dashboard() {
       api('/api/analytics/health-score').then(d => setHealthScore(d)).catch(() => {});
       api('/api/portfolio/earnings-calendar').then(d => setEarnings(d?.earnings || [])).catch(() => {});
       getSnapshots('3M').then(d => setSnapshots(d?.snapshots || [])).catch(() => {});
-    } else {
+    }).catch(() => {
       window.location.href = '/landing';
-    }
+    });
   }, []);
 
   if (!token) {

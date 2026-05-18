@@ -1,5 +1,6 @@
 import './globals.css';
 import ChatWidgetWrapper from '../components/ChatWidgetWrapper';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import Providers from '../components/Providers';
 
 export const metadata = {
@@ -42,7 +43,7 @@ export default function RootLayout({ children }) {
           })();
         `}} />
       </head>
-      <body><Providers>{children}</Providers><ChatWidgetWrapper /></body>
+      <body><Providers><ErrorBoundary>{children}</ErrorBoundary></Providers><ChatWidgetWrapper /></body>
     </html>
   );
 }

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import re
 import tempfile
 from dataclasses import asdict
 from typing import Optional
@@ -40,6 +42,14 @@ from .schemas import (
 
 router = APIRouter()
 
+_FY_RE = re.compile(r"^\d{4}-\d{2}$")
+
+
+def _validate_fy(fy: str) -> str:
+    if not _FY_RE.match(fy):
+        raise HTTPException(400, "Invalid FY format. Expected YYYY-YY (e.g. 2025-26)")
+    return fy
+
 
 def _uid(user: dict) -> PydanticObjectId:
     return PydanticObjectId(user["_id"])
@@ -58,6 +68,7 @@ def _doc(doc) -> dict:
 
 
 async def _get_or_create_profile(uid: PydanticObjectId, fy: str) -> TaxProfile:
+    _validate_fy(fy)
     profile = await TaxProfile.find_one(TaxProfile.user_id == uid, TaxProfile.financial_year == fy)
     if not profile:
         parts = fy.split("-")
@@ -129,8 +140,9 @@ async def update_profile(fy: str, data: TaxProfileUpdate, user: dict = Depends(g
         # Handle loss_carry_forward special case - convert flat dict to list
         if key == "loss_carry_forward" and isinstance(value, dict):
             lcf_list = []
-            # from_ay = previous AY (losses are brought forward from prior year)
-            prev_ay = f"{int(fy.split('-')[0])}-{int(fy.split('-')[1])}"
+            # from_ay = previous AY (current FY's AY minus 1)
+            start_year = int(fy.split("-")[0])
+            prev_ay = f"{start_year}-{(start_year + 1) % 100:02d}"
             if value.get("stcl_bf"):
                 lcf_list.append(
                     {
@@ -194,17 +206,25 @@ async def _save_upload(upload: UploadFile) -> str:
 async def upload_form16(
     fy: str, file: UploadFile = File(...), password: Optional[str] = None, user: dict = Depends(get_current_user)
 ):
+    _validate_fy(fy)
     path = await _save_upload(file)
-    return asdict(parse_form16(path, password))
+    try:
+        return asdict(parse_form16(path, password))
+    finally:
+        os.unlink(path)
 
 
 @router.post("/upload/ais")
 async def upload_ais(
     fy: str, file: UploadFile = File(...), password: Optional[str] = None, user: dict = Depends(get_current_user)
 ):
+    _validate_fy(fy)
     uid = _uid(user)
     path = await _save_upload(file)
-    result = parse_ais(path, password)
+    try:
+        result = parse_ais(path, password)
+    finally:
+        os.unlink(path)
     # Clear previous AIS items for this user+FY (re-upload replaces)
     await AISLineItem.find(AISLineItem.user_id == uid, AISLineItem.financial_year == fy).delete()
     for entry in result.entries:
@@ -227,9 +247,13 @@ async def upload_ais(
 async def upload_form26as(
     fy: str, file: UploadFile = File(...), password: Optional[str] = None, user: dict = Depends(get_current_user)
 ):
+    _validate_fy(fy)
     uid = _uid(user)
     path = await _save_upload(file)
-    result = parse_form26as(path, password)
+    try:
+        result = parse_form26as(path, password)
+    finally:
+        os.unlink(path)
     # Clear previous 26AS entries for this user+FY (re-upload replaces)
     await TDSEntry.find(TDSEntry.user_id == uid, TDSEntry.financial_year == fy, TDSEntry.source == "form26as").delete()
     for entry in result.tds_entries:
@@ -310,6 +334,8 @@ async def resolve_ais_item(item_id: str, data: AISItemResolve, user: dict = Depe
     item = await AISLineItem.get(PydanticObjectId(item_id))
     if not item:
         raise HTTPException(404, "AIS item not found")
+    if item.user_id != _uid(user):
+        raise HTTPException(403, "Not authorized")
     item.status = data.status
     item.user_value = data.user_value
     item.dispute_reason = data.dispute_reason
@@ -343,8 +369,9 @@ async def get_hra(fy: str, user: dict = Depends(get_current_user)):
 # ── Tax Computation ──
 @router.post("/compute/{fy}")
 async def compute(fy: str, regime: str = "new", user: dict = Depends(get_current_user)):
-    profile = await _get_or_create_profile(_uid(user), fy)
-    inp = _build_tax_input(profile)
+    uid = _uid(user)
+    profile = await _get_or_create_profile(uid, fy)
+    inp = _build_tax_input(profile, await _get_tds_total(uid, fy))
     result = compute_tax(inp, regime=regime)
     profile.computation_result = asdict(result)
     await profile.save()
@@ -354,8 +381,9 @@ async def compute(fy: str, regime: str = "new", user: dict = Depends(get_current
 # ── Regime Comparison ──
 @router.get("/comparison/{fy}")
 async def get_comparison(fy: str, user: dict = Depends(get_current_user)):
-    profile = await _get_or_create_profile(_uid(user), fy)
-    inp = _build_tax_input(profile)
+    uid = _uid(user)
+    profile = await _get_or_create_profile(uid, fy)
+    inp = _build_tax_input(profile, await _get_tds_total(uid, fy))
     comp = compare_regimes(inp)
     return {
         "recommended": comp.recommended,
@@ -433,8 +461,9 @@ async def get_audit_trail(fy: str, user: dict = Depends(get_current_user)):
 # ── Optimization ──
 @router.get("/optimize/{fy}")
 async def get_optimization(fy: str, user: dict = Depends(get_current_user)):
-    profile = await _get_or_create_profile(_uid(user), fy)
-    inp = _build_tax_input(profile)
+    uid = _uid(user)
+    profile = await _get_or_create_profile(uid, fy)
+    inp = _build_tax_input(profile, await _get_tds_total(uid, fy))
     result = optimize(inp)
     return {
         "recommended_regime": result.comparison.recommended if result.comparison else "new",
@@ -447,9 +476,11 @@ async def get_optimization(fy: str, user: dict = Depends(get_current_user)):
 # ── Advance Tax ──
 @router.get("/advance-tax/{fy}")
 async def advance_tax(fy: str, user: dict = Depends(get_current_user)):
-    profile = await _get_or_create_profile(_uid(user), fy)
+    uid = _uid(user)
+    profile = await _get_or_create_profile(uid, fy)
     rules = get_rules(fy)
-    inp = _build_tax_input(profile)
+    tds = await _get_tds_total(uid, fy)
+    inp = _build_tax_input(profile, tds)
     result = compute_tax(inp, regime=profile.regime_choice or "new")
     if result.gross_tax <= rules.advance_tax_threshold:
         return {"applicable": False, "message": f"Tax ≤ ₹{rules.advance_tax_threshold:,}. No advance tax needed."}
@@ -484,7 +515,12 @@ async def tax_calendar(fy: str = "2025-26"):
 
 
 # ── Helper ──
-def _build_tax_input(profile: TaxProfile) -> TaxInput:
+async def _get_tds_total(uid: PydanticObjectId, fy: str) -> int:
+    entries = await TDSEntry.find(TDSEntry.user_id == uid, TDSEntry.financial_year == fy).to_list()
+    return sum(e.amount for e in entries)
+
+
+def _build_tax_input(profile: TaxProfile, tds_total: int = 0) -> TaxInput:
     sal = profile.salary
     ded = profile.deductions
     oth = profile.other_income
@@ -516,7 +552,7 @@ def _build_tax_input(profile: TaxProfile) -> TaxInput:
         sec_80ttb=ded.sec_80ttb,
         age_category=profile.age_category,
         filing_date=profile.filing_date,
-        tds_total=sum(p.amount for p in profile.advance_tax_paid),
+        tds_total=tds_total,
         advance_tax=sum(p.amount for p in profile.advance_tax_paid),
         self_assessment_tax=sum(p.amount for p in profile.self_assessment_tax_paid),
     )

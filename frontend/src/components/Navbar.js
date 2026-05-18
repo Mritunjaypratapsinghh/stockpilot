@@ -201,7 +201,7 @@ export default function Navbar() {
           </div>
 
           {/* Logout - Desktop */}
-          <button onClick={() => { localStorage.removeItem('token'); window.location.href = '/login'; }} className="hidden lg:flex items-center p-2 rounded-md text-[var(--text-secondary)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors shrink-0" title="Logout">
+          <button onClick={() => { fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/api/auth/logout', {method:'POST',credentials:'include'}).then(() => window.location.href = '/login'); }} className="hidden lg:flex items-center p-2 rounded-md text-[var(--text-secondary)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors shrink-0" title="Logout">
             <LogOut className="w-4 h-4" />
           </button>
 
@@ -253,7 +253,7 @@ export default function Navbar() {
             </div>
 
             {/* Logout */}
-            <button onClick={() => { localStorage.removeItem('token'); window.location.href = '/login'; }} className="flex items-center gap-3 px-3 py-3 mt-4 text-sm text-[#ef4444] border-t border-[var(--border)] w-full">
+            <button onClick={() => { fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/api/auth/logout', {method:'POST',credentials:'include'}).then(() => window.location.href = '/login'); }} className="flex items-center gap-3 px-3 py-3 mt-4 text-sm text-[#ef4444] border-t border-[var(--border)] w-full">
               <LogOut className="w-5 h-5" />Logout
             </button>
           </div>

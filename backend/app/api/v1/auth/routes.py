@@ -29,8 +29,8 @@ def _set_auth_cookie(response: Response, token: str) -> None:
         key=COOKIE_NAME,
         value=token,
         httponly=True,
-        secure=True,  # HTTPS only in production
-        samesite="lax",
+        secure=True,
+        samesite="none",  # Required for cross-origin (frontend ≠ backend domain)
         max_age=COOKIE_MAX_AGE,
         path="/",
     )
@@ -106,7 +106,7 @@ async def google_auth(data: GoogleAuth, response: Response) -> StandardResponse:
 @router.post("/logout", summary="Logout")
 async def logout(response: Response) -> StandardResponse:
     """Clear auth cookie."""
-    response.delete_cookie(key=COOKIE_NAME, path="/", httponly=True, secure=True, samesite="lax")
+    response.delete_cookie(key=COOKIE_NAME, path="/", httponly=True, secure=True, samesite="none")
     return StandardResponse.ok(message="Logged out")
 
 

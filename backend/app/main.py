@@ -9,6 +9,8 @@ from .api.v1 import router as v1_router
 from .core.config import settings
 from .core.database import close_db, init_db
 from .core.security import verify_token
+from .middleware.correlation import CorrelationIDMiddleware
+from .middleware.metrics import PrometheusMiddleware
 from .middleware.security_headers import SecurityHeadersMiddleware
 from .services.cache import close_redis, get_redis
 from .services.http_client import close_http_client
@@ -83,6 +85,8 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(PrometheusMiddleware)
+app.add_middleware(CorrelationIDMiddleware)
 
 # All API routes
 app.include_router(health_router)
@@ -128,10 +132,21 @@ async def health():
 
 @app.websocket("/ws/prices")
 async def websocket_prices(websocket: WebSocket, token: str = None):
-    """WebSocket endpoint for real-time price updates."""
-    user = verify_token(token) if token else None
-    user_id = user["_id"] if user else str(id(websocket))
+    """WebSocket endpoint for real-time price updates. Requires valid JWT."""
+    # Authenticate: check token query param or cookie
+    user = None
+    if token:
+        user = verify_token(token)
+    if not user:
+        # Try cookie
+        cookie_token = websocket.cookies.get("access_token")
+        if cookie_token:
+            user = verify_token(cookie_token)
+    if not user:
+        await websocket.close(code=4001, reason="Authentication required")
+        return
 
+    user_id = user["_id"]
     await ws_manager.connect(websocket, user_id)
 
     try:

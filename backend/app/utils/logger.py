@@ -10,6 +10,8 @@ class JSONFormatter(logging.Formatter):
     """Output logs as JSON for structured log aggregation (ELK, CloudWatch, Datadog)."""
 
     def format(self, record: logging.LogRecord) -> str:
+        from ..middleware.correlation import get_request_id
+
         log_entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
@@ -18,6 +20,7 @@ class JSONFormatter(logging.Formatter):
             "module": record.module,
             "function": record.funcName,
             "line": record.lineno,
+            "request_id": get_request_id(),
         }
         if record.exc_info:
             log_entry["exception"] = self.formatException(record.exc_info)

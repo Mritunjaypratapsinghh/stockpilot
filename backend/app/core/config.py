@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     # Groq AI
     groq_api_key: str = ""
 
+    # Sentry
+    sentry_dsn: str = ""
+
     class Config:
         env_file = "../.env"  # Relative to backend/ directory where uvicorn is run
 

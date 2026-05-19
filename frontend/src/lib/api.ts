@@ -12,12 +12,18 @@ export async function api(endpoint: string, options: any = {}) {
     return _inflight.get(dedupeKey);
   }
 
+  // Read CSRF token from cookie for state-changing requests
+  const csrfToken = typeof document !== 'undefined'
+    ? document.cookie.split('; ').find(c => c.startsWith('csrf_token='))?.split('=')[1] || ''
+    : '';
+
   const promise = (async () => {
     const res = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
       credentials: 'include', // Send httpOnly cookies automatically
       headers: {
         'Content-Type': 'application/json',
+        ...(method !== 'GET' && csrfToken ? { 'x-csrf-token': csrfToken } : {}),
         ...options.headers,
       },
     });

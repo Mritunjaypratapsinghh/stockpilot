@@ -1,6 +1,7 @@
 import time
 from contextlib import asynccontextmanager
 
+import sentry_sdk
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -10,6 +11,7 @@ from .core.config import settings
 from .core.database import close_db, init_db
 from .core.security import verify_token
 from .middleware.correlation import CorrelationIDMiddleware
+from .middleware.csrf import CSRFMiddleware
 from .middleware.metrics import PrometheusMiddleware
 from .middleware.security_headers import SecurityHeadersMiddleware
 from .services.cache import close_redis, get_redis
@@ -18,6 +20,10 @@ from .services.market.price_service import get_bulk_prices
 from .services.websocket import ws_manager
 from .tasks.scheduler import start_scheduler
 from .utils.logger import logger
+
+# Sentry error tracking
+if settings.sentry_dsn:
+    sentry_sdk.init(dsn=settings.sentry_dsn, traces_sample_rate=0.1, profiles_sample_rate=0.1)
 
 # CORS origins - restrict in production
 CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000", "https://stockpilot-psi.vercel.app"]
@@ -87,6 +93,7 @@ app.add_middleware(
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(PrometheusMiddleware)
 app.add_middleware(CorrelationIDMiddleware)
+app.add_middleware(CSRFMiddleware)
 
 # All API routes
 app.include_router(health_router)

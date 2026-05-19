@@ -47,3 +47,4 @@ aiosmtplib==5.1.0
 # ITR Filing
 pdfplumber>=0.10.0
 prometheus-client>=0.20.0
+sentry-sdk[fastapi]>=2.0.0

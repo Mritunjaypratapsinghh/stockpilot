@@ -5,6 +5,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from ..utils.logger import logger
 from .alert_checker import check_alerts, check_stop_losses
 from .digest_generator import generate_daily_digest
+from .distributed_lock import with_lock
 from .earnings_checker import check_earnings_alerts
 from .hourly_update import send_hourly_update
 from .ipo_tracker import check_ipo_alerts, scrape_ipo_data
@@ -57,8 +58,12 @@ def start_scheduler():
     scheduler.add_job(run_portfolio_advisor, "cron", hour=9, minute=30, id="advisor_morning")
     scheduler.add_job(run_portfolio_advisor, "cron", hour=15, minute=0, id="advisor_afternoon")
 
-    # Daily digest at 6 PM IST
-    scheduler.add_job(generate_daily_digest, "cron", hour=18, minute=0, id="daily_digest")
+    # Daily digest at 6 PM IST (locked — must not duplicate)
+    @with_lock("job:daily_digest", ttl=300)
+    async def _locked_digest():
+        await generate_daily_digest()
+
+    scheduler.add_job(_locked_digest, "cron", hour=18, minute=0, id="daily_digest")
 
     # Earnings reminders at 9 AM IST
     scheduler.add_job(check_earnings_alerts, "cron", hour=9, minute=0, id="earnings_check")
@@ -67,29 +72,27 @@ def start_scheduler():
     scheduler.add_job(scrape_ipo_data, "interval", hours=2, id="ipo_scrape")
     scheduler.add_job(check_ipo_alerts, "cron", hour=9, minute=30, id="ipo_alerts")
 
-    # Weekly AI report - Saturday 10 AM IST
-    scheduler.add_job(
-        send_weekly_report,
-        "cron",
-        day_of_week="sat",
-        hour=10,
-        minute=0,
-        id="weekly_report",
-    )
+    # Weekly AI report - Saturday 10 AM IST (locked)
+    @with_lock("job:weekly_report", ttl=600)
+    async def _locked_weekly():
+        await send_weekly_report()
 
-    # Tax harvesting alerts - Monday 9 AM IST
-    scheduler.add_job(
-        check_tax_harvesting,
-        "cron",
-        day_of_week="mon",
-        hour=9,
-        minute=0,
-        id="tax_harvest_alert",
-    )
+    scheduler.add_job(_locked_weekly, "cron", day_of_week="sat", hour=10, minute=0, id="weekly_report")
 
-    # Daily portfolio snapshot - 4 PM IST weekdays
+    # Tax harvesting alerts - Monday 9 AM IST (locked)
+    @with_lock("job:tax_harvest", ttl=300)
+    async def _locked_tax_harvest():
+        await check_tax_harvesting()
+
+    scheduler.add_job(_locked_tax_harvest, "cron", day_of_week="mon", hour=9, minute=0, id="tax_harvest_alert")
+
+    # Daily portfolio snapshot - 4 PM IST weekdays (locked)
+    @with_lock("job:daily_snapshot", ttl=300)
+    async def _locked_snapshot():
+        await take_daily_snapshot()
+
     scheduler.add_job(
-        take_daily_snapshot,
+        _locked_snapshot,
         "cron",
         day_of_week="mon-fri",
         hour=16,

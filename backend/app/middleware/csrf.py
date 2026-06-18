@@ -11,8 +11,9 @@ This protects against cross-origin form submissions while allowing our SPA to wo
 
 import secrets
 
-from fastapi import HTTPException, Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 CSRF_COOKIE = "csrf_token"
 CSRF_HEADER = "x-csrf-token"
@@ -31,7 +32,22 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if request.method not in SAFE_METHODS and request.url.path not in EXEMPT_PATHS:
             csrf_header = request.headers.get(CSRF_HEADER, "")
             if not csrf_cookie or csrf_header != csrf_cookie:
-                raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
+                response = JSONResponse(
+                    status_code=403,
+                    content={"detail": "CSRF token missing or invalid"},
+                )
+                # Still set the cookie so frontend can retry
+                response.set_cookie(
+                    key=CSRF_COOKIE,
+                    value=csrf_cookie,
+                    httponly=False,
+                    secure=True,
+                    samesite="none",
+                    path="/",
+                    max_age=86400,
+                )
+                response.headers["X-CSRF-Token"] = csrf_cookie
+                return response
 
         response = await call_next(request)
 
@@ -39,13 +55,12 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         response.set_cookie(
             key=CSRF_COOKIE,
             value=csrf_cookie,
-            httponly=False,  # Must be readable by frontend JS
+            httponly=False,
             secure=True,
             samesite="none",
             path="/",
             max_age=86400,
         )
         # Expose token in response header for cross-origin frontends
-        # (JS can't read cross-origin cookies via document.cookie)
         response.headers["X-CSRF-Token"] = csrf_cookie
         return response

@@ -35,6 +35,27 @@ export async function api(endpoint: string, options: any = {}) {
     const newCsrf = res.headers.get('x-csrf-token');
     if (newCsrf) _csrfToken = newCsrf;
 
+    // CSRF 403 retry: if we got a token back, retry once
+    if (res.status === 403 && newCsrf && method !== 'GET') {
+      const retry = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': _csrfToken,
+          ...options.headers,
+        },
+      });
+      const retryCsrf = retry.headers.get('x-csrf-token');
+      if (retryCsrf) _csrfToken = retryCsrf;
+      if (!retry.ok) {
+        const error = await retry.json().catch(() => ({ detail: 'Request failed' }));
+        throw new Error(error.detail || 'Request failed');
+      }
+      const json = await retry.json();
+      return json.data !== undefined ? json.data : json;
+    }
+
     if (!res.ok) {
       if (res.status === 401 && typeof window !== 'undefined' && !window.location.pathname.includes('/login') && !window.location.pathname.includes('/calculators')) {
         window.location.href = '/login';

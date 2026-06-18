@@ -25,6 +25,14 @@ _EXEMPT_KEYWORDS = frozenset(
     }
 )
 
+# Regex to match AIS info code header lines.
+# Codes can be: TDS-192, SFT-015, SFT-016(SB), SFT-016(TD), SFT-17-LES(M), SFT-18-EMF(M), etc.
+_CODE_RE = re.compile(r"^(\d+)\s+((?:TDS|TCS|SFT)-[\w\-()]+(?:\([\w]+\))?)\s+(.+)")
+
+# Amount at end of line after count: "COUNT AMOUNT" pattern
+# The header line ends with: count amount (e.g., "9 9,27,816" or "1 53" or "14 34,537.00")
+_HEADER_AMOUNT_RE = re.compile(r"\b(\d+)\s+([\d,]+(?:\.\d+)?)\s*$")
+
 
 @dataclass
 class AISEntry:
@@ -38,6 +46,8 @@ class AISEntry:
     is_exempt: bool = False
     flags: list[str] = field(default_factory=list)
     quarters: list[dict] = field(default_factory=list)
+    # Capital gains detail
+    sale_transactions: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -51,7 +61,7 @@ class AISParseResult:
 
 
 def _parse_amount(s: str) -> int:
-    """Parse Indian formatted amount like '5,94,087' to int."""
+    """Parse Indian formatted amount like '5,94,087' or '349.00' to int."""
     s = s.strip().replace(",", "").replace("₹", "").strip()
     try:
         return int(float(s))
@@ -72,15 +82,50 @@ def _detect_category(info_code: str) -> str:
     return "other"
 
 
+def _extract_cg_amounts(raw: str, txn: dict) -> None:
+    """Extract sale_consideration and cost_of_acquisition from a CG transaction line.
+
+    After the Long/Short keyword, numbers follow this pattern:
+    QTY PRICE SALE_CONSIDERATION [STT] COST ...
+    """
+    term_match = re.search(r"\b(Long|Short)\b", raw)
+    if not term_match:
+        return
+    after_term = raw[term_match.end() :]
+    nums = re.findall(r"([\d,]+\.\d+|[\d,]{2,})", after_term)
+    parsed = [float(n.replace(",", "")) for n in nums]
+    # idx 0=QTY, 1=PRICE, 2=SALE_CONSIDERATION, 3=STT or COST, 4=COST (if STT present)
+    if len(parsed) >= 4:
+        txn["sale_consideration"] = int(parsed[2])
+        # If parsed[3] < 1, it's STT → cost is parsed[4]
+        if parsed[3] < 1 and len(parsed) >= 5:
+            txn["cost_of_acquisition"] = int(parsed[4])
+        else:
+            txn["cost_of_acquisition"] = int(parsed[3])
+
+
+def _extract_header_amount(full_line: str) -> int:
+    """
+    Extract the AMOUNT from the end of a header line.
+    Header lines end with: ... COUNT AMOUNT
+    E.g.: "... KOGTA FINANCIAL (I) LTD (JPRK02037A) 9 9,27,816"
+    We want 9,27,816 (not 9 which is the count).
+    """
+    m = _HEADER_AMOUNT_RE.search(full_line)
+    if m:
+        return _parse_amount(m.group(2))
+    return 0
+
+
 def parse_ais(pdf_path: str, password: Optional[str] = None) -> AISParseResult:
     """Parse AIS PDF and extract all income/transaction entries."""
     result = AISParseResult()
 
-    # Try multiple password variants: as-is, lowercase, uppercase
+    # Try multiple password variants
     passwords_to_try = [password]
     if password:
         passwords_to_try.extend([password.lower(), password.upper()])
-        passwords_to_try = list(dict.fromkeys(passwords_to_try))  # dedupe
+        passwords_to_try = list(dict.fromkeys(passwords_to_try))
 
     pdf = None
     for pw in passwords_to_try:
@@ -124,92 +169,95 @@ def parse_ais(pdf_path: str, password: Optional[str] = None) -> AISParseResult:
         if not line:
             continue
 
-        # Look for info code lines: "N TDS-192 ..." or "N SFT-18(Pur) ..."
-        code_match = re.match(
-            r"^\d+\s+((?:TDS|TCS|SFT)-[\w()]+)\s+(.+)",
-            line,
-        )
+        # Match header line: "SR_NO INFO_CODE DESCRIPTION SOURCE (TAN) COUNT AMOUNT"
+        code_match = _CODE_RE.match(line)
         if code_match:
             # Save previous entry
             if current_entry and (current_entry.reported_value or current_entry.description):
                 result.entries.append(current_entry)
 
-            info_code = code_match.group(1)
-            rest = code_match.group(2)
+            info_code = code_match.group(2)
+            rest = code_match.group(3)
 
             current_entry = AISEntry(
                 info_code=info_code,
                 category=_detect_category(info_code),
             )
 
-            # Extract source name and TAN from rest or next lines
-            # Pattern: "Description SOURCE (TAN) COUNT AMOUNT"
-            tan_match = re.search(r"\(([A-Z]{4}[\dA-Z]{5}[A-Z](?:\.\w+)?)\)", rest)
-            if tan_match:
-                current_entry.source_tan = tan_match.group(1)
-                # Description is before the source
-                desc_part = rest[: tan_match.start()].strip()
-                # Source name is the last part before TAN
-                # Try to split description and source
-                current_entry.description = desc_part
-            else:
-                current_entry.description = rest.strip()
+            # Extract amount from rest FIRST (before combining with next line)
+            current_entry.reported_value = _extract_header_amount(rest)
 
-            # Extract amount — last number on the line (skip small numbers like counts)
-            amounts = re.findall(r"([\d,]{3,})", rest)
-            if amounts:
-                # Filter: take the largest amount (skip counts like "1", section numbers like "018")
-                parsed = [_parse_amount(a) for a in amounts]
-                # The actual amount is typically the last large number
-                current_entry.reported_value = parsed[-1] if parsed else 0
-
-            # Check next line for continuation (source name with TAN)
+            # Check if next line is a continuation (has TAN but no code_match)
+            full_rest = rest
             if i < len(lines):
                 next_line = lines[i].strip()
-                tan_next = re.search(r"\(([A-Z]{4}[\dA-Z]{5}[A-Z](?:\.\w+)?)\)", next_line)
-                if tan_next and not current_entry.source_tan:
-                    current_entry.source_tan = tan_next.group(1)
-                    current_entry.source_name = next_line[: tan_next.start()].strip()
-                    # Only take amount from next line if we don't have one yet
-                    if not current_entry.reported_value:
-                        amounts_next = re.findall(r"\b(\d{1,3}(?:,\d{2,3})+)\b", next_line)
-                        if amounts_next:
-                            current_entry.reported_value = _parse_amount(amounts_next[-1])
+                if (
+                    next_line
+                    and not _CODE_RE.match(next_line)
+                    and re.search(r"\([A-Z]{4}[\dA-Z]{5}[A-Z](?:\.\w+)?\)", next_line)
+                ):
+                    full_rest += " " + next_line
                     i += 1
+
+            # Extract source TAN from combined text
+            tan_match = re.search(r"\(([A-Z]{4}[\dA-Z]{5}[A-Z](?:\.\w+)?)\)", full_rest)
+            if tan_match:
+                current_entry.source_tan = tan_match.group(1)
+                before_tan = full_rest[: tan_match.start()].strip()
+                current_entry.description = before_tan
+            else:
+                current_entry.description = full_rest.strip()
 
             continue
 
-        # Look for quarter detail lines
-        if current_entry and re.match(r"^\d+\s+Q[1-4]", line):
-            quarter_info = {"raw": line}
-            # Extract amounts from quarter lines
-            amounts = re.findall(r"([\d,]{3,})", line)
-            if amounts:
-                quarter_info["amounts"] = [_parse_amount(a) for a in amounts]
-            current_entry.quarters.append(quarter_info)
+        # Capital gains transaction detail lines (for SFT-17/SFT-18 sales)
+        if (
+            current_entry
+            and current_entry.info_code.upper().startswith("SFT-17")
+            and "LES" in current_entry.info_code.upper()
+        ):
+            # Equity sale detail
+            date_match = re.match(r"^\d+\s+(\d{2}/\d{2}/\d{4})\s+(.+)", line)
+            if date_match:
+                txn = {"raw": line, "date": date_match.group(1)}
+                if "Long" in line:
+                    txn["term"] = "long"
+                elif "Short" in line:
+                    txn["term"] = "short"
+                _extract_cg_amounts(line, txn)
+                current_entry.sale_transactions.append(txn)
+
+        if current_entry and (
+            "SFT-18-EMF" in current_entry.info_code.upper() or "SFT-17-OTU" in current_entry.info_code.upper()
+        ):
+            # MF / Other unit sale detail lines
+            date_match = re.search(r"(\d{2}/\d{2}/\d{4})", line)
+            if date_match and ("Long" in line or "Short" in line):
+                txn = {"raw": line, "date": date_match.group(1)}
+                if "Long" in line:
+                    txn["term"] = "long"
+                elif "Short" in line:
+                    txn["term"] = "short"
+                _extract_cg_amounts(line, txn)
+                current_entry.sale_transactions.append(txn)
 
     # Don't forget last entry
     if current_entry and (current_entry.reported_value or current_entry.description):
         result.entries.append(current_entry)
 
-    # Post-processing
+    # Post-processing: parse capital gains from sale transaction details
+    _enrich_capital_gains(result.entries)
+
+    # Post-processing flags
     for entry in result.entries:
         desc_upper = (entry.description + " " + entry.source_name).upper()
-
-        # Exempt items
         if any(kw in desc_upper for kw in _EXEMPT_KEYWORDS):
             entry.is_exempt = True
             entry.flags.append("Potentially exempt income (PPF/EPF/insurance)")
-
-        # FD interest
-        if "194A" in entry.info_code or "FIXED DEPOSIT" in desc_upper:
+        if "016(TD)" in entry.info_code or "194A" in entry.info_code or "FIXED DEPOSIT" in desc_upper:
             entry.flags.append("FD interest is taxable when accrued, not when received.")
-
-        # Dividend
-        if "194" in entry.info_code and "194A" not in entry.info_code:
+        if "015" in entry.info_code or "DIVIDEND" in desc_upper:
             entry.flags.append("Ensure this is GROSS dividend (before TDS).")
-
-        # Salary
         if "192" in entry.info_code:
             entry.flags.append("Cross-verify with Form 16 from employer.")
 
@@ -224,3 +272,19 @@ def parse_ais(pdf_path: str, password: Optional[str] = None) -> AISParseResult:
     }
 
     return result
+
+
+def _enrich_capital_gains(entries: list[AISEntry]) -> None:
+    """Tag capital gain entries with computed gain/loss from transactions."""
+    for entry in entries:
+        if not entry.sale_transactions:
+            continue
+        code = entry.info_code.upper()
+        if "LES" in code or "EMF" in code or "OTU" in code:
+            total_sale = 0
+            total_cost = 0
+            for txn in entry.sale_transactions:
+                total_sale += txn.get("sale_consideration", 0)
+                total_cost += txn.get("cost_of_acquisition", 0)
+            if total_sale or total_cost:
+                entry.flags.append(f"CG: Sale={total_sale}, Cost={total_cost}, Gain/Loss={total_sale - total_cost}")

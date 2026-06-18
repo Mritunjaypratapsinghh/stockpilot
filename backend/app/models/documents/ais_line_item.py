@@ -45,6 +45,8 @@ class AISLineItem(BaseDocument):
     dispute_reason: str = ""
     matched_with: Optional[AISMatchSource] = None
     is_exempt: bool = False
+    # Capital gains data (for SFT-17/18 sale entries)
+    cg_data: Optional[dict] = None  # {stcg_111a, ltcg_equity, stcg_other, ltcg_other, transactions: [...]}
 
     class Settings:
         name = "ais_line_items"

@@ -103,29 +103,29 @@ async def autofill_from_ais(fy: str, user: dict = Depends(get_current_user)):
     items = await AISLineItem.find(AISLineItem.user_id == uid, AISLineItem.financial_year == fy).to_list()
 
     salary_total = 0
-    interest_total = 0
+    savings_interest = 0
+    fd_interest = 0
     dividend_total = 0
-    mf_purchase = 0
 
     for item in items:
         val = item.user_value if item.user_value is not None else item.reported_value
         code = item.info_code.upper()
 
-        if "192" in code:  # Salary
+        if "192" in code:  # TDS-192 Salary
             salary_total += val
-        elif "194A" in code:  # FD / other interest
-            interest_total += val
-        elif code == "194" or "DIVIDEND" in item.description.upper():
+        elif "016(SB)" in code:  # SFT-016(SB) Savings bank interest
+            savings_interest += val
+        elif "016(TD)" in code or "194A" in code:  # SFT-016(TD) or TDS-194A Term deposit / FD
+            fd_interest += val
+        elif "SFT-015" in code or code == "194":  # Dividend
             dividend_total += val
-        elif "SFT" in code and "INTEREST" in item.description.upper():
-            interest_total += val
-        elif "SFT" in code and "MUTUAL" in item.description.upper():
-            mf_purchase += val
 
-    if salary_total and not profile.salary.gross:
+    if salary_total:
         profile.salary.gross = salary_total
-    if interest_total:
-        profile.other_income.savings_interest = interest_total
+    if savings_interest:
+        profile.other_income.savings_interest = savings_interest
+    if fd_interest:
+        profile.other_income.fd_interest = fd_interest
     if dividend_total:
         profile.other_income.dividend_income_gross = dividend_total
 
@@ -228,6 +228,28 @@ async def upload_ais(
     # Clear previous AIS items for this user+FY (re-upload replaces)
     await AISLineItem.find(AISLineItem.user_id == uid, AISLineItem.financial_year == fy).delete()
     for entry in result.entries:
+        # Compute CG data for sale entries
+        cg_data = None
+        if entry.sale_transactions:
+            code = entry.info_code.upper()
+            is_equity = "17-LES" in code or "18-EMF" in code
+            stcg = 0
+            ltcg = 0
+            for txn in entry.sale_transactions:
+                sale = txn.get("sale_consideration", 0)
+                cost = txn.get("cost_of_acquisition", 0)
+                gain = sale - cost
+                if txn.get("term") == "long":
+                    ltcg += gain
+                else:
+                    stcg += gain
+            cg_data = {
+                "asset_type": "equity" if is_equity else "other",
+                "stcg": stcg,
+                "ltcg": ltcg,
+                "transaction_count": len(entry.sale_transactions),
+            }
+
         await AISLineItem(
             user_id=uid,
             financial_year=fy,
@@ -239,6 +261,7 @@ async def upload_ais(
             reported_value=entry.reported_value,
             modified_value=entry.modified_value,
             is_exempt=entry.is_exempt,
+            cg_data=cg_data,
         ).insert()
     return asdict(result)
 
@@ -371,7 +394,14 @@ async def get_hra(fy: str, user: dict = Depends(get_current_user)):
 async def compute(fy: str, regime: str = "new", user: dict = Depends(get_current_user)):
     uid = _uid(user)
     profile = await _get_or_create_profile(uid, fy)
-    inp = _build_tax_input(profile, await _get_tds_total(uid, fy))
+    tds = await _get_tds_total(uid, fy)
+    inp = _build_tax_input(profile, tds)
+    # Populate CG fields from AIS
+    cg_summary = await _compute_cg_from_ais(uid, fy)
+    inp.stcg_111a = cg_summary.get("stcg_111a", 0)
+    inp.stcg_other = cg_summary.get("stcg_other", 0)
+    inp.ltcg_112a_gross = cg_summary.get("ltcg_112a_gross", 0)
+    inp.ltcg_other = cg_summary.get("ltcg_other", 0)
     result = compute_tax(inp, regime=regime)
     profile.computation_result = asdict(result)
     await profile.save()
@@ -383,7 +413,14 @@ async def compute(fy: str, regime: str = "new", user: dict = Depends(get_current
 async def get_comparison(fy: str, user: dict = Depends(get_current_user)):
     uid = _uid(user)
     profile = await _get_or_create_profile(uid, fy)
-    inp = _build_tax_input(profile, await _get_tds_total(uid, fy))
+    tds = await _get_tds_total(uid, fy)
+    inp = _build_tax_input(profile, tds)
+    # Populate CG from AIS
+    cg_summary = await _compute_cg_from_ais(uid, fy)
+    inp.stcg_111a = cg_summary.get("stcg_111a", 0)
+    inp.stcg_other = cg_summary.get("stcg_other", 0)
+    inp.ltcg_112a_gross = cg_summary.get("ltcg_112a_gross", 0)
+    inp.ltcg_other = cg_summary.get("ltcg_other", 0)
     comp = compare_regimes(inp)
     return {
         "recommended": comp.recommended,
@@ -405,7 +442,16 @@ async def validate_profile(fy: str, user: dict = Depends(get_current_user)):
     tds_26as = await TDSEntry.find(
         TDSEntry.user_id == uid, TDSEntry.financial_year == fy, TDSEntry.source == "form26as"
     ).to_list()
-    result = validate(profile=_doc(profile), pending_ais_count=pending, tds_in_26as=sum(t.amount for t in tds_26as))
+
+    # Compute capital gains summary from AIS items for form selection
+    cg_summary = await _compute_cg_from_ais(uid, fy)
+
+    result = validate(
+        profile=_doc(profile),
+        cg_summary=cg_summary,
+        pending_ais_count=pending,
+        tds_in_26as=sum(t.amount for t in tds_26as),
+    )
     return {
         "can_proceed": result.can_proceed,
         "hard_blocks": [asdict(b) for b in result.hard_blocks],
@@ -418,8 +464,10 @@ async def validate_profile(fy: str, user: dict = Depends(get_current_user)):
 # ── Form Recommendation ──
 @router.get("/form-recommendation/{fy}")
 async def form_recommendation(fy: str, user: dict = Depends(get_current_user)):
-    profile = await _get_or_create_profile(_uid(user), fy)
-    result = validate(profile=_doc(profile))
+    uid = _uid(user)
+    profile = await _get_or_create_profile(uid, fy)
+    cg_summary = await _compute_cg_from_ais(uid, fy)
+    result = validate(profile=_doc(profile), cg_summary=cg_summary)
     return {"itr_form": result.itr_form, "reasons": result.itr_form_reasons}
 
 
@@ -439,11 +487,30 @@ async def export_itr(fy: str, user: dict = Depends(get_current_user)):
     ).count()
     if pending > 0:
         raise HTTPException(400, f"{pending} AIS items still pending.")
-    val = validate(profile=_doc(profile), pending_ais_count=pending)
+
+    cg_summary = await _compute_cg_from_ais(uid, fy)
+    val = validate(profile=_doc(profile), cg_summary=cg_summary, pending_ais_count=pending)
     if not val.can_proceed:
         raise HTTPException(400, f"Validation failed: {'; '.join(b.message for b in val.hard_blocks)}")
-    computation = profile.computation_result or {}
-    itr_data = generate_itr_json(_doc(profile), computation, itr_form=val.itr_form)
+
+    # Auto-select best regime via comparison
+    tds = await _get_tds_total(uid, fy)
+    inp = _build_tax_input(profile, tds)
+    # Populate CG fields from AIS
+    inp.stcg_111a = cg_summary.get("stcg_111a", 0)
+    inp.stcg_other = cg_summary.get("stcg_other", 0)
+    inp.ltcg_112a_gross = cg_summary.get("ltcg_112a_gross", 0)
+    inp.ltcg_other = cg_summary.get("ltcg_other", 0)
+
+    comp = compare_regimes(inp)
+    regime = comp.recommended
+
+    computation = compute_tax(inp, regime=regime)
+    profile.regime_choice = regime
+    profile.computation_result = asdict(computation)
+    await profile.save()
+
+    itr_data = generate_itr_json(_doc(profile), asdict(computation), itr_form=val.itr_form)
     return {"json": itr_data, "json_string": export_json(itr_data)}
 
 
@@ -515,6 +582,44 @@ async def tax_calendar(fy: str = "2025-26"):
 
 
 # ── Helper ──
+async def _compute_cg_from_ais(uid: PydanticObjectId, fy: str) -> dict:
+    """Compute capital gains summary from AIS line items (SFT-17/18 sale entries)."""
+    items = await AISLineItem.find(AISLineItem.user_id == uid, AISLineItem.financial_year == fy).to_list()
+
+    stcg_111a = 0  # Short-term equity (listed shares + equity MF)
+    ltcg_112a_gross = 0  # Long-term equity (listed shares + equity MF)
+    stcg_other = 0  # Short-term non-equity (silver ETF, debt MF)
+    ltcg_other = 0  # Long-term non-equity
+    has_cg = False
+
+    for item in items:
+        if not item.cg_data:
+            continue
+        has_cg = True
+        if item.cg_data.get("asset_type") == "equity":
+            stcg_111a += item.cg_data.get("stcg", 0)
+            ltcg_112a_gross += item.cg_data.get("ltcg", 0)
+        else:
+            stcg_other += item.cg_data.get("stcg", 0)
+            ltcg_other += item.cg_data.get("ltcg", 0)
+
+    # If no cg_data stored but SFT-17/18 entries exist, flag as having CG
+    if not has_cg:
+        for item in items:
+            code = item.info_code.upper()
+            if "17-LES" in code or "18-EMF" in code:
+                stcg_111a = max(stcg_111a, 1)
+            elif "17-OTU" in code:
+                stcg_other = max(stcg_other, 1)
+
+    return {
+        "stcg_111a": stcg_111a,
+        "stcg_other": stcg_other,
+        "ltcg_112a_gross": ltcg_112a_gross,
+        "ltcg_other": ltcg_other,
+    }
+
+
 async def _get_tds_total(uid: PydanticObjectId, fy: str) -> int:
     entries = await TDSEntry.find(TDSEntry.user_id == uid, TDSEntry.financial_year == fy).to_list()
     return sum(e.amount for e in entries)

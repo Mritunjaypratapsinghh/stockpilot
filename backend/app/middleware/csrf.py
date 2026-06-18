@@ -45,4 +45,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             path="/",
             max_age=86400,
         )
+        # Expose token in response header for cross-origin frontends
+        # (JS can't read cross-origin cookies via document.cookie)
+        response.headers["X-CSRF-Token"] = csrf_cookie
         return response

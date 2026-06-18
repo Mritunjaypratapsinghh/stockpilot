@@ -3,6 +3,9 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 // Request deduplication — prevents duplicate in-flight requests to the same endpoint
 const _inflight = new Map();
 
+// CSRF token stored in memory (read from response headers for cross-origin)
+let _csrfToken = '';
+
 export async function api(endpoint: string, options: any = {}) {
   const method = options.method || 'GET';
 
@@ -12,10 +15,10 @@ export async function api(endpoint: string, options: any = {}) {
     return _inflight.get(dedupeKey);
   }
 
-  // Read CSRF token from cookie for state-changing requests
-  const csrfToken = typeof document !== 'undefined'
-    ? document.cookie.split('; ').find(c => c.startsWith('csrf_token='))?.split('=')[1] || ''
-    : '';
+  // Fallback: try reading from cookie (same-origin) if no stored token yet
+  if (!_csrfToken && typeof document !== 'undefined') {
+    _csrfToken = document.cookie.split('; ').find(c => c.startsWith('csrf_token='))?.split('=')[1] || '';
+  }
 
   const promise = (async () => {
     const res = await fetch(`${API_BASE}${endpoint}`, {
@@ -23,10 +26,14 @@ export async function api(endpoint: string, options: any = {}) {
       credentials: 'include', // Send httpOnly cookies automatically
       headers: {
         'Content-Type': 'application/json',
-        ...(method !== 'GET' && csrfToken ? { 'x-csrf-token': csrfToken } : {}),
+        ...(method !== 'GET' && _csrfToken ? { 'x-csrf-token': _csrfToken } : {}),
         ...options.headers,
       },
     });
+
+    // Update CSRF token from response header (cross-origin safe)
+    const newCsrf = res.headers.get('x-csrf-token');
+    if (newCsrf) _csrfToken = newCsrf;
 
     if (!res.ok) {
       if (res.status === 401 && typeof window !== 'undefined' && !window.location.pathname.includes('/login') && !window.location.pathname.includes('/calculators')) {

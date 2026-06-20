@@ -80,12 +80,21 @@ export async function api(endpoint: string, options: any = {}) {
 export async function uploadFile(endpoint, file) {
   const formData = new FormData();
   formData.append('file', file);
-  
+
+  if (!_csrfToken && typeof document !== 'undefined') {
+    _csrfToken = document.cookie.split('; ').find(c => c.startsWith('csrf_token='))?.split('=')[1] || '';
+  }
+
   const res = await fetch(`${API_BASE}${endpoint}`, {
     method: 'POST',
     credentials: 'include',
+    headers: _csrfToken ? { 'x-csrf-token': _csrfToken } : {},
     body: formData,
   });
+
+  // Update CSRF token from response
+  const newCsrf = res.headers.get('x-csrf-token');
+  if (newCsrf) _csrfToken = newCsrf;
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Upload failed' }));

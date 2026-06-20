@@ -137,9 +137,10 @@ export default function ITRWizard() {
       
       const params = new URLSearchParams({ fy: FY });
       if (pw) params.append('password', pw);
+      const csrfToken = document.cookie.split('; ').find(c => c.startsWith('csrf_token='))?.split('=')[1] || '';
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || ''}/api/itr/upload/${endpoint}?${params}`,
-        { method: 'POST', body: formData, credentials: 'include' }
+        { method: 'POST', body: formData, credentials: 'include', headers: csrfToken ? { 'x-csrf-token': csrfToken } : {} }
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Upload failed');

@@ -169,15 +169,61 @@ def compute_tax(
     ltcg_112a = inp.ltcg_112a_gross
     ltcg_other = inp.ltcg_other
 
-    r.gross_total_income = (
-        r.salary_income + r.hp_income + r.other_sources + stcg_111a + stcg_other + ltcg_112a + ltcg_other
-    )
+    r.gross_total_income = r.salary_income + r.hp_income + r.other_sources + max(0, stcg_other)
     at.log("step_1", "gross_total_income", r.gross_total_income)
 
-    # ── Step 2: Intra-head set-off ──
-    # STCL can offset STCG then LTCG; LTCL can offset LTCG only
-    # (losses are negative values in stcg/ltcg)
-    # Already handled in CG engine aggregation
+    # ── Step 2: Intra-head set-off (Section 70) ──
+    # STCL can offset any CG (STCG first, then LTCG); LTCL can offset LTCG only
+    if stcg_other < 0:
+        loss = abs(stcg_other)
+        # Set off against STCG 111A first
+        if stcg_111a > 0:
+            used = min(loss, stcg_111a)
+            stcg_111a -= used
+            loss -= used
+        # Then against LTCG
+        if loss > 0 and ltcg_112a > 0:
+            used = min(loss, ltcg_112a)
+            ltcg_112a -= used
+            loss -= used
+        if loss > 0 and ltcg_other > 0:
+            used = min(loss, ltcg_other)
+            ltcg_other -= used
+            loss -= used
+        stcg_other = -loss  # remaining loss (to carry forward)
+
+    if stcg_111a < 0:
+        loss = abs(stcg_111a)
+        if stcg_other > 0:
+            used = min(loss, stcg_other)
+            stcg_other -= used
+            loss -= used
+        if loss > 0 and ltcg_112a > 0:
+            used = min(loss, ltcg_112a)
+            ltcg_112a -= used
+            loss -= used
+        if loss > 0 and ltcg_other > 0:
+            used = min(loss, ltcg_other)
+            ltcg_other -= used
+            loss -= used
+        stcg_111a = -loss
+
+    if ltcg_112a < 0:
+        loss = abs(ltcg_112a)
+        # LTCL can only offset LTCG
+        if ltcg_other > 0:
+            used = min(loss, ltcg_other)
+            ltcg_other -= used
+            loss -= used
+        ltcg_112a = -loss
+
+    if ltcg_other < 0:
+        loss = abs(ltcg_other)
+        if ltcg_112a > 0:
+            used = min(loss, ltcg_112a)
+            ltcg_112a -= used
+            loss -= used
+        ltcg_other = -loss
 
     # ── Step 3: Inter-head set-off ──
     hp_loss = 0
@@ -243,7 +289,8 @@ def compute_tax(
         at.log("step_6", "reinvestment_exemption", reinvestment, rule="Sec 54/54EC/54F")
 
     # ── Normal taxable income ──
-    normal_income = r.salary_income + max(r.hp_income, -hp_loss) + r.other_sources + stcg_other
+    # stcg_other (slab-rate CG) added only if positive; losses stay in CG head (Section 70-74)
+    normal_income = r.salary_income + max(r.hp_income, -hp_loss) + r.other_sources + max(0, stcg_other)
     normal_income = max(0, normal_income - deductions)
     r.taxable_normal_income = normal_income
     at.log("step_5", "taxable_normal_income", normal_income)

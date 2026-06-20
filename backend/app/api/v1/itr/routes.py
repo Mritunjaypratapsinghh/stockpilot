@@ -238,15 +238,15 @@ async def upload_ais(
             for txn in entry.sale_transactions:
                 sale = txn.get("sale_consideration", 0)
                 cost = txn.get("cost_of_acquisition", 0)
-                gain = sale - cost
+                gain = int(sale - cost)
                 if txn.get("term") == "long":
                     ltcg += gain
                 else:
                     stcg += gain
             cg_data = {
                 "asset_type": "equity" if is_equity else "other",
-                "stcg": stcg,
-                "ltcg": ltcg,
+                "stcg": int(stcg),
+                "ltcg": int(ltcg),
                 "transaction_count": len(entry.sale_transactions),
             }
 

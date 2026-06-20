@@ -67,7 +67,7 @@ def generate_itr_json(
             "sec_80c": ded.get("sec_80c", 0),
             "sec_80ccd_1b": ded.get("sec_80ccd_1b", 0),
             "sec_80ccd_2": ded.get("sec_80ccd_2", 0),
-            "sec_80d": ded.get("sec_80d_self", 0) + ded.get("sec_80d_parents", 0),
+            "sec_80d": max(0, ded.get("sec_80d_self", 0) + ded.get("sec_80d_parents", 0)),
             "sec_80e": ded.get("sec_80e", 0),
             "sec_80g": ded.get("sec_80g", 0),
             "sec_80tta": ded.get("sec_80tta", 0),

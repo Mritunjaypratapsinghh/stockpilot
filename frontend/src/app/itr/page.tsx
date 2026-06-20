@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Shield, Upload, CheckCircle, Calculator, AlertTriangle, FileText, Download, ChevronRight, ChevronLeft, Clock, HelpCircle, RefreshCw } from 'lucide-react';
 import Navbar from '../../components/Navbar';
-import { api } from '../../lib/api';
+import { api, uploadFile } from '../../lib/api';
 import { useToast } from '../../lib/toast';
 
 const STEPS = [
@@ -131,19 +131,11 @@ export default function ITRWizard() {
     setUploadResults(prev => ({ ...prev, [endpoint]: null }));
     setUploads(prev => ({ ...prev, [endpoint]: null }));
     try {
-      const formData = new FormData();
-      formData.append('file', file);
       const pw = pdfPasswords[endpoint];
       
       const params = new URLSearchParams({ fy: FY });
       if (pw) params.append('password', pw);
-      const csrfToken = document.cookie.split('; ').find(c => c.startsWith('csrf_token='))?.split('=')[1] || '';
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/itr/upload/${endpoint}?${params}`,
-        { method: 'POST', body: formData, credentials: 'include', headers: csrfToken ? { 'x-csrf-token': csrfToken } : {} }
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Upload failed');
+      const data = await uploadFile(`/api/itr/upload/${endpoint}?${params}`, file);
       setUploads(prev => ({ ...prev, [endpoint]: file.name }));
       setUploadResults(prev => ({ ...prev, [endpoint]: data }));
       toast?.success(`${file.name} uploaded successfully`);

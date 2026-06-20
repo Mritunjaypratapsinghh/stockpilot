@@ -5,6 +5,7 @@ const _inflight = new Map();
 
 // CSRF token stored in memory (read from response headers for cross-origin)
 let _csrfToken = '';
+export function getCsrfToken() { return _csrfToken; }
 
 export async function api(endpoint: string, options: any = {}) {
   const method = options.method || 'GET';
@@ -81,10 +82,6 @@ export async function uploadFile(endpoint, file) {
   const formData = new FormData();
   formData.append('file', file);
 
-  if (!_csrfToken && typeof document !== 'undefined') {
-    _csrfToken = document.cookie.split('; ').find(c => c.startsWith('csrf_token='))?.split('=')[1] || '';
-  }
-
   const res = await fetch(`${API_BASE}${endpoint}`, {
     method: 'POST',
     credentials: 'include',
@@ -95,6 +92,23 @@ export async function uploadFile(endpoint, file) {
   // Update CSRF token from response
   const newCsrf = res.headers.get('x-csrf-token');
   if (newCsrf) _csrfToken = newCsrf;
+
+  // CSRF 403 retry: got token back, retry once
+  if (res.status === 403 && newCsrf) {
+    const retry = await fetch(`${API_BASE}${endpoint}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'x-csrf-token': _csrfToken },
+      body: formData,
+    });
+    const retryCsrf = retry.headers.get('x-csrf-token');
+    if (retryCsrf) _csrfToken = retryCsrf;
+    if (!retry.ok) {
+      const error = await retry.json().catch(() => ({ detail: 'Upload failed' }));
+      throw new Error(error.detail || 'Upload failed');
+    }
+    return retry.json();
+  }
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Upload failed' }));

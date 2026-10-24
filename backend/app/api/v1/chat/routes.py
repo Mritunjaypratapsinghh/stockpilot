@@ -40,7 +40,7 @@ if settings.groq_api_key:
 # Use whichever is available — Gemini preferred
 client = _gemini_client or _groq_client
 USE_GEMINI = _gemini_client is not None
-GEMINI_MODEL = "gemini-3.8-flash"
+GEMINI_MODEL = "gemini-flash-lite-latest"  # stable alias — always points to latest lite flash
 GROQ_MODEL = "qwen/qwen3.8-27b"
 
 SYSTEM_PROMPT = (
@@ -756,7 +756,7 @@ async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_us
             async def generate():
                 full = []
                 try:
-                    for chunk in _gemini_client.models.generate_content_stream(
+                    stream_iter = _gemini_client.models.generate_content_stream(
                         model=GEMINI_MODEL,
                         contents=gemini_contents,
                         config=_gtypes.GenerateContentConfig(
@@ -764,14 +764,36 @@ async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_us
                             temperature=0.3,
                             max_output_tokens=900,
                         ),
-                    ):
+                    )
+                    for chunk in stream_iter:
                         token = chunk.text or ""
                         if token:
                             full.append(token)
                             yield token
                 except Exception as e:
+                    err_str = str(e)
                     logger.error(f"Gemini stream error: {e}")
-                    yield "Sorry, I encountered an error. Please try again."
+                    # Retry with fallback model on 503/overload
+                    if not full and ("503" in err_str or "UNAVAILABLE" in err_str or "high demand" in err_str):
+                        try:
+                            for chunk in _gemini_client.models.generate_content_stream(
+                                model="gemini-flash-latest",
+                                contents=gemini_contents,
+                                config=_gtypes.GenerateContentConfig(
+                                    system_instruction=system_instruction,
+                                    temperature=0.3,
+                                    max_output_tokens=900,
+                                ),
+                            ):
+                                token = chunk.text or ""
+                                if token:
+                                    full.append(token)
+                                    yield token
+                        except Exception as e2:
+                            logger.error(f"Gemini fallback error: {e2}")
+                            yield "Sorry, AI is temporarily overloaded. Please try again in a moment."
+                    else:
+                        yield "Sorry, I encountered an error. Please try again."
 
                 meta = {"suggestions": suggestions, "session_id": session_id}
                 if sparkline_data:

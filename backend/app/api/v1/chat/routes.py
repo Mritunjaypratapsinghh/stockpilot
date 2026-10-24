@@ -718,7 +718,7 @@ async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_us
 
         # First call with tools to check if AI wants to use any
         initial_response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="qwen/qwen3.8-27b",
             messages=messages,
             tools=AI_TOOLS,
             tool_choice="auto",
@@ -759,7 +759,7 @@ async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_us
 
             # Get final response after tool execution (streamed)
             stream = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="qwen/qwen3.8-27b",
                 messages=messages,
                 temperature=0.3,
                 max_completion_tokens=800,

@@ -47,7 +47,7 @@ export default function WatchlistPage() {
       <main className="p-4 md:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <h1 className="text-xl md:text-2xl font-bold">Watchlist</h1>
-          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3]">
+          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[var(--accent-hover)]">
             <Plus className="w-4 h-4" /> Add Stock
           </button>
         </div>
@@ -67,7 +67,7 @@ export default function WatchlistPage() {
               <form onSubmit={addToWatchlist} className="space-y-4">
                 <div><label className="block text-sm text-[var(--text-secondary)] mb-2">Symbol</label><input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder="RELIANCE" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-white focus:border-[var(--accent)]" required /></div>
                 <div><label className="block text-sm text-[var(--text-secondary)] mb-2">Notes (optional)</label><input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Why watching?" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-white focus:border-[var(--accent)]" /></div>
-                <button type="submit" disabled={adding} className={`w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3] ${adding ? 'opacity-50' : ''}`}>{adding ? 'Adding...' : 'Add'}</button>
+                <button type="submit" disabled={adding} className={`w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[var(--accent-hover)] ${adding ? 'opacity-50' : ''}`}>{adding ? 'Adding...' : 'Add'}</button>
               </form>
             </div>
           </div>

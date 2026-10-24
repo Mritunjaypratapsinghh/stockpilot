@@ -420,7 +420,7 @@ export default function PortfolioPage() {
         {activeTab === 'dividends' && (
           <div className="space-y-4">
             <div className="flex justify-end">
-              <button onClick={() => setShowDiv(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3]">
+              <button onClick={() => setShowDiv(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[var(--accent-hover)]">
                 <Plus className="w-4 h-4" /> Add Dividend
               </button>
             </div>
@@ -626,7 +626,7 @@ export default function PortfolioPage() {
                   <label className="block text-sm text-[var(--text-secondary)] mb-2">Ex-Date</label>
                   <input type="date" value={divForm.ex_date} onChange={e => setDivForm({...divForm, ex_date: e.target.value})} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:border-[var(--accent)]" required />
                 </div>
-                <button type="submit" disabled={submittingDiv} className={`w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3] ${submittingDiv ? 'opacity-50' : ''}`}>{submittingDiv ? 'Adding...' : 'Add Dividend'}</button>
+                <button type="submit" disabled={submittingDiv} className={`w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[var(--accent-hover)] ${submittingDiv ? 'opacity-50' : ''}`}>{submittingDiv ? 'Adding...' : 'Add Dividend'}</button>
               </form>
             </div>
           </div>

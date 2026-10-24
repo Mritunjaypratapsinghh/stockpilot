@@ -102,7 +102,7 @@ export default function SimulatorPage() {
               <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="50000" className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm" />
             </div>
           </div>
-          <button onClick={simulate} disabled={loading || !sell || !amount} className="w-full md:w-auto px-6 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3] disabled:opacity-50 flex items-center justify-center gap-2">
+          <button onClick={simulate} disabled={loading || !sell || !amount} className="w-full md:w-auto px-6 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[var(--accent-hover)] disabled:opacity-50 flex items-center justify-center gap-2">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart3 className="w-4 h-4" />}
             Simulate
           </button>

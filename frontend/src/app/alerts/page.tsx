@@ -44,7 +44,7 @@ export default function AlertsPage() {
       <main className="p-4 md:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <h1 className="text-xl md:text-2xl font-bold">Price Alerts</h1>
-          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3]"><Plus className="w-4 h-4" /> New Alert</button>
+          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[var(--accent-hover)]"><Plus className="w-4 h-4" /> New Alert</button>
         </div>
 
         {showForm && (
@@ -55,7 +55,7 @@ export default function AlertsPage() {
                 <div><label className="block text-sm text-[var(--text-secondary)] mb-2">Symbol</label><input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder="HDFCBANK" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-white focus:border-[var(--accent)]" required /></div>
                 <div><label className="block text-sm text-[var(--text-secondary)] mb-2">Type</label><div className="grid grid-cols-1 lg:grid-cols-3 gap-2">{[{ v: 'PRICE_ABOVE', l: 'Above' }, { v: 'PRICE_BELOW', l: 'Below' }, { v: 'PERCENT_CHANGE', l: '% Change' }].map(t => <button key={t.v} type="button" onClick={() => setAlertType(t.v)} className={`py-2 rounded-lg text-sm font-medium ${alertType === t.v ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-primary)] border border-[var(--border)] text-[var(--text-secondary)]'}`}>{t.l}</button>)}</div></div>
                 <div><label className="block text-sm text-[var(--text-secondary)] mb-2">Target</label><input type="number" step="0.01" value={targetValue} onChange={e => setTargetValue(e.target.value)} placeholder={alertType === 'PERCENT_CHANGE' ? '5' : '1500'} className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-white focus:border-[var(--accent)]" required /></div>
-                <button type="submit" disabled={creating} className={`w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3] ${creating ? 'opacity-50' : ''}`}>{creating ? 'Creating...' : 'Create'}</button>
+                <button type="submit" disabled={creating} className={`w-full py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[var(--accent-hover)] ${creating ? 'opacity-50' : ''}`}>{creating ? 'Creating...' : 'Create'}</button>
               </form>
             </div>
           </div>

@@ -79,7 +79,7 @@ export default function ResearchPage() {
               </div>
             )}
           </div>
-          <button type="submit" disabled={loading} className="px-3 md:px-6 py-2.5 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3] disabled:opacity-50">{loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Analyze'}</button>
+          <button type="submit" disabled={loading} className="px-3 md:px-6 py-2.5 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[var(--accent-hover)] disabled:opacity-50">{loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Analyze'}</button>
         </form>
 
         {analysis && !analysis.error ? (

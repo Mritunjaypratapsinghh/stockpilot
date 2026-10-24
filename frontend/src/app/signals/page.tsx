@@ -75,7 +75,7 @@ export default function SignalsPage() {
             <div className="w-12 h-12 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center"><Zap className="w-6 h-6 text-[var(--accent)]" /></div>
             <div><h1 className="text-xl md:text-2xl font-bold">Smart Signals</h1><p className="text-[var(--text-muted)]">Fundamentals + Technicals + Portfolio Context</p></div>
           </div>
-          <button onClick={loadSignals} disabled={loading || refreshing} className={`flex items-center gap-2 px-4 py-2.5 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3] ${loading || refreshing ? 'opacity-50' : ''}`}>
+          <button onClick={loadSignals} disabled={loading || refreshing} className={`flex items-center gap-2 px-4 py-2.5 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[var(--accent-hover)] ${loading || refreshing ? 'opacity-50' : ''}`}>
             <RefreshCw className={`w-4 h-4 ${loading || refreshing ? 'animate-spin' : ''}`} /> {refreshing ? 'Analyzing...' : 'Analyze'}
           </button>
         </div>

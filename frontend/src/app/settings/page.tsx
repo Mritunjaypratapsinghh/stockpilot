@@ -100,7 +100,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <button onClick={save} disabled={saving} className={`w-full flex items-center justify-center gap-2 py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[#5558e3] ${saving ? 'opacity-50' : ''}`}>
+          <button onClick={save} disabled={saving} className={`w-full flex items-center justify-center gap-2 py-3 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[var(--accent-hover)] ${saving ? 'opacity-50' : ''}`}>
             <Save className="w-5 h-5" /> {saving ? 'Saving...' : 'Save Settings'}
           </button>
         </div>

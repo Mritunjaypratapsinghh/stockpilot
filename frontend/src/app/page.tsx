@@ -92,10 +92,10 @@ export default function Dashboard() {
               <div><div className="font-semibold">Add Manually</div><div className="text-sm text-[var(--text-muted)]">Add stocks and mutual funds one by one with buy price and quantity</div></div>
             </Link>
           </div>
-          <div className="mt-10 grid grid-cols-3 gap-4 text-center">
-            <div className="p-4"><div className="text-2xl mb-1">🤖</div><div className="text-xs text-[var(--text-muted)]">AI Signals & Chat</div></div>
-            <div className="p-4"><div className="text-2xl mb-1">📊</div><div className="text-xs text-[var(--text-muted)]">Tax Harvesting</div></div>
-            <div className="p-4"><div className="text-2xl mb-1">🔔</div><div className="text-xs text-[var(--text-muted)]">Smart Alerts</div></div>
+          <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+            <div className="p-4"><div className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-[0.08em] mb-1">AI Signals & Chat</div></div>
+            <div className="p-4"><div className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-[0.08em] mb-1">Tax Harvesting</div></div>
+            <div className="p-4"><div className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-[0.08em] mb-1">Smart Alerts</div></div>
           </div>
         </main>
       </div>
@@ -145,12 +145,12 @@ export default function Dashboard() {
         {/* Portfolio Growth Chart */}
         {snapshots.length > 1 && (
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm font-medium text-[var(--text-muted)] uppercase">📈 Portfolio Growth</div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+              <div className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-[0.08em]">Portfolio Growth</div>
               <div className="flex gap-1">
                 {['1W', '1M', '3M', '6M', '1Y', 'ALL'].map(r => (
                   <button key={r} onClick={() => handleRangeChange(r)} disabled={chartLoading}
-                    className={`px-2 py-1 text-xs rounded ${chartRange === r ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-primary)] text-[var(--text-muted)] hover:bg-[var(--border)]'} ${chartLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>{r}</button>
+                    className={`px-3 py-2 text-xs rounded ${chartRange === r ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-primary)] text-[var(--text-muted)] hover:bg-[var(--border)]'} ${chartLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>{r}</button>
                 ))}
               </div>
             </div>
@@ -183,7 +183,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
             {insights.length > 0 ? (
               <div className="lg:col-span-2">
-                <div className="text-sm font-medium text-[var(--text-muted)] uppercase mb-3">🤖 AI Insights</div>
+                <div className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-[0.08em] mb-3">AI Insights</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {insights.map((ins, i) => (
                     <div key={i} className={`border rounded-lg p-4 ${ins.type === 'warning' ? 'bg-[#ef4444]/5 border-[#ef4444]/20' : ins.type === 'opportunity' ? 'bg-[#10b981]/5 border-[#10b981]/20' : ins.type === 'tip' ? 'bg-[#f59e0b]/5 border-[#f59e0b]/20' : 'bg-[var(--bg-secondary)] border-[var(--border)]'}`}>
@@ -205,7 +205,7 @@ export default function Dashboard() {
             <div className="space-y-4">
               {healthScore && (
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
-                  <div className="text-sm font-medium text-[var(--text-muted)] uppercase mb-3">🏥 Portfolio Health</div>
+                  <div className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-[0.08em] mb-3">Portfolio Health</div>
                   <div className="flex items-center gap-3 mb-3">
                     <div className={`text-3xl font-bold ${healthScore.score >= 80 ? 'text-[#10b981]' : healthScore.score >= 60 ? 'text-[#f59e0b]' : 'text-[#ef4444]'}`}>{healthScore.score}</div>
                     <div className={`text-lg font-bold px-2 py-0.5 rounded ${healthScore.grade === 'A' ? 'bg-[#10b981]/10 text-[#10b981]' : healthScore.grade === 'B' ? 'bg-[#f59e0b]/10 text-[#f59e0b]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>Grade {healthScore.grade}</div>
@@ -221,7 +221,7 @@ export default function Dashboard() {
 
               {earnings.length > 0 && (
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4">
-                  <div className="text-sm font-medium text-[var(--text-muted)] uppercase mb-3">📅 Upcoming Earnings</div>
+                  <div className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-[0.08em] mb-3">Upcoming Earnings</div>
                   {earnings.slice(0, 5).map((e, i) => (
                     <div key={i} className="flex justify-between text-sm py-1.5 border-b border-[var(--border)] last:border-0">
                       <span className="font-medium">{e.symbol}</span>
@@ -238,7 +238,7 @@ export default function Dashboard() {
         <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg">
           <div className="px-4 md:px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
             <h2 className="font-semibold text-base md:text-lg">Holdings</h2>
-            <Link href="/portfolio" className="text-sm text-[var(--accent)] hover:text-[#5558e3]">View All →</Link>
+            <Link href="/portfolio" className="text-sm text-[var(--accent)] hover:text-[var(--accent-hover)] px-2 py-2">View All →</Link>
           </div>
           
           {loading ? (
@@ -261,7 +261,7 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {holdings.slice(0, 10).map((h, idx) => (
-                    <tr key={h._id || h.id || idx} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-hover)]">
+                    <tr key={h._id || h.id || idx} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-tertiary)]">
                       <td className="px-4 md:px-6 py-3 md:py-4">
                         <div className="flex items-center gap-2 md:gap-3">
                           <div className={`w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center text-xs md:text-sm font-semibold ${h.pnl >= 0 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>
@@ -344,7 +344,7 @@ function EmptyState({ icon: Icon, message, action }) {
         <Icon className="w-8 h-8 text-[var(--text-muted)]" />
       </div>
       <div className="text-[var(--text-muted)] mb-2">{message}</div>
-      {action && <Link href={action.href} className="text-[var(--accent)] hover:text-[#5558e3]">{action.label} →</Link>}
+      {action && <Link href={action.href} className="text-[var(--accent)] hover:text-[var(--accent-hover)]">{action.label} →</Link>}
     </div>
   );
 }

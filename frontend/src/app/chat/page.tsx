@@ -243,7 +243,7 @@ export default function ChatPage() {
   const dynamicSuggestions = lastAssistantMsg?.suggestions?.length > 0 ? lastAssistantMsg.suggestions : getFollowUps(messages);
 
   return (
-    <div className="h-screen flex flex-col bg-[var(--bg-primary)]">
+    <div className="h-[100dvh] flex flex-col bg-[var(--bg-primary)]">
       <Navbar />
       <div className="flex-1 flex overflow-hidden">
         {/* Chat Area */}
@@ -257,20 +257,20 @@ export default function ChatPage() {
               <select value={language} onChange={e => setLanguage(e.target.value)} className="text-xs bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-2 py-1 text-[var(--text-muted)]">
                 {Object.entries(LANGUAGES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
-              <button onClick={() => setShowSessions(!showSessions)} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-1" title="Chat History">
-                <History className="w-3.5 h-3.5" />
+              <button onClick={() => setShowSessions(!showSessions)} className="p-2.5 min-w-[44px] min-h-[44px] text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center justify-center" title="Chat History">
+                <History className="w-4 h-4" />
               </button>
               {sessionId && (
-                <button onClick={exportChat} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-1" title="Export Chat">
-                  <Download className="w-3.5 h-3.5" />
+                <button onClick={exportChat} className="p-2.5 min-w-[44px] min-h-[44px] text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center justify-center" title="Export Chat">
+                  <Download className="w-4 h-4" />
                 </button>
               )}
-              <button onClick={newChat} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-1" title="New Chat">
-                <Plus className="w-3.5 h-3.5" />
+              <button onClick={newChat} className="p-2.5 min-w-[44px] min-h-[44px] text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center justify-center" title="New Chat">
+                <Plus className="w-4 h-4" />
               </button>
               {messages.length > 0 && (
-                <button onClick={() => { setMessages([]); setSessionId(null); }} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-1">
-                  <Trash2 className="w-3.5 h-3.5" /> Clear
+                <button onClick={() => { setMessages([]); setSessionId(null); }} className="p-2.5 min-w-[44px] min-h-[44px] text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1">
+                  <Trash2 className="w-4 h-4" />
                 </button>
               )}
             </div>
@@ -301,7 +301,7 @@ export default function ChatPage() {
                 <p className="text-sm text-[var(--text-muted)] mb-6">Ask me anything about your portfolio</p>
                 <div className="grid grid-cols-2 gap-2 max-w-md">
                   {SUGGESTIONS.map((s, i) => (
-                    <button key={i} onClick={() => handleSend(s)} className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]/50 text-left transition-colors">
+                    <button key={i} onClick={() => handleSend(s)} className="px-3 py-3 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]/50 text-left transition-colors">
                       {s}
                     </button>
                   ))}
@@ -316,7 +316,7 @@ export default function ChatPage() {
                         <Bot className="w-3.5 h-3.5 text-white" />
                       </div>
                     )}
-                    <div className={`group relative max-w-[70%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)]'}`}>
+                    <div className={`group relative max-w-[85%] sm:max-w-[70%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)]'}`}>
                       <div className="text-sm whitespace-pre-wrap leading-relaxed"><Markdown text={msg.content} /></div>
                       {/* Sparkline Chart */}
                       {msg.sparkline?.length > 0 && (
@@ -334,7 +334,7 @@ export default function ChatPage() {
                       )}
                       {msg.alert && <div className="mt-2 text-xs text-[#10b981] font-medium">{msg.alert}</div>}
                       {msg.role === 'assistant' && msg.content && (
-                        <button onClick={() => copyText(msg.content, i)} className="absolute -bottom-5 right-0 text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                        <button onClick={() => copyText(msg.content, i)} className="absolute -bottom-5 right-0 text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] opacity-60 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
                           {copied === i ? <><Check className="w-3 h-3" /> Copied</> : <><Copy className="w-3 h-3" /> Copy</>}
                         </button>
                       )}
@@ -366,11 +366,11 @@ export default function ChatPage() {
           </div>
 
           {/* Input */}
-          <div className="px-4 md:px-6 py-3 border-t border-[var(--border)]">
+          <div className="px-4 md:px-6 pt-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))] border-t border-[var(--border)]">
             {messages.length > 0 && (
               <div className="flex gap-2 mb-2 overflow-x-auto pb-1 scrollbar-hide">
                 {dynamicSuggestions.map((s, i) => (
-                  <button key={i} onClick={() => handleSend(s)} className="px-3 py-1 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-full text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]/50 whitespace-nowrap transition-colors">
+                  <button key={i} onClick={() => handleSend(s)} className="px-3 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-full text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]/50 whitespace-nowrap transition-colors">
                     {s}
                   </button>
                 ))}

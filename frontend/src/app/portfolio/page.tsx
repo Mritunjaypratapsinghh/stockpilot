@@ -244,12 +244,12 @@ export default function PortfolioPage() {
         {/* Asset Type Filter */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           {[{k: 'all', l: 'All'}, {k: 'stocks', l: 'Stocks'}, {k: 'mf', l: 'Mutual Funds'}].map(f => (
-            <button key={f.k} onClick={() => setHoldingFilter(f.k)} className={`px-3 md:px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${holdingFilter === f.k ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-muted)] hover:text-white'}`}>{f.l}</button>
+            <button key={f.k} onClick={() => setHoldingFilter(f.k)} className={`px-3 md:px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap ${holdingFilter === f.k ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-muted)] hover:text-white'}`}>{f.l}</button>
           ))}
         </div>
 
         {/* Summary Row */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
             <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Invested</div>
             <div className="text-base md:text-xl font-semibold tabular privacy-mask">₹{fmt(dynamicSummary.invested)}</div>
@@ -302,7 +302,7 @@ export default function PortfolioPage() {
         )}
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-4 bg-[var(--bg-secondary)] p-1 rounded-lg w-fit">
+        <div className="flex gap-1 mb-4 bg-[var(--bg-secondary)] p-1 rounded-lg overflow-x-auto">
           {['holdings', 'transactions', 'dividends'].map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${activeTab === tab ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-muted)] hover:text-white'}`}>
               {tab}
@@ -311,7 +311,7 @@ export default function PortfolioPage() {
         </div>
 
         {/* Search */}
-        <div className="relative mb-4 w-72">
+        <div className="relative mb-4 w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="w-full pl-10 pr-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-white placeholder:text-[var(--text-muted)] focus:border-[var(--accent)]" />
         </div>
@@ -344,8 +344,8 @@ export default function PortfolioPage() {
                       <tr key={h._id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-hover)]">
                         <td className="px-3 md:px-6 py-4">
                           <a href={`/stock?s=${h.symbol}`} className="hover:text-[var(--accent)]">
-                            <div className="font-medium">{h.symbol}</div>
-                            <div className="text-sm text-[var(--text-muted)]">{h.name}</div>
+                            <div className="font-medium truncate">{h.symbol}</div>
+                            <div className="text-sm text-[var(--text-muted)] truncate max-w-[160px]">{h.name}</div>
                           </a>
                         </td>
                         <td className="px-3 md:px-6 py-4 text-right tabular">{parseFloat(h.quantity?.toFixed(4))}</td>
@@ -356,8 +356,8 @@ export default function PortfolioPage() {
                           <div className={`text-sm tabular ${h.pnl >= 0 ? 'text-[#10b981]/70' : 'text-[#ef4444]/70'}`}>{h.pnl_pct >= 0 ? '+' : ''}{h.pnl_pct?.toFixed(2)}%</div>
                         </td>
                         <td className="px-3 md:px-6 py-4 text-right">
-                          <button onClick={() => recordTxnFor(h.symbol)} className="p-2 text-[var(--text-muted)] hover:text-[#10b981] hover:bg-[#10b981]/10 rounded-lg" title="Record trade"><Plus className="w-4 h-4" /></button>
-                          <button onClick={() => deleteHolding(h._id)} disabled={deletingHolding} className={`p-2 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg ${deletingHolding ? 'opacity-50' : ''}`}><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => recordTxnFor(h.symbol)} className="p-2.5 text-[var(--text-muted)] hover:text-[#10b981] hover:bg-[#10b981]/10 rounded-lg" title="Record trade"><Plus className="w-4 h-4" /></button>
+                          <button onClick={() => deleteHolding(h._id)} disabled={deletingHolding} className={`p-2.5 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg ${deletingHolding ? 'opacity-50' : ''}`}><Trash2 className="w-4 h-4" /></button>
                         </td>
                       </tr>
                     ))}
@@ -405,7 +405,7 @@ export default function PortfolioPage() {
                         <td className="px-3 md:px-6 py-4 text-right tabular">₹{fmt(t.price)}</td>
                         <td className="px-3 md:px-6 py-4 text-right tabular font-medium">₹{fmt(t.quantity * t.price)}</td>
                         <td className="px-3 md:px-6 py-4 text-right">
-                          <button onClick={() => handleDeleteTxn(t.holding_id, t.index)} disabled={deletingTxn} className={`p-2 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg ${deletingTxn ? 'opacity-50' : ''}`}><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => handleDeleteTxn(t.holding_id, t.index)} disabled={deletingTxn} className={`p-2.5 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg ${deletingTxn ? 'opacity-50' : ''}`}><Trash2 className="w-4 h-4" /></button>
                         </td>
                       </tr>
                     ))}
@@ -474,7 +474,7 @@ export default function PortfolioPage() {
                           <td className="px-3 md:px-6 py-4 text-right tabular">{d.quantity}</td>
                           <td className="px-3 md:px-6 py-4 text-right tabular font-medium text-[#10b981]">₹{fmt(d.total)}</td>
                           <td className="px-3 md:px-6 py-4 text-right">
-                            <button onClick={() => handleDeleteDiv(d._id)} disabled={deletingDiv} className={`p-2 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg ${deletingDiv ? 'opacity-50' : ''}`}><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={() => handleDeleteDiv(d._id)} disabled={deletingDiv} className={`p-2.5 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg ${deletingDiv ? 'opacity-50' : ''}`}><Trash2 className="w-4 h-4" /></button>
                           </td>
                         </tr>
                       ))}

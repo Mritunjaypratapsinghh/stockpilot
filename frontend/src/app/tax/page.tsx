@@ -74,7 +74,7 @@ export default function TaxPage() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 md:gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 md:gap-4 mb-6">
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
             <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Realized STCG</div>
             <div className={`text-base md:text-xl font-semibold ${summary?.realized?.stcg >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>₹{fmt(summary?.realized?.stcg)}</div>
@@ -118,7 +118,7 @@ export default function TaxPage() {
         {/* Tabs */}
         <div className="flex gap-1 mb-4 bg-[var(--bg-secondary)] p-1 rounded-lg overflow-x-auto">
           {['summary', 'harvest', 'dividends', 'advance', 'report'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 md:px-4 py-2 rounded-md text-sm font-medium capitalize whitespace-nowrap ${activeTab === tab ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-muted)] hover:text-white'}`}>
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 md:px-4 py-2.5 rounded-md text-sm font-medium capitalize whitespace-nowrap ${activeTab === tab ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-muted)] hover:text-white'}`}>
               {tab === 'harvest' ? 'Harvesting' : tab === 'advance' ? 'Advance Tax' : tab}
             </button>
           ))}
@@ -149,7 +149,7 @@ export default function TaxPage() {
             </div>
 
             {/* STCG vs LTCG Summary */}
-            <div className="grid grid-cols-2 gap-3 md:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
               <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
                 <div className="text-xs text-[var(--text-muted)] mb-2">STCG (Short Term @ 20%)</div>
                 <div className="flex justify-between text-sm mb-1"><span className="text-[var(--text-muted)]">Gains</span><span className="text-[#10b981]">₹{fmt(harvest.stcg?.gains)}</span></div>
@@ -171,7 +171,7 @@ export default function TaxPage() {
             {harvest.gains?.length > 0 && (
               <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg overflow-hidden">
                 <div className="px-3 md:px-4 py-3 border-b border-[var(--border)]">
-                  <span className="text-sm font-medium text-[#10b981]">📈 Gains (taxable)</span>
+                  <span className="text-sm font-medium text-[var(--green)]">Gains (taxable)</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm min-w-[500px]">
@@ -195,7 +195,7 @@ export default function TaxPage() {
             {harvest.losses?.length > 0 ? (
               <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg overflow-hidden">
                 <div className="px-3 md:px-4 py-3 border-b border-[var(--border)]">
-                  <span className="text-sm font-medium text-[#ef4444]">📉 Losses (harvestable)</span>
+                  <span className="text-sm font-medium text-[var(--red)]">Losses (harvestable)</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm min-w-[500px]">
@@ -301,7 +301,7 @@ export default function TaxPage() {
               <div className="bg-[var(--bg-primary)] rounded-lg p-4">
                 <div className="font-medium mb-2">Section 111A - STCG on Equity</div>
                 <div className="text-sm text-[var(--text-muted)] mb-2">Short-term capital gains (STT paid)</div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div><span className="text-[var(--text-muted)]">Gains:</span> ₹{fmt(summary.unrealized?.stcg)}</div>
                   <div><span className="text-[var(--text-muted)]">Tax Rate:</span> 20%</div>
                 </div>
@@ -309,7 +309,7 @@ export default function TaxPage() {
               <div className="bg-[var(--bg-primary)] rounded-lg p-4">
                 <div className="font-medium mb-2">Section 112A - LTCG on Equity</div>
                 <div className="text-sm text-[var(--text-muted)] mb-2">Long-term capital gains (STT paid)</div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div><span className="text-[var(--text-muted)]">Gains:</span> ₹{fmt(summary.unrealized?.ltcg)}</div>
                   <div><span className="text-[var(--text-muted)]">Exemption:</span> ₹{fmt(summary.tax_liability?.ltcg_exemption)}</div>
                   <div><span className="text-[var(--text-muted)]">Taxable:</span> ₹{fmt(summary.tax_liability?.taxable_ltcg)}</div>

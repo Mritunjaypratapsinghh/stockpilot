@@ -1,68 +1,107 @@
 @import "tailwindcss";
 
+/* ── StockPilot Design System ───────────────────────────────────────────────
+   Warm dark ground derived from aged document / trading terminal references.
+   Accent: antique gold #b8892a (22-karat feel, not Tailwind indigo).
+   Positive: warmer green #2d9a6b  Negative: brick red #c94545
+   ─────────────────────────────────────────────────────────────────────────── */
+
 :root, [data-theme="dark"] {
-  --bg-primary: #0f0f0f;
-  --bg-secondary: #171717;
-  --bg-tertiary: #1f1f1f;
-  --border: #2a2a2a;
-  --border-light: #3a3a3a;
-  --text-primary: #ffffff;
-  --text-secondary: #a1a1a1;
-  --text-muted: #6b6b6b;
-  --accent: #6366f1;
-  --accent-hover: #5558e3;
-  --green: #10b981;
-  --green-bg: rgba(16, 185, 129, 0.1);
-  --red: #ef4444;
-  --red-bg: rgba(239, 68, 68, 0.1);
+  /* Backgrounds — warm black neutrals, no blue tint */
+  --bg-primary:   #0c0b09;   /* ground — aged document */
+  --bg-secondary: #141210;   /* surface */
+  --bg-tertiary:  #1e1b16;   /* raised panels/cards */
+  /* Borders */
+  --border:       #2a2620;   /* warm dark border */
+  --border-light: #3a342e;   /* lighter warm border */
+  /* Text */
+  --text-primary:   #f0ead8; /* parchment — not pure white */
+  --text-secondary: #8a8070; /* warm gray-brown */
+  --text-muted:     #5a5448; /* tertiary / axis labels */
+  /* Accent */
+  --accent:       #b8892a;   /* antique gold */
+  --accent-hover: #d4a740;   /* lighter gold on hover */
+  --accent-ink:   #0c0b09;   /* text on gold bg */
+  /* Semantic */
+  --green:        #2d9a6b;   /* warmer green */
+  --green-bg:     rgba(45, 154, 107, 0.12);
+  --red:          #c94545;   /* brick red */
+  --red-bg:       rgba(201, 69, 69, 0.12);
+  --warning:      #c08030;   /* amber */
+  --warning-bg:   rgba(192, 128, 48, 0.12);
 }
 
 [data-theme="oled"] {
-  --bg-primary: #000000;
-  --bg-secondary: #0a0a0a;
-  --bg-tertiary: #121212;
-  --border: #1a1a1a;
-  --border-light: #2a2a2a;
-  --text-primary: #ffffff;
-  --text-secondary: #a1a1a1;
-  --text-muted: #6b6b6b;
-  --accent: #6366f1;
-  --accent-hover: #5558e3;
-  --green: #10b981;
-  --green-bg: rgba(16, 185, 129, 0.1);
-  --red: #ef4444;
-  --red-bg: rgba(239, 68, 68, 0.1);
+  --bg-primary:   #000000;
+  --bg-secondary: #080705;
+  --bg-tertiary:  #121009;
+  --border:       #1e1b16;
+  --border-light: #2a2620;
+  --text-primary:   #f0ead8;
+  --text-secondary: #8a8070;
+  --text-muted:     #5a5448;
+  --accent:       #b8892a;
+  --accent-hover: #d4a740;
+  --accent-ink:   #000000;
+  --green:        #2d9a6b;
+  --green-bg:     rgba(45, 154, 107, 0.12);
+  --red:          #c94545;
+  --red-bg:       rgba(201, 69, 69, 0.12);
+  --warning:      #c08030;
+  --warning-bg:   rgba(192, 128, 48, 0.12);
 }
 
 [data-theme="light"] {
-  --bg-primary: #f8fafc;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #f1f5f9;
-  --border: #e2e8f0;
-  --border-light: #cbd5e1;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --accent: #6366f1;
-  --accent-hover: #4f46e5;
-  --green: #059669;
-  --green-bg: rgba(5, 150, 105, 0.1);
-  --red: #dc2626;
-  --red-bg: rgba(220, 38, 38, 0.1);
+  /* Contract note paper feel */
+  --bg-primary:   #f5f0e8;
+  --bg-secondary: #faf7f2;
+  --bg-tertiary:  #f0ead8;
+  --border:       #ddd5c5;   /* warm tan */
+  --border-light: #cfc5b2;
+  --text-primary:   #1a1510; /* warm near-black */
+  --text-secondary: #6b6050;
+  --text-muted:     #9a8e80;
+  --accent:       #9a7020;   /* gold, deeper for contrast */
+  --accent-hover: #b8892a;
+  --accent-ink:   #faf7f2;
+  --green:        #1f7a52;
+  --green-bg:     rgba(31, 122, 82, 0.1);
+  --red:          #a03030;
+  --red-bg:       rgba(160, 48, 48, 0.1);
+  --warning:      #956020;
+  --warning-bg:   rgba(149, 96, 32, 0.1);
 }
 
-/* Custom accent colors */
-[data-accent="indigo"] { --accent: #6366f1; --accent-hover: #5558e3; }
-[data-accent="blue"] { --accent: #3b82f6; --accent-hover: #2563eb; }
-[data-accent="green"] { --accent: #10b981; --accent-hover: #059669; }
-[data-accent="purple"] { --accent: #8b5cf6; --accent-hover: #7c3aed; }
-[data-accent="pink"] { --accent: #ec4899; --accent-hover: #db2777; }
-[data-accent="orange"] { --accent: #f97316; --accent-hover: #ea580c; }
+/* ── Reset ──────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
 
-* { box-sizing: border-box; margin: 5px; padding: -2px; }
+/* ── Mobile baseline (mobile-native skill) ──────────────────────────────
+   - No tap highlight flash (kills the iOS/Android gray/blue overlay)
+   - No font inflation in landscape
+   - No pull-to-refresh hijacking app scroll
+   - touch-action: manipulation on all controls (kills 300ms tap delay)
+   - user-select: none on controls (no long-press text selection on buttons)
+   - All hover rules must be gated — see @media (hover: hover) blocks
+   ─────────────────────────────────────────────────────────────────────── */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+input, textarea, select {
+  font-size: 16px; /* prevents iOS zoom on focus */
+}
+
+button, a, [role="button"], .tappable {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.5;
@@ -101,8 +140,8 @@ input:focus, select:focus { outline: none; }
 .pub-nav-link { font-size: 15px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: color 0.15s; padding: 0; }
 .pub-nav-link:hover { color: var(--text-primary); }
 .pub-nav-link.active { color: var(--accent); font-weight: 600; }
-.pub-btn-primary { padding: 10px 22px; background: var(--text-primary); color: var(--bg-primary); font-size: 14px; font-weight: 600; border-radius: 8px; text-decoration: none; white-space: nowrap; }
-.pub-hamburger { display: none; background: none; border: none; color: var(--text-primary); cursor: pointer; padding: 4px; }
+.pub-btn-primary { padding: 12px 22px; background: var(--text-primary); color: var(--bg-primary); font-size: 14px; font-weight: 600; border-radius: 8px; text-decoration: none; white-space: nowrap; min-height: 44px; display: inline-flex; align-items: center; }
+.pub-hamburger { display: none; background: none; border: none; color: var(--text-primary); cursor: pointer; padding: 10px; }
 .pub-mobile-menu { display: none; }
 
 .pub-footer { border-top: 1px solid var(--border); background: var(--bg-secondary); }
@@ -159,7 +198,7 @@ input:focus, select:focus { outline: none; }
   .pub-footer-grid { grid-template-columns: 1fr 1fr; gap: 32px; }
   .pub-footer-bottom { flex-direction: column; }
   .pub-btn-row { flex-direction: column; }
-  .pub-btn-dark, .pub-btn-outline { justify-content: center; }
+  .pub-btn-dark, .pub-btn-outline { justify-content: center; width: 100%; }
 }
 
 @media (max-width: 600px) {

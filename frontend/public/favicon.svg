@@ -1,7 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <rect width="100" height="100" fill="#6366f1" rx="16"/>
-  <path d="M25 65 L35 55 L45 60 L55 45 L75 35" 
-        stroke="white" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <polyline points="65,35 75,35 75,45" 
-        stroke="white" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Square background -->
+  <rect width="32" height="32" rx="7" fill="#0c0b09"/>
+  <!-- Bezel ring — filled annulus -->
+  <circle cx="16" cy="16" r="15" fill="#1e1b16"/>
+  <circle cx="16" cy="16" r="12" fill="#0c0b09"/>
+  <!-- Cardinal marks in bezel -->
+  <!-- N — gold -->
+  <rect x="14.5" y="1.5" width="3" height="3" rx="1.5" fill="#b8892a"/>
+  <!-- S, E, W — muted -->
+  <rect x="14.5" y="27.5" width="3" height="3" rx="1.5" fill="#5a5448"/>
+  <rect x="1.5" y="14.5" width="3" height="3" rx="1.5" fill="#5a5448"/>
+  <rect x="27.5" y="14.5" width="3" height="3" rx="1.5" fill="#5a5448"/>
+  <!-- Needle: teardrop — north gold, south dark -->
+  <path d="M16 5 C17.6 8 18.5 11 18 13.5 C17.6 15 16.8 16 16 16 C15.2 16 14.4 15 14 13.5 C13.5 11 14.4 8 16 5 Z" fill="#b8892a"/>
+  <path d="M16 27 C17.6 24 18.5 21 18 18.5 C17.6 17 16.8 16 16 16 C15.2 16 14.4 17 14 18.5 C13.5 21 14.4 24 16 27 Z" fill="#2a2620"/>
+  <!-- Pivot -->
+  <circle cx="16" cy="16" r="2" fill="#b8892a"/>
+  <circle cx="16" cy="16" r="0.9" fill="#0c0b09"/>
 </svg>

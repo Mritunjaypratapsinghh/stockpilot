@@ -47,7 +47,7 @@ export default function LandingPage() {
         </div>
 
         {/* Trust bar */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 48, marginTop: 64, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 64, flexWrap: 'wrap' }}>
           {[{ v: '8+', l: 'Free Calculators' }, { v: '₹0', l: 'Forever Free Tier' }, { v: '100%', l: 'Privacy Focused' }].map((s, i) => (
             <div key={i} style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--text-primary)' }}>{s.v}</div>

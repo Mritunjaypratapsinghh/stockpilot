@@ -75,7 +75,7 @@ export default function SignalsPage() {
             <div className="w-12 h-12 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center"><Zap className="w-6 h-6 text-[var(--accent)]" /></div>
             <div><h1 className="text-xl md:text-2xl font-bold">Smart Signals</h1><p className="text-[var(--text-muted)]">Fundamentals + Technicals + Portfolio Context</p></div>
           </div>
-          <button onClick={loadSignals} disabled={loading || refreshing} className={`flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3] ${loading || refreshing ? 'opacity-50' : ''}`}>
+          <button onClick={loadSignals} disabled={loading || refreshing} className={`flex items-center gap-2 px-4 py-2.5 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[#5558e3] ${loading || refreshing ? 'opacity-50' : ''}`}>
             <RefreshCw className={`w-4 h-4 ${loading || refreshing ? 'animate-spin' : ''}`} /> {refreshing ? 'Analyzing...' : 'Analyze'}
           </button>
         </div>
@@ -84,7 +84,7 @@ export default function SignalsPage() {
           <div className="bg-[#ef4444]/10 border border-[#ef4444]/30 rounded-lg p-4 mb-4 flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-[#ef4444]" />
             <span className="text-[#ef4444]">{error}</span>
-            <button onClick={loadSignals} className="ml-auto text-sm underline text-[#ef4444]">Retry</button>
+            <button onClick={loadSignals} className="ml-auto text-sm underline text-[var(--red)] px-3 py-2">Retry</button>
           </div>
         )}
 
@@ -120,7 +120,7 @@ export default function SignalsPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="col-span-2">
-                <h2 className="text-sm font-medium text-[var(--text-muted)] uppercase mb-4">Portfolio Signals</h2>
+                <h2 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-[0.08em] mb-4">Portfolio Signals</h2>
                 {data.portfolio?.length === 0 ? (
                   <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-12 text-center">
                     <Target className="w-12 h-12 mx-auto mb-4 text-[var(--text-muted)]" />
@@ -147,7 +147,7 @@ export default function SignalsPage() {
                                 </div>
                                 <div className="text-sm text-[var(--text-muted)]">
                                   ₹{r.current_price?.toFixed(2)} • <span className={r.pnl_pct >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}>{r.pnl_pct >= 0 ? '+' : ''}{r.pnl_pct?.toFixed(1)}%</span>
-                                  {r.sector && <span className="ml-2 text-[var(--text-muted)]">• {r.sector}</span>}
+                                  {r.sector && <span className="ml-2 text-[var(--text-muted)] truncate max-w-[100px] inline-block align-bottom">• {r.sector}</span>}
                                 </div>
                               </div>
                             </div>
@@ -202,7 +202,7 @@ export default function SignalsPage() {
                                     {r.fundamentals.quality && <span className="text-xs bg-[#10b981]/10 text-[#10b981] px-2 py-0.5 rounded">Quality</span>}
                                     {r.fundamentals.risky && <span className="text-xs bg-[#ef4444]/10 text-[#ef4444] px-2 py-0.5 rounded">Risky</span>}
                                   </div>
-                                  <div className="grid grid-cols-3 gap-2 text-sm">
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
                                     {r.fundamentals.pe && <div><span className="text-[var(--text-muted)]">PE:</span> {r.fundamentals.pe}</div>}
                                     {r.fundamentals.roe && <div><span className="text-[var(--text-muted)]">ROE:</span> {r.fundamentals.roe}%</div>}
                                     {r.fundamentals.debt_equity !== null && <div><span className="text-[var(--text-muted)]">D/E:</span> {r.fundamentals.debt_equity}</div>}
@@ -278,7 +278,7 @@ export default function SignalsPage() {
 
               {/* IPO Sidebar */}
               <div>
-                <h2 className="text-sm font-medium text-[var(--text-muted)] uppercase mb-4">IPO Recommendations</h2>
+                <h2 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-[0.08em] mb-4">IPO Recommendations</h2>
                 <div className="space-y-3">
                   {data.ipos?.filter(ipo => ipo.action).length === 0 ? (
                     <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-8 text-center text-[var(--text-muted)]">No IPO recommendations</div>

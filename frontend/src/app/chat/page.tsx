@@ -243,33 +243,36 @@ export default function ChatPage() {
   const dynamicSuggestions = lastAssistantMsg?.suggestions?.length > 0 ? lastAssistantMsg.suggestions : getFollowUps(messages);
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-[var(--bg-primary)]">
+    <div className="h-[100dvh] flex flex-col bg-[var(--bg-primary)] overflow-hidden">
       <Navbar />
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col">
-          <div className="px-4 md:px-6 pt-4 pb-2 flex items-center justify-between">
-            <h1 className="text-lg font-bold flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" /> Portfolio Assistant
-              <span className="text-[10px] bg-[var(--accent)]/20 text-[var(--accent)] px-2 py-0.5 rounded-full">StockPilot AI</span>
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {/* Header */}
+          <div className="px-3 md:px-6 pt-3 pb-2 flex items-center justify-between gap-2 border-b border-[var(--border)] shrink-0">
+            <h1 className="text-base font-bold flex items-center gap-2 min-w-0 shrink-0">
+              <MessageSquare className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline">Portfolio Assistant</span>
+              <span className="sm:hidden">AI Chat</span>
+              <span className="text-[10px] bg-[var(--accent)]/20 text-[var(--accent)] px-1.5 py-0.5 rounded-full whitespace-nowrap">AI</span>
             </h1>
-            <div className="flex items-center gap-2">
-              <select value={language} onChange={e => setLanguage(e.target.value)} className="text-xs bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-2 py-1 text-[var(--text-muted)]">
+            <div className="flex items-center gap-1 shrink-0">
+              <select value={language} onChange={e => setLanguage(e.target.value)} className="text-xs bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-1.5 py-1 text-[var(--text-muted)] max-w-[80px]">
                 {Object.entries(LANGUAGES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
-              <button onClick={() => setShowSessions(!showSessions)} className="p-2.5 min-w-[44px] min-h-[44px] text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center justify-center" title="Chat History">
+              <button onClick={() => setShowSessions(!showSessions)} className="p-2 min-w-[36px] min-h-[36px] text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center justify-center rounded-lg hover:bg-[var(--bg-secondary)]" title="Chat History">
                 <History className="w-4 h-4" />
               </button>
               {sessionId && (
-                <button onClick={exportChat} className="p-2.5 min-w-[44px] min-h-[44px] text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center justify-center" title="Export Chat">
+                <button onClick={exportChat} className="hidden sm:flex p-2 min-w-[36px] min-h-[36px] text-[var(--text-muted)] hover:text-[var(--text-primary)] items-center justify-center rounded-lg hover:bg-[var(--bg-secondary)]" title="Export Chat">
                   <Download className="w-4 h-4" />
                 </button>
               )}
-              <button onClick={newChat} className="p-2.5 min-w-[44px] min-h-[44px] text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center justify-center" title="New Chat">
+              <button onClick={newChat} className="p-2 min-w-[36px] min-h-[36px] text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center justify-center rounded-lg hover:bg-[var(--bg-secondary)]" title="New Chat">
                 <Plus className="w-4 h-4" />
               </button>
               {messages.length > 0 && (
-                <button onClick={() => { setMessages([]); setSessionId(null); }} className="p-2.5 min-w-[44px] min-h-[44px] text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1">
+                <button onClick={() => { setMessages([]); setSessionId(null); }} className="p-2 min-w-[36px] min-h-[36px] text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center justify-center rounded-lg hover:bg-[var(--bg-secondary)]">
                   <Trash2 className="w-4 h-4" />
                 </button>
               )}
@@ -294,12 +297,12 @@ export default function ChatPage() {
           )}
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 md:px-6 pb-2">
+          <div className="flex-1 overflow-y-auto px-3 md:px-6 pb-2 min-h-0">
             {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                <Bot className="w-12 h-12 text-[var(--accent)] mb-4 opacity-50" />
-                <p className="text-sm text-[var(--text-muted)] mb-6">Ask me anything about your portfolio</p>
-                <div className="grid grid-cols-2 gap-2 max-w-md">
+              <div className="flex flex-col items-center justify-center h-full text-center px-2">
+                <Bot className="w-10 h-10 text-[var(--accent)] mb-3 opacity-50" />
+                <p className="text-sm text-[var(--text-muted)] mb-5">Ask me anything about your portfolio</p>
+                <div className="grid grid-cols-2 gap-2 w-full max-w-sm">
                   {SUGGESTIONS.map((s, i) => (
                     <button key={i} onClick={() => handleSend(s)} className="px-3 py-3 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]/50 text-left transition-colors">
                       {s}
@@ -310,14 +313,14 @@ export default function ChatPage() {
             ) : (
               <div className="space-y-4 py-2">
                 {messages.map((msg, i) => (
-                  <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                  <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}>
                     {msg.role === 'assistant' && (
                       <div className="w-7 h-7 rounded-full bg-[var(--accent)] flex items-center justify-center shrink-0 mt-1">
                         <Bot className="w-3.5 h-3.5 text-white" />
                       </div>
                     )}
-                    <div className={`group relative max-w-[85%] sm:max-w-[70%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)]'}`}>
-                      <div className="text-sm whitespace-pre-wrap leading-relaxed"><Markdown text={msg.content} /></div>
+                    <div className={`group relative max-w-[85%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border border-[var(--border)]'}`}>
+                      <div className="text-sm leading-relaxed"><Markdown text={msg.content} /></div>
                       {/* Sparkline Chart */}
                       {msg.sparkline?.length > 0 && (
                         <div className="mt-2 flex items-end gap-[2px] h-10 border-t border-[var(--border)] pt-2">
@@ -347,7 +350,7 @@ export default function ChatPage() {
                   </div>
                 ))}
                 {loading && messages[messages.length - 1]?.role !== 'assistant' && (
-                  <div className="flex gap-3">
+                  <div className="flex gap-2">
                     <div className="w-7 h-7 rounded-full bg-[var(--accent)] flex items-center justify-center">
                       <Bot className="w-3.5 h-3.5 text-white" />
                     </div>
@@ -366,18 +369,18 @@ export default function ChatPage() {
           </div>
 
           {/* Input */}
-          <div className="px-4 md:px-6 pt-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))] border-t border-[var(--border)]">
+          <div className="px-3 md:px-6 pt-2 pb-[calc(8px+env(safe-area-inset-bottom,0px))] border-t border-[var(--border)] shrink-0">
             {messages.length > 0 && (
-              <div className="flex gap-2 mb-2 overflow-x-auto pb-1 scrollbar-hide">
+              <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1 scrollbar-hide">
                 {dynamicSuggestions.map((s, i) => (
-                  <button key={i} onClick={() => handleSend(s)} className="px-3 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-full text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]/50 whitespace-nowrap transition-colors">
+                  <button key={i} onClick={() => handleSend(s)} className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-full text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]/50 whitespace-nowrap transition-colors shrink-0">
                     {s}
                   </button>
                 ))}
               </div>
             )}
             <div className="flex gap-2">
-              <button onClick={toggleVoice} className={`px-3 py-2.5 rounded-lg border ${listening ? 'bg-[#ef4444] text-white border-[#ef4444] animate-pulse' : 'bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
+              <button onClick={toggleVoice} className={`shrink-0 w-10 h-10 rounded-lg border flex items-center justify-center ${listening ? 'bg-[#ef4444] text-white border-[#ef4444] animate-pulse' : 'bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
                 {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </button>
               <input
@@ -387,9 +390,9 @@ export default function ChatPage() {
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 placeholder="Ask about your portfolio..."
                 disabled={loading}
-                className="flex-1 px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)] disabled:opacity-50"
+                className="flex-1 min-w-0 px-3 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)] disabled:opacity-50"
               />
-              <button onClick={() => handleSend()} disabled={loading || !input.trim()} className="px-4 py-2.5 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 disabled:opacity-50">
+              <button onClick={() => handleSend()} disabled={loading || !input.trim()} className="shrink-0 w-10 h-10 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center">
                 <Send className="w-4 h-4" />
               </button>
             </div>

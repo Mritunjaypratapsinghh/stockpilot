@@ -6,7 +6,6 @@ from typing import List, Optional
 from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from groq import Groq
 from pydantic import BaseModel
 
 from ....core.config import settings
@@ -18,7 +17,31 @@ logger = logging.getLogger("stockpilot")
 
 router = APIRouter()
 
-client = Groq(api_key=settings.groq_api_key) if settings.groq_api_key else None
+# Gemini client (primary)
+_gemini_client = None
+if settings.gemini_api_key:
+    try:
+        from google import genai as _genai
+
+        _gemini_client = _genai.Client(api_key=settings.gemini_api_key)
+    except Exception as _e:
+        logger.warning(f"Gemini init failed: {_e}")
+
+# Groq client (fallback)
+_groq_client = None
+if settings.groq_api_key:
+    try:
+        from groq import Groq as _Groq
+
+        _groq_client = _Groq(api_key=settings.groq_api_key)
+    except Exception as _e:
+        logger.warning(f"Groq init failed: {_e}")
+
+# Use whichever is available — Gemini preferred
+client = _gemini_client or _groq_client
+USE_GEMINI = _gemini_client is not None
+GEMINI_MODEL = "gemini-3.8-flash"
+GROQ_MODEL = "qwen/qwen3.8-27b"
 
 SYSTEM_PROMPT = (
     "You are StockPilot AI — a friendly, expert Indian stock market "
@@ -517,7 +540,7 @@ async def export_chat(
 @router.post("/ask")
 async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_user)):
     if not client:
-        raise HTTPException(status_code=503, detail="AI chat unavailable. GROQ_API_KEY not configured.")
+        raise HTTPException(status_code=503, detail="AI chat unavailable. Configure GEMINI_API_KEY or GROQ_API_KEY.")
 
     import asyncio
 
@@ -716,111 +739,163 @@ async def chat_ask(req: ChatRequest, current_user: dict = Depends(get_current_us
         # Import AI tools
         from ....services.chat import AI_TOOLS, execute_function
 
-        # First call with tools to check if AI wants to use any
-        initial_response = client.chat.completions.create(
-            model="qwen/qwen3.8-27b",
-            messages=messages,
-            tools=AI_TOOLS,
-            tool_choice="auto",
-            temperature=0.3,
-            max_completion_tokens=800,
-        )
+        if USE_GEMINI:
+            # ── Gemini path ──────────────────────────────────────────────
+            from google.genai import types as _gtypes
 
-        response_message = initial_response.choices[0].message
-        tool_calls = response_message.tool_calls
-        action_results = []
+            lang_prefix = SUPPORTED_LANGUAGES.get(req.language or "en", "")
+            system_instruction = lang_prefix + SYSTEM_PROMPT + "\n\n" + full_context
 
-        # Process tool calls if any
-        if tool_calls:
-            # Add assistant message with tool calls
-            messages.append(response_message)
+            # Build conversation history
+            gemini_contents = []
+            for msg in (req.history or [])[-10:]:
+                role = "user" if msg.get("role") == "user" else "model"
+                gemini_contents.append(_gtypes.Content(role=role, parts=[_gtypes.Part(text=msg["content"])]))
+            gemini_contents.append(_gtypes.Content(role="user", parts=[_gtypes.Part(text=req.message)]))
 
-            for tool_call in tool_calls:
-                func_name = tool_call.function.name
+            async def generate():
+                full = []
                 try:
-                    func_args = json.loads(tool_call.function.arguments)
-                except json.JSONDecodeError:
-                    func_args = {}
+                    for chunk in _gemini_client.models.generate_content_stream(
+                        model=GEMINI_MODEL,
+                        contents=gemini_contents,
+                        config=_gtypes.GenerateContentConfig(
+                            system_instruction=system_instruction,
+                            temperature=0.3,
+                            max_output_tokens=900,
+                        ),
+                    ):
+                        token = chunk.text or ""
+                        if token:
+                            full.append(token)
+                            yield token
+                except Exception as e:
+                    logger.error(f"Gemini stream error: {e}")
+                    yield "Sorry, I encountered an error. Please try again."
 
-                logger.info(f"AI calling function: {func_name} with args: {func_args}")
+                meta = {"suggestions": suggestions, "session_id": session_id}
+                if sparkline_data:
+                    meta["sparkline"] = sparkline_data
+                if alert_created:
+                    meta["alert"] = alert_created
 
-                # Execute the function
-                result = await execute_function(func_name, func_args, current_user["_id"])
-                action_results.append({"function": func_name, "result": result})
+                yield f"\n\n<!--META:{json.dumps(meta)}-->"
 
-                # Add tool result to messages
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "content": json.dumps(result),
-                    }
-                )
+                full_text = "".join(full)
+                try:
+                    await ChatMessage(
+                        user_id=user_id,
+                        session_id=session_id,
+                        role="assistant",
+                        content=full_text,
+                        suggestions=suggestions,
+                    ).insert()
+                    await ChatSession.find_one(ChatSession.id == PydanticObjectId(session_id)).update(
+                        {
+                            "$set": {
+                                "last_message": full_text[:80],
+                                "updated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc),
+                            },
+                            "$inc": {"message_count": 2},
+                        }
+                    )
+                except Exception as e:
+                    logger.error(f"Save chat failed: {e}")
+                logger.info(f"Gemini streamed: {full_text[:200]}")
 
-            # Get final response after tool execution (streamed)
-            stream = client.chat.completions.create(
-                model="qwen/qwen3.8-27b",
+            return StreamingResponse(generate(), media_type="text/plain")
+
+        else:
+            # ── Groq fallback path ───────────────────────────────────────
+            lang_prefix = SUPPORTED_LANGUAGES.get(req.language or "en", "")
+            system_content = lang_prefix + SYSTEM_PROMPT + "\n\n" + full_context
+
+            messages = [{"role": "system", "content": system_content}]
+            for msg in (req.history or [])[-10:]:
+                messages.append({"role": msg.get("role", "user"), "content": msg["content"]})
+            messages.append({"role": "user", "content": req.message})
+
+            initial_response = _groq_client.chat.completions.create(
+                model=GROQ_MODEL,
                 messages=messages,
+                tools=AI_TOOLS,
+                tool_choice="auto",
                 temperature=0.3,
                 max_completion_tokens=800,
-                stream=True,
             )
-        else:
-            # No tool calls — use the content from initial response directly
-            initial_content = response_message.content or ""
-            stream = None
 
-        async def generate():
-            full = []
+            response_message = initial_response.choices[0].message
+            tool_calls = response_message.tool_calls
+            action_results = []
+            initial_content = ""
 
-            if stream is not None:
-                for chunk in stream:
-                    token = chunk.choices[0].delta.content or ""
-                    if token:
-                        full.append(token)
-                        yield token
-            else:
-                # Yield initial response content directly
-                full.append(initial_content)
-                yield initial_content
-
-            # Metadata for frontend
-            meta = {"suggestions": suggestions, "session_id": session_id}
-            if sparkline_data:
-                meta["sparkline"] = sparkline_data
-            if alert_created:
-                meta["alert"] = alert_created
-            if action_results:
-                meta["actions"] = action_results
-
-            yield f"\n\n<!--META:{json.dumps(meta)}-->"
-
-            # Save assistant message to DB
-            full_text = "".join(full)
-            try:
-                await ChatMessage(
-                    user_id=user_id,
-                    session_id=session_id,
-                    role="assistant",
-                    content=full_text,
-                    suggestions=suggestions,
-                ).insert()
-                # Update session
-                await ChatSession.find_one(ChatSession.id == PydanticObjectId(session_id)).update(
-                    {
-                        "$set": {
-                            "last_message": full_text[:80],
-                            "updated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc),
-                        },
-                        "$inc": {"message_count": 2},
-                    }
+            if tool_calls:
+                messages.append(response_message)
+                for tool_call in tool_calls:
+                    func_name = tool_call.function.name
+                    try:
+                        func_args = json.loads(tool_call.function.arguments)
+                    except json.JSONDecodeError:
+                        func_args = {}
+                    result = await execute_function(func_name, func_args, current_user["_id"])
+                    action_results.append({"function": func_name, "result": result})
+                    messages.append({"role": "tool", "tool_call_id": tool_call.id, "content": json.dumps(result)})
+                stream = _groq_client.chat.completions.create(
+                    model=GROQ_MODEL,
+                    messages=messages,
+                    temperature=0.3,
+                    max_completion_tokens=800,
+                    stream=True,
                 )
-            except Exception as e:
-                logger.error(f"Save chat failed: {e}")
+            else:
+                initial_content = response_message.content or ""
+                stream = None
 
-            logger.info(f"Groq streamed: {full_text[:200]}")
+            async def generate():
+                full = []
+                if stream is not None:
+                    for chunk in stream:
+                        token = chunk.choices[0].delta.content or ""
+                        if token:
+                            full.append(token)
+                            yield token
+                else:
+                    full.append(initial_content)
+                    yield initial_content
 
-        return StreamingResponse(generate(), media_type="text/plain")
+                meta = {"suggestions": suggestions, "session_id": session_id}
+                if sparkline_data:
+                    meta["sparkline"] = sparkline_data
+                if alert_created:
+                    meta["alert"] = alert_created
+                if action_results:
+                    meta["actions"] = action_results
+
+                yield f"\n\n<!--META:{json.dumps(meta)}-->"
+
+                full_text = "".join(full)
+                try:
+                    await ChatMessage(
+                        user_id=user_id,
+                        session_id=session_id,
+                        role="assistant",
+                        content=full_text,
+                        suggestions=suggestions,
+                    ).insert()
+                    await ChatSession.find_one(ChatSession.id == PydanticObjectId(session_id)).update(
+                        {
+                            "$set": {
+                                "last_message": full_text[:80],
+                                "updated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc),
+                            },
+                            "$inc": {"message_count": 2},
+                        }
+                    )
+                except Exception as e:
+                    logger.error(f"Save chat failed: {e}")
+                logger.info(f"Groq streamed: {full_text[:200]}")
+
+            return StreamingResponse(generate(), media_type="text/plain")
     except Exception as e:
         logger.error(f"Groq error: {e}")
         return StandardResponse.error(f"AI error: {str(e)}")

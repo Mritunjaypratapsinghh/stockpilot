@@ -147,7 +147,7 @@ export default function Dashboard() {
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4 mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
               <div className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-[0.08em]">Portfolio Growth</div>
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-wrap">
                 {['1W', '1M', '3M', '6M', '1Y', 'ALL'].map(r => (
                   <button key={r} onClick={() => handleRangeChange(r)} disabled={chartLoading}
                     className={`px-3 py-2 text-xs rounded ${chartRange === r ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-primary)] text-[var(--text-muted)] hover:bg-[var(--border)]'} ${chartLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>{r}</button>
@@ -165,7 +165,7 @@ export default function Dashboard() {
                 <XAxis dataKey="date" tick={{fontSize: 10}} tickFormatter={d => d?.slice(5)} stroke="var(--text-muted)" />
                 <YAxis tick={{fontSize: 10}} tickFormatter={v => `₹${(v/100000).toFixed(1)}L`} stroke="var(--text-muted)" width={50} />
                 <Tooltip content={({active, payload}) => active && payload?.[0] ? (
-                  <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded p-2 text-xs">
+                  <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded p-2 text-xs max-w-[160px]">
                     <div className="font-medium">{payload[0].payload.date}</div>
                     <div>Value: ₹{payload[0].payload.value?.toLocaleString('en-IN')}</div>
                     <div>Invested: ₹{payload[0].payload.invested?.toLocaleString('en-IN')}</div>
@@ -188,10 +188,10 @@ export default function Dashboard() {
                   {insights.map((ins, i) => (
                     <div key={i} className={`border rounded-lg p-4 ${ins.type === 'warning' ? 'bg-[#ef4444]/5 border-[#ef4444]/20' : ins.type === 'opportunity' ? 'bg-[#10b981]/5 border-[#10b981]/20' : ins.type === 'tip' ? 'bg-[#f59e0b]/5 border-[#f59e0b]/20' : 'bg-[var(--bg-secondary)] border-[var(--border)]'}`}>
                       <div className="flex items-start gap-2">
-                        <span className="text-lg">{ins.icon}</span>
-                        <div>
-                          <div className="font-medium text-sm">{ins.title}</div>
-                          <div className="text-sm text-[var(--text-secondary)] mt-1">{ins.body}</div>
+                        <span className="text-lg shrink-0">{ins.icon}</span>
+                        <div className="min-w-0">
+                          <div className="font-medium text-sm break-words">{ins.title}</div>
+                          <div className="text-sm text-[var(--text-secondary)] mt-1 break-words">{ins.body}</div>
                         </div>
                       </div>
                     </div>
@@ -237,7 +237,7 @@ export default function Dashboard() {
         {/* Holdings Table */}
         <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg">
           <div className="px-4 md:px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
-            <h2 className="font-semibold text-base md:text-lg">Holdings</h2>
+            <h2 className="font-semibold text-base md:text-lg min-w-0 truncate">Holdings</h2>
             <Link href="/portfolio" className="text-sm text-[var(--accent)] hover:text-[var(--accent-hover)] px-2 py-2">View All →</Link>
           </div>
           
@@ -304,14 +304,14 @@ export default function Dashboard() {
 
 function SummaryCard({ label, value, sub, positive, loading }) {
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-5">
-      <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1 md:mb-2">{label}</div>
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-5 min-w-0 overflow-hidden">
+      <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1 md:mb-2 truncate">{label}</div>
       {loading ? (
         <div className="h-6 md:h-8 w-20 md:w-32 bg-[var(--border)] rounded animate-pulse" />
       ) : (
         <>
-          <div className={`text-lg md:text-2xl font-semibold tabular privacy-mask ${sub !== undefined ? (positive ? 'text-[#10b981]' : 'text-[#ef4444]') : ''}`}>{value}</div>
-          {sub && <div className={`text-xs md:text-sm tabular privacy-mask ${positive ? 'text-[#10b981]/70' : 'text-[#ef4444]/70'}`}>{sub}</div>}
+          <div className={`text-base md:text-2xl font-semibold tabular privacy-mask truncate ${sub !== undefined ? (positive ? 'text-[#10b981]' : 'text-[#ef4444]') : ''}`}>{value}</div>
+          {sub && <div className={`text-xs md:text-sm tabular privacy-mask truncate ${positive ? 'text-[#10b981]/70' : 'text-[#ef4444]/70'}`}>{sub}</div>}
         </>
       )}
     </div>
@@ -320,17 +320,15 @@ function SummaryCard({ label, value, sub, positive, loading }) {
 
 function LoadingSkeleton({ rows }) {
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-4 space-y-4">
       {[...Array(rows)].map((_, i) => (
-        <div key={i} className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-[var(--border)] rounded-lg animate-pulse" />
-          <div className="flex-1 space-y-2">
+        <div key={i} className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 shrink-0 bg-[var(--border)] rounded-lg animate-pulse" />
+          <div className="flex-1 min-w-0 space-y-2">
             <div className="h-4 w-24 bg-[var(--border)] rounded animate-pulse" />
             <div className="h-3 w-16 bg-[var(--border)] rounded animate-pulse" />
           </div>
-          <div className="h-4 w-20 bg-[var(--border)] rounded animate-pulse" />
-          <div className="h-4 w-20 bg-[var(--border)] rounded animate-pulse" />
-          <div className="h-4 w-24 bg-[var(--border)] rounded animate-pulse" />
+          <div className="h-4 w-16 shrink-0 bg-[var(--border)] rounded animate-pulse" />
         </div>
       ))}
     </div>

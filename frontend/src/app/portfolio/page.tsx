@@ -252,27 +252,27 @@ export default function PortfolioPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
             <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Invested</div>
-            <div className="text-base md:text-xl font-semibold tabular privacy-mask">₹{fmt(dynamicSummary.invested)}</div>
+            <div className="text-sm md:text-xl font-semibold tabular privacy-mask">₹{fmt(dynamicSummary.invested)}</div>
           </div>
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
             <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Current Value</div>
-            <div className="text-base md:text-xl font-semibold tabular privacy-mask">₹{fmt(dynamicSummary.current)}</div>
+            <div className="text-sm md:text-xl font-semibold tabular privacy-mask">₹{fmt(dynamicSummary.current)}</div>
           </div>
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
             <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Total P&L</div>
-            <div className={`text-base md:text-xl font-semibold tabular privacy-mask ${dynamicSummary.pnl >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
+            <div className={`text-sm md:text-xl font-semibold tabular privacy-mask ${dynamicSummary.pnl >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
               {dynamicSummary.pnl >= 0 ? '+' : ''}₹{fmt(dynamicSummary.pnl)} <span className="text-xs md:text-sm">({dynamicSummary.pnl_pct?.toFixed(2) || 0}%)</span>
             </div>
           </div>
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
             <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">XIRR</div>
-            <div className={`text-base md:text-xl font-semibold tabular ${((holdingFilter === 'stocks' ? xirrStocks : holdingFilter === 'mf' ? xirrMf : xirr) || 0) >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
+            <div className={`text-sm md:text-xl font-semibold tabular ${((holdingFilter === 'stocks' ? xirrStocks : holdingFilter === 'mf' ? xirrMf : xirr) || 0) >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
               {(() => { const v = holdingFilter === 'stocks' ? xirrStocks : holdingFilter === 'mf' ? xirrMf : xirr; return v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : '—'; })()}
             </div>
           </div>
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-3 md:p-4">
             <div className="text-xs md:text-sm text-[var(--text-muted)] mb-1">Dividends</div>
-            <div className="text-base md:text-xl font-semibold tabular text-[#10b981]">₹{fmt(divSummary.total_dividend)}</div>
+            <div className="text-sm md:text-xl font-semibold tabular text-[#10b981]">₹{fmt(divSummary.total_dividend)}</div>
             <div className="text-xs text-[var(--text-muted)]">{divSummary.dividend_yield}% yield</div>
           </div>
         </div>
@@ -304,7 +304,7 @@ export default function PortfolioPage() {
         {/* Tabs */}
         <div className="flex gap-1 mb-4 bg-[var(--bg-secondary)] p-1 rounded-lg overflow-x-auto">
           {['holdings', 'transactions', 'dividends'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${activeTab === tab ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-muted)] hover:text-white'}`}>
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-md text-sm font-medium capitalize whitespace-nowrap ${activeTab === tab ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-muted)] hover:text-white'}`}>
               {tab}
             </button>
           ))}
@@ -489,7 +489,7 @@ export default function PortfolioPage() {
         {/* Record Trade Modal */}
         {showTxn && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { setShowTxn(false); setShowSymbolDropdown(false); }}>
-            <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
+            <div className="w-full max-w-md mx-4 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h2 className="text-lg font-semibold">Record Trade</h2>
                 <button onClick={() => setShowTxn(false)} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--border)]"><X className="w-5 h-5" /></button>
@@ -538,7 +538,7 @@ export default function PortfolioPage() {
                     ))}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-[var(--text-secondary)] mb-2">Input By</label>
                     <div className="flex gap-2">
@@ -580,7 +580,7 @@ export default function PortfolioPage() {
         {/* Import Modal */}
         {showImport && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowImport(false)}>
-            <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
+            <div className="w-full max-w-md mx-4 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h2 className="text-lg font-semibold">Import Holdings</h2>
                 <button onClick={() => setShowImport(false)} className="p-2 text-[var(--text-muted)] hover:text-white rounded-lg hover:bg-[var(--border)]"><X className="w-5 h-5" /></button>
@@ -605,7 +605,7 @@ export default function PortfolioPage() {
         {/* Add Dividend Modal */}
         {showDiv && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowDiv(false)}>
-            <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
+            <div className="w-full max-w-md mx-4 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h2 className="text-lg font-semibold">Add Dividend</h2>
                 <button onClick={() => setShowDiv(false)} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--border)]"><X className="w-5 h-5" /></button>
@@ -635,7 +635,7 @@ export default function PortfolioPage() {
         {/* Export Modal */}
         {showExport && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowExport(false)}>
-            <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
+            <div className="w-full max-w-md mx-4 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-6" onClick={e => e.stopPropagation()}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h2 className="text-lg font-semibold">Export Reports</h2>
                 <button onClick={() => setShowExport(false)} className="p-2 text-[var(--text-muted)] hover:text-white rounded-lg hover:bg-[var(--border)]"><X className="w-5 h-5" /></button>

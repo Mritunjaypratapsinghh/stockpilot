@@ -3,23 +3,6 @@
 import { useState, useEffect } from 'react';
 import Script from 'next/script';
 import { Eye, EyeOff, ArrowRight, Shield, BarChart3, Bell, X } from 'lucide-react';
-
-function CompassLogo() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 48 48" fill="none">
-      <circle cx="24" cy="24" r="23" fill="#1e1b16"/>
-      <circle cx="24" cy="24" r="18" fill="#0c0b09"/>
-      <rect x="21.5" y="1.5" width="5" height="5" rx="2.5" fill="#b8892a"/>
-      <rect x="21.5" y="41.5" width="5" height="5" rx="2.5" fill="#5a5448"/>
-      <rect x="1.5" y="21.5" width="5" height="5" rx="2.5" fill="#5a5448"/>
-      <rect x="41.5" y="21.5" width="5" height="5" rx="2.5" fill="#5a5448"/>
-      <path d="M24 7 C26.5 12 27.8 17.5 27 21.5 C26.4 23.5 25.3 24 24 24 C22.7 24 21.6 23.5 21 21.5 C20.2 17.5 21.5 12 24 7 Z" fill="#b8892a"/>
-      <path d="M24 41 C26.5 36 27.8 30.5 27 26.5 C26.4 24.5 25.3 24 24 24 C22.7 24 21.6 24.5 21 26.5 C20.2 30.5 21.5 36 24 41 Z" fill="#2a2620"/>
-      <circle cx="24" cy="24" r="2.8" fill="#b8892a"/>
-      <circle cx="24" cy="24" r="1.2" fill="#0c0b09"/>
-    </svg>
-  );
-}
 import { api } from '../../lib/api';
 
 function Toast({ message, type, onClose }) {
@@ -86,7 +69,7 @@ export default function LoginPage() {
       <div className="min-h-screen bg-[var(--bg-primary)] flex">
         {/* Left */}
         <div className="hidden lg:flex lg:w-1/2 bg-[var(--bg-secondary)] flex-col justify-between p-12">
-          <div className="flex items-center gap-3"><a href="/landing" className="flex items-center gap-3"><CompassLogo /><span className="text-xl font-semibold"><span className="text-[var(--text-primary)] font-normal">Stock</span><span className="text-[var(--accent)] font-semibold">Pilot</span></span></a></div>
+          <div className="flex items-center gap-3"><a href="/landing" className="flex items-center gap-3"><img src="/logo.svg" width="34" height="34" alt="StockPilot" /><span className="text-xl font-semibold"><span className="text-[var(--text-primary)] font-normal">Stock</span><span className="text-[var(--accent)] font-semibold">Pilot</span></span></a></div>
           <div className="max-w-md">
             <h1 className="text-4xl font-bold leading-tight mb-4">Smart portfolio tracking for serious investors</h1>
             <p className="text-[var(--text-secondary)] text-lg mb-10">Real-time analytics, intelligent alerts, and AI-powered insights.</p>
@@ -102,7 +85,7 @@ export default function LoginPage() {
         {/* Right */}
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-sm">
-            <div className="lg:hidden flex items-center gap-3 mb-8"><a href="/landing" className="flex items-center gap-3"><CompassLogo /><span className="text-xl font-semibold"><span className="text-[var(--text-primary)] font-normal">Stock</span><span className="text-[var(--accent)] font-semibold">Pilot</span></span></a></div>
+            <div className="lg:hidden flex items-center gap-3 mb-8"><a href="/landing" className="flex items-center gap-3"><img src="/logo.svg" width="34" height="34" alt="StockPilot" /><span className="text-xl font-semibold"><span className="text-[var(--text-primary)] font-normal">Stock</span><span className="text-[var(--accent)] font-semibold">Pilot</span></span></a></div>
             <h2 className="text-xl md:text-2xl font-bold mb-1">{isLogin ? 'Welcome back' : 'Create account'}</h2>
             <p className="text-[var(--text-muted)] mb-6">{isLogin ? 'Enter your credentials' : 'Start your journey'}</p>
 

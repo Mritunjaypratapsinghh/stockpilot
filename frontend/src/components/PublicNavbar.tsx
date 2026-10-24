@@ -4,23 +4,6 @@ import Link from 'next/link';
 import { Sun, Moon, LogIn, UserPlus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
-function CompassLogo() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 48 48" fill="none">
-      <circle cx="24" cy="24" r="23" fill="#1e1b16"/>
-      <circle cx="24" cy="24" r="18" fill="#0c0b09"/>
-      <rect x="21.5" y="1.5" width="5" height="5" rx="2.5" fill="#b8892a"/>
-      <rect x="21.5" y="41.5" width="5" height="5" rx="2.5" fill="#5a5448"/>
-      <rect x="1.5" y="21.5" width="5" height="5" rx="2.5" fill="#5a5448"/>
-      <rect x="41.5" y="21.5" width="5" height="5" rx="2.5" fill="#5a5448"/>
-      <path d="M24 7 C26.5 12 27.8 17.5 27 21.5 C26.4 23.5 25.3 24 24 24 C22.7 24 21.6 23.5 21 21.5 C20.2 17.5 21.5 12 24 7 Z" fill="#b8892a"/>
-      <path d="M24 41 C26.5 36 27.8 30.5 27 26.5 C26.4 24.5 25.3 24 24 24 C22.7 24 21.6 24.5 21 26.5 C20.2 30.5 21.5 36 24 41 Z" fill="#2a2620"/>
-      <circle cx="24" cy="24" r="2.8" fill="#b8892a"/>
-      <circle cx="24" cy="24" r="1.2" fill="#0c0b09"/>
-    </svg>
-  );
-}
-
 export default function PublicNavbar() {
   const [theme, setTheme] = useState('dark');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -46,7 +29,7 @@ export default function PublicNavbar() {
     <nav className="sticky top-0 z-50 bg-[var(--bg-primary)] border-b border-[var(--border)]">
       <div className="h-14 px-6 flex items-center">
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
-          <CompassLogo />
+          <img src="/logo.svg" width="32" height="32" alt="StockPilot" />
           <span className="font-semibold text-[var(--text-primary)]">
             <span className="font-normal">Stock</span><span className="text-[var(--accent)]">Pilot</span>
           </span>

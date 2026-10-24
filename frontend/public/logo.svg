@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="g" x1="20" y1="10" x2="80" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f2c84b"/>
+      <stop offset="55%" stop-color="#c89a28"/>
+      <stop offset="100%" stop-color="#8a6010"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Bold S shape as a single filled path -->
+  <path d="
+    M 62 18
+    C 62 12, 56 8, 48 8
+    C 36 8, 24 16, 24 28
+    C 24 42, 38 46, 50 50
+    C 62 54, 76 58, 76 72
+    C 76 84, 64 92, 52 92
+    C 40 92, 30 86, 30 80
+    L 38 80
+    C 38 84, 44 86, 52 86
+    C 60 86, 68 82, 68 72
+    C 68 60, 54 56, 42 52
+    C 30 48, 16 42, 16 28
+    C 16 12, 30 2, 48 2
+    C 58 2, 70 8, 70 18
+    Z
+  " fill="url(#g)"/>
+
+  <!-- Arrow shaft (diagonal, top-right) -->
+  <line x1="56" y1="38" x2="80" y2="10"
+    stroke="url(#g)" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- Arrow head -->
+  <polygon points="80,10 64,8 78,24" fill="url(#g)"/>
+</svg>

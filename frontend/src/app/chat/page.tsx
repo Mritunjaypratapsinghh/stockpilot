@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Send, Bot, User, Loader2, TrendingUp, TrendingDown, PieChart, Wallet, Trash2, Copy, Check, Download, Mic, MicOff, Globe, History, Plus } from 'lucide-react';
 import Navbar from '../../components/Navbar';
-import { api } from '../../lib/api';
+import { api, getCsrfToken } from '../../lib/api';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const LANGUAGES = { en: 'English', hi: 'हिंदी', hinglish: 'Hinglish', ta: 'தமிழ்', te: 'తెలుగు', bn: 'বাংলা', mr: 'मराठी' };
@@ -160,7 +160,10 @@ export default function ChatPage() {
       const res = await fetch(`${API_BASE}/api/chat/ask`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': getCsrfToken() || document.cookie.split('; ').find(c => c.startsWith('csrf_token='))?.split('=')[1] || '',
+        },
         body: JSON.stringify({ message: msg, history: history.slice(-10), session_id: sessionId, language }),
       });
 

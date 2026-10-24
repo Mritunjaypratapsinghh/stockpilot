@@ -77,7 +77,14 @@ function SharedVaultsContent() {
 
         {!selectedVault ? (
           loading ? (
-            <div className="text-center py-12 text-[var(--text-muted)]">Loading...</div>
+            <div className="text-center py-12">
+              <div className="flex gap-1.5 justify-center mb-3">
+                {[0,1,2].map(i => (
+                  <div key={i} className="w-2.5 h-2.5 bg-[var(--accent)] rounded-full animate-pulse" style={{animationDelay:`${i*150}ms`}} />
+                ))}
+              </div>
+              <p className="text-sm text-[var(--text-muted)]">Loading...</p>
+            </div>
           ) : sharedVaults.length === 0 ? (
             <div className="text-center py-12 text-[var(--text-muted)]">No vaults have been shared with you yet.</div>
           ) : (
@@ -151,7 +158,21 @@ function SharedVaultsContent() {
 
 export default function SharedVaultsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><main className="p-6"><div className="text-center py-12 text-[var(--text-muted)]">Loading...</div></main></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen bg-[var(--bg-primary)]">
+        <Navbar />
+        <main className="p-6">
+          <div className="text-center py-12">
+            <div className="flex gap-1.5 justify-center mb-3">
+              {[0,1,2].map(i => (
+                <div key={i} className="w-2.5 h-2.5 bg-[var(--accent)] rounded-full animate-pulse" style={{animationDelay:`${i*150}ms`}} />
+              ))}
+            </div>
+            <p className="text-sm text-[var(--text-muted)]">Loading...</p>
+          </div>
+        </main>
+      </div>
+    }>
       <SharedVaultsContent />
     </Suspense>
   );

@@ -78,7 +78,19 @@ export default function PnLCalendarPage() {
     return days;
   };
 
-  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-4 md:p-6">Loading...</div></div>;
+  if (loading) return (
+    <div className="min-h-screen bg-[var(--bg-primary)]">
+      <Navbar />
+      <div className="flex flex-col items-center justify-center py-24 gap-4">
+        <div className="flex gap-1.5">
+          {[0,1,2].map(i => (
+            <div key={i} className="w-2.5 h-2.5 bg-[var(--accent)] rounded-full animate-pulse" style={{animationDelay:`${i*150}ms`}} />
+          ))}
+        </div>
+        <p className="text-sm text-[var(--text-muted)]">Loading...</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">

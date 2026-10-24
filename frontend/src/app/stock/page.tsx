@@ -294,7 +294,19 @@ function StockContent() {
 
 export default function StockPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><main className="p-6 text-center py-20"><p className="text-[var(--text-muted)]">Loading...</p></main></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen bg-[var(--bg-primary)]">
+        <Navbar />
+        <main className="flex flex-col items-center justify-center py-24 gap-4">
+          <div className="flex gap-1.5">
+            {[0,1,2].map(i => (
+              <div key={i} className="w-2.5 h-2.5 bg-[var(--accent)] rounded-full animate-pulse" style={{animationDelay:`${i*150}ms`}} />
+            ))}
+          </div>
+          <p className="text-sm text-[var(--text-muted)]">Loading...</p>
+        </main>
+      </div>
+    }>
       <StockContent />
     </Suspense>
   );

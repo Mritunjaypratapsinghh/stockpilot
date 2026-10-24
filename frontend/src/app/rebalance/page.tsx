@@ -46,7 +46,19 @@ export default function RebalancePage() {
 
   const chartData = data ? Object.entries(data.current).map(([name, value]) => ({ name, value })).filter(d => d.value > 0) : [];
 
-  if (loading) return <div className="min-h-screen bg-[var(--bg-primary)]"><Navbar /><div className="p-6 text-[var(--text-secondary)]">Loading...</div></div>;
+  if (loading) return (
+    <div className="min-h-screen bg-[var(--bg-primary)]">
+      <Navbar />
+      <div className="flex flex-col items-center justify-center py-24 gap-4">
+        <div className="flex gap-1.5">
+          {[0,1,2].map(i => (
+            <div key={i} className="w-2.5 h-2.5 bg-[var(--accent)] rounded-full animate-pulse" style={{animationDelay:`${i*150}ms`}} />
+          ))}
+        </div>
+        <p className="text-sm text-[var(--text-muted)]">Loading...</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">

@@ -133,7 +133,14 @@ export default function VaultPage() {
 
         {/* Entries Grid */}
         {loading ? (
-          <div className="text-center py-12 text-[var(--text-muted)]">Loading...</div>
+          <div className="text-center py-12">
+            <div className="flex gap-1.5 justify-center mb-3">
+              {[0,1,2].map(i => (
+                <div key={i} className="w-2.5 h-2.5 bg-[var(--accent)] rounded-full animate-pulse" style={{animationDelay:`${i*150}ms`}} />
+              ))}
+            </div>
+            <p className="text-sm text-[var(--text-muted)]">Loading...</p>
+          </div>
         ) : entries.length === 0 ? (
           <div className="text-center py-12 text-[var(--text-muted)]">No entries in {currentCategory?.label}. Click "Add Entry" to create one.</div>
         ) : (

@@ -87,6 +87,7 @@ html {
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
   overscroll-behavior: none;
+  overflow-x: hidden; /* prevent horizontal scroll on any viewport */
 }
 
 input, textarea, select {
@@ -106,6 +107,7 @@ body {
   color: var(--text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden; /* belt-and-suspenders: block h-scroll at body level too */
 }
 
 h1, h2, h3 { font-weight: 600; }
